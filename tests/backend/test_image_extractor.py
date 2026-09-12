@@ -44,14 +44,38 @@ def unreadable():
     return reply(json.dumps({"status": "unreadable", "text": ""}))
 
 
-def run(client, budget=None, *, max_chars=MAX_CHARS, max_output_tokens=1000):
+def run(client, budget=None, *, max_chars=MAX_CHARS, max_output_tokens=1000, allowed_host=HOST):
     return extract_rejection_text(
         client,
         URL,
         budget if budget is not None else Budget(BudgetLimits()),
         max_chars=max_chars,
         max_output_tokens=max_output_tokens,
+        allowed_host=allowed_host,
     )
+
+
+async def test_rejects_a_url_scheme_or_host_other_than_the_configured_endpoint():
+    """Defense in depth: image_url is always server-generated in production (see
+    ImagePipeline.extract), but this is the boundary that actually sends a URL to a
+    third-party LLM provider, so it must never forward an unexpected scheme or host."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as wrong_host:
+        await run(client, allowed_host="attacker.example.invalid")
+    assert wrong_host.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+    with pytest.raises(AnalysisError) as wrong_scheme:
+        await extract_rejection_text(
+            client,
+            URL.replace("https://", "http://"),
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert wrong_scheme.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
 
 
 async def test_one_tool_free_user_message_carries_the_transient_url():
@@ -274,6 +298,7 @@ async def test_isolated_signed_url_secrets_never_leave_extraction(text):
             Budget(),
             max_chars=8000,
             max_output_tokens=1000,
+            allowed_host=HOST,
         )
     assert error.value.code == "invalid_image_output" and text not in str(error.value)
 

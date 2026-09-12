@@ -6,6 +6,7 @@ import secrets
 import time
 import warnings
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -107,6 +108,7 @@ class ImagePipeline:
         self.config = config
         self.client = client
         self.storage = storage if storage is not None else R2Storage(config)
+        self._image_host = urlsplit(config.endpoint).hostname
         self._clock = clock
         # Deliberately process-local: restarts/other workers reject rather than guess
         # authorization from a filename. Deploy one worker or use sticky routing.
@@ -175,6 +177,7 @@ class ImagePipeline:
                     budget,
                     max_chars=self.config.ocr_max_chars,
                     max_output_tokens=self.config.ocr_max_output_tokens,
+                    allowed_host=self._image_host,
                 )
         except InvalidImage:
             raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422) from None

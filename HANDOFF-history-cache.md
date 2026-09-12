@@ -199,6 +199,13 @@ feature, and is the extension? Checked both rather than assuming.
 - No real login exists — `X-Session-Id` is just a client-supplied opaque string right
   now. If/when auth lands, swap what `_session_id()` derives it from without touching
   `HistoryTrackingService` or `CaseHistoryStore` (they only ever see a string).
+  **Neither the frontend nor the extension sends this header today**, so `/api/v1/history`
+  is currently inert for every real caller: a missing header mints a fresh, private,
+  single-request id rather than falling back to one shared bucket (that shared fallback
+  was an actual cross-user history leak, since fixed). This is intentional, not a bug -
+  a client that wants continuity must generate and persist its own id and send it
+  consistently; nothing about the cache (which stays global by design, see above) is
+  affected either way.
 - Image-originated requests are never cache-checked even after OCR produces text
   (documented as a deliberate v1 simplification in `service.py`) — a future pass could
   cache-check on the *post-OCR* text too, saving a further LLM call.

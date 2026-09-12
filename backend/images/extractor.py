@@ -29,6 +29,7 @@ _UNSAFE_SCHEME = ("data:", "javascript:", "blob:", "file:")
 _UNREADABLE = (
     "The image wording could not be read. Try a clearer image, or paste the reviewed text."
 )
+_UNAVAILABLE = "Image input is unavailable."
 
 
 class _Extraction(BaseModel):
@@ -86,8 +87,19 @@ async def extract_rejection_text(
     *,
     max_chars: int,
     max_output_tokens: int,
+    allowed_host: str,
 ) -> str:
-    """Charge one tool-free model turn to the caller's budget and return transcribed text."""
+    """Charge one tool-free model turn to the caller's budget and return transcribed text.
+
+    ``image_url`` is always server-generated (see backend/images/pipeline.py: a fresh
+    presigned GET URL to this deployment's own configured bucket, never client input),
+    so this check should never fail in practice. It exists as defense in depth: this is
+    the boundary that actually sends a URL to a third-party LLM provider, and it must
+    never forward an arbitrary scheme/host even if a future caller changes.
+    """
+    parsed_url = urlsplit(image_url)
+    if parsed_url.scheme != "https" or parsed_url.hostname != allowed_host:
+        raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
     try:
         budget.begin_model_turn()
         tokens = min(
