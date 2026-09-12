@@ -1,6 +1,6 @@
 "use strict";
 
-importScripts("mapping.js", "epfo-background.js", "privacy/vault.js", "privacy/raster.js", "privacy/controller.js");
+importScripts("mapping.js", "epfo-background.js", "privacy/vault.js", "privacy/slots.js", "privacy/raster.js", "privacy/controller.js");
 
 const { check, validateProfile, validateFile, validatePlan, validateEntries } = FormMapping;
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";

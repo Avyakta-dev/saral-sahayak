@@ -168,7 +168,7 @@ function harness(options = {}) {
     clearTimeout: id => timers.delete(id),
     importScripts: (...names) => {
       for (const name of names) {
-        assert.ok(['mapping.js', 'epfo-background.js', 'privacy/vault.js', 'privacy/raster.js', 'privacy/controller.js'].includes(name));
+        assert.ok(['mapping.js', 'epfo-background.js', 'privacy/vault.js', 'privacy/slots.js', 'privacy/raster.js', 'privacy/controller.js'].includes(name));
         const source = name === 'mapping.js' ? mappingSource : readFileSync(path.join(__dirname, '..', name), 'utf8');
         vm.runInContext(source, context, { filename: name });
       }

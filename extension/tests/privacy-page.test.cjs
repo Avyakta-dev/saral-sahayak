@@ -451,3 +451,89 @@ test('concurrent authorized READ attempts cannot read the same generation twice'
   assert.ok(results.every(result => result.error === 'PRIVACY_STALE'));
   assert.equal(f.fields[0].reads, 0);
 });
+
+
+test('explicit PRIVACY_FILL writes .value only, never submit/click, and consumes the session', async () => {
+  const field = new Input({ autocomplete: 'name' });
+  field.raw = 'Synthetic Person';
+  field.events = [];
+  const originalSet = Object.getOwnPropertyDescriptor(Input.prototype, 'value');
+  const originalDispatch = Object.getOwnPropertyDescriptor(Element.prototype, 'dispatchEvent');
+  Object.defineProperty(Input.prototype, 'value', {
+    get() { this.reads++; return this.raw; },
+    set(next) { this.raw = String(next); },
+    configurable: true
+  });
+  Element.prototype.dispatchEvent = function dispatchEvent(event) {
+    this.events = this.events || [];
+    this.events.push(event.type);
+    return true;
+  };
+  Element.prototype.click = function click() { assert.fail('No click'); };
+  try {
+    const f = fixture([field]);
+    f.env.Event = class Event {
+      constructor(type, init = {}) { this.type = type; this.bubbles = Boolean(init.bubbles); }
+    };
+    const scan = await f.inspect();
+    assert.equal((await f.read(scan.generation))[0].value, 'Synthetic Person');
+    field.raw = '';
+    const result = await f.send({
+      type: 'PRIVACY_FILL',
+      generation: scan.generation,
+      entries: [{ id: 'field-1', label: 'applicant name', value: 'Synthetic Person' }]
+    });
+    assert.equal(result.results[0].status, 'filled');
+    assert.equal(field.raw, 'Synthetic Person');
+    assert.deepEqual(field.events, ['input', 'change']);
+    assert.match(result.warnings[0], /never clicks Submit/);
+    assert.equal(f.timers.size, 0);
+    const after = await f.check(scan.generation);
+    assert.equal(after.valid, false);
+    assert.notEqual(after.generation, scan.generation);
+  } finally {
+    Object.defineProperty(Input.prototype, 'value', originalSet);
+    Object.defineProperty(Element.prototype, 'dispatchEvent', originalDispatch);
+    delete Element.prototype.click;
+  }
+});
+
+test('PRIVACY_FILL aborts when a newer non-empty edit differs from the approved value', async () => {
+  const field = new Input({ autocomplete: 'name' });
+  field.raw = 'Synthetic Person';
+  field.events = [];
+  const originalSet = Object.getOwnPropertyDescriptor(Input.prototype, 'value');
+  Object.defineProperty(Input.prototype, 'value', {
+    get() { this.reads++; return this.raw; },
+    set(next) { this.raw = String(next); },
+    configurable: true
+  });
+  try {
+    const f = fixture([field]);
+    f.env.Event = class Event {
+      constructor(type, init = {}) { this.type = type; this.bubbles = Boolean(init.bubbles); }
+    };
+    const scan = await f.inspect();
+    await f.read(scan.generation);
+    field.raw = 'User Edited';
+    const result = await f.send({
+      type: 'PRIVACY_FILL',
+      generation: scan.generation,
+      entries: [{ id: 'field-1', label: 'applicant name', value: 'Synthetic Person' }]
+    });
+    assert.deepEqual(result, { error: 'PRIVACY_STALE' });
+    assert.equal(field.raw, 'User Edited');
+    assert.deepEqual(field.events, []);
+  } finally {
+    Object.defineProperty(Input.prototype, 'value', originalSet);
+  }
+});
+
+test('PRIVACY_FILL rejects submit-like message shapes and unknown operations', async () => {
+  const f = fixture();
+  const scan = await f.inspect();
+  await f.read(scan.generation);
+  assert.deepEqual(await f.send({ type: 'PRIVACY_FILL', generation: scan.generation, entries: [], submit: true }), { error: 'PRIVACY_INVALID_REQUEST' });
+  assert.deepEqual(await f.send({ type: 'PRIVACY_SUBMIT', generation: scan.generation }), { ignored: true });
+  assert.equal(f.fields[0].raw, '');
+});

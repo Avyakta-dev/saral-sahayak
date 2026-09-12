@@ -44,6 +44,10 @@ function harness(t) {
           case 'PRIVACY_CHECK': return realm({ valid: true });
           case 'PRIVACY_READ': return realm(message.ids.map(slot => ({ slot, label: 'applicant name', value: 'Synthetic Person' })));
           case 'PRIVACY_RESET': return realm({ reset: true });
+          case 'PRIVACY_FILL': return realm({
+            results: message.entries.map(entry => ({ id: entry.id, status: 'filled', message: 'Applied locally. Review the page; the extension never submits.' })),
+            warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
+          });
           default: return deny(`page action ${message.type}`);
         }
       }
@@ -67,6 +71,7 @@ function harness(t) {
   }
   context.console = Object.fromEntries(['log', 'warn', 'error', 'debug', 'info'].map(name => [name, () => deny(`console.${name}`)]));
   vm.runInContext(source('vault'), context);
+  vm.runInContext(source('slots'), context);
   // Observe real instances without replacing their validation, randomness, or private storage.
   const begin = context.PrivacyVault.Vault.prototype.begin;
   context.PrivacyVault.Vault.prototype.begin = function (binding) { vaults.push(this); bindings.push(binding); return begin.call(this, binding); };
@@ -91,7 +96,10 @@ function harness(t) {
   function deadVaults() { vaults.forEach((vault, i) => assert.throws(() => vault.snapshot(bindings[i]), /VAULT_INVALIDATED/)); }
   t.after(() => {
     api.cancel(); deadVaults(); assert.deepEqual(forbidden, []);
-    assert.doesNotMatch(JSON.stringify([ports.map(port => port.output), messages, rasters]), /Synthetic Person/);
+    const publicOutput = ports.flatMap(port => port.output.filter(message => message.type !== 'restored' && message.type !== 'filled'));
+    const publicMessages = messages.filter(entry => entry.message.type !== 'PRIVACY_FILL');
+    // Restored UI payloads and explicit Fill releases may contain values; other surfaces must not.
+    assert.doesNotMatch(JSON.stringify([publicOutput, publicMessages, rasters]), /Synthetic Person/);
     assert.equal(chrome.tabs.captureVisibleTab, undefined); assert.equal(chrome.tabs.captureTab, undefined);
   });
   return { api, chrome, tab, holds, contexts, contextQueries, ports, messages, injections, rasters, vaults, bindings, windows, timers, connect, start, capture, reads, deadVaults,
@@ -200,12 +208,50 @@ test('capture before inspect, invalid crop, and wrong review tag fail closed', a
   }
 });
 
-for (const type of ['analyze', 'upload', 'restore', 'fill', 'submit', 'fetch', 'setProvider']) test(`${type} remains disabled even after exact review`, async t => {
+for (const type of ['analyze', 'upload', 'submit', 'fetch', 'setProvider']) test(`${type} remains disabled even after exact review`, async t => {
   const h = harness(t); const p = await h.start(); await h.capture(p);
   await p.send({ type: 'review', approvalTag: p.output.at(-1).approvalTag });
   const count = h.messages.length; await p.send({ type });
   assert.equal(p.output.at(-1).type, 'expired'); h.deadVaults();
   assert.deepEqual(h.messages.slice(count).map(item => item.message.type), ['PRIVACY_RESET']);
+});
+
+test('host-local restore then explicit Fill never submits and consumes the vault', async t => {
+  const h = harness(t); const p = await h.start(); await h.capture(p);
+  await p.send({ type: 'review', approvalTag: p.output.at(-1).approvalTag });
+  assert.equal(p.output.at(-1).type, 'reviewed');
+  await p.send({ type: 'restore' });
+  const restored = p.output.at(-1);
+  assert.equal(restored.type, 'restored');
+  assert.equal(restored.slots[0].filled, true);
+  assert.equal(restored.slots[0].value, 'Synthetic Person');
+  assert.equal(h.reads('PRIVACY_FILL').length, 0);
+  await p.send({ type: 'fill', confirmed: true, slots: ['field-1'] });
+  const filled = p.output.find(message => message.type === 'filled');
+  assert.ok(filled);
+  assert.equal(filled.results[0].status, 'filled');
+  assert.match(filled.message, /never clicks Submit/);
+  assert.equal(h.reads('PRIVACY_FILL').length, 1);
+  const fillMessage = h.reads('PRIVACY_FILL')[0].message;
+  assert.deepEqual(Object.keys(fillMessage).sort(), ['entries', 'generation', 'type']);
+  assert.equal(fillMessage.entries[0].id, 'field-1');
+  assert.equal(fillMessage.entries[0].value, 'Synthetic Person');
+  h.deadVaults();
+});
+
+test('Fill without confirmation or before restore fails closed', async t => {
+  for (const mode of ['no-confirm', 'before-restore', 'empty']) {
+    const h = harness(t); const p = await h.start(); await h.capture(p);
+    await p.send({ type: 'review', approvalTag: p.output.at(-1).approvalTag });
+    if (mode !== 'before-restore') await p.send({ type: 'restore' });
+    const count = h.reads('PRIVACY_FILL').length;
+    if (mode === 'no-confirm') await p.send({ type: 'fill', confirmed: false, slots: ['field-1'] });
+    else if (mode === 'empty') await p.send({ type: 'fill', confirmed: true, slots: [] });
+    else await p.send({ type: 'fill', confirmed: true, slots: ['field-1'] });
+    assert.equal(p.output.at(-1).type, 'expired', mode);
+    assert.equal(h.reads('PRIVACY_FILL').length, count, mode);
+    h.deadVaults();
+  }
 });
 
 const endings = {
