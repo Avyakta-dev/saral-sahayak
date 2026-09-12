@@ -120,6 +120,16 @@ def create_app(
 
     app = FastAPI(title="Saral Sahayak Markdown agent", version="0.2.0", lifespan=lifespan)
     app.add_middleware(BodyLimitMiddleware)
+    if settings.analysis_access_mode == "protected":
+        from backend.access import AnalysisAccessMiddleware
+
+        app.add_middleware(
+            AnalysisAccessMiddleware,
+            token=settings.analysis_access_token,
+            requests_per_minute=settings.analysis_requests_per_minute,
+            max_concurrent=settings.analysis_max_concurrent,
+            timeout_seconds=settings.analysis_request_seconds,
+        )
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
