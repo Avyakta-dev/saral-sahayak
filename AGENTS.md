@@ -28,6 +28,11 @@ The backend now has an analysis service reusing bounded file tools and the evide
 
 **Advanced extension requirements:** read the [extension privacy and provider guide](references/extension-privacy-and-provider-guide.md) before screenshot, placeholder/restoration or custom-provider work. Ajay has separate Extension Privacy Levels 1–5; Avyakta has Extension UI Levels 1–3. Keep the original five Extension and five Image levels separate. Capture is click-only and fail-closed: sanitize/flatten pixels locally, manually preview, then separately approve transmission; never send the original screenshot or base64. AI receives only opaque request-bound placeholders, filled flags and safe labels, not private values, partial characters or length hints. Restore approved non-secret fields only locally after validation and preview; Fill is separate and never automatic submission. Provider options are trusted extension-only, keys transport-only/session-default, with equal redaction for local and remote modes. This is future scope, not runtime support or permission to bypass grounding/readiness.
 
+
+## Avoid accidental GitHub issue auto-close
+
+GitHub auto-closes issues when commit or PR title/body text matches verbs like **close**, **fix**, or **resolve** next to `#N` — even inside phrases such as “does not close #N”. Prefer wording like **Related to issue N** (no close/fix/resolve verbs beside the number) unless you truly intend to close that issue.
+
 ## Engineering and privacy constraints
 
 - The Markdown agent design is the architecture source of truth above the old PDFs/text and archived dataset instructions. The updated hackathon plan supplies operational scope. Prioritize grounded EPFO text and independent quality review of the six accepted languages; downloads and optional OCR follow incrementally, while PM-JAY and voice are stretch work.
