@@ -56,7 +56,10 @@
       });
       const data = await readJSON(response);
       requireValue(version === generation, "This backend request was cancelled.");
-      return { data, status: response.status, success: response.ok };
+      const retryHeader = response.headers.get("retry-after");
+      const retryAfter = typeof retryHeader === "string" && /^[0-9]{1,4}$/.test(retryHeader)
+        && Number(retryHeader) >= 1 && Number(retryHeader) <= 3600 ? Number(retryHeader) : null;
+      return { data, status: response.status, success: response.ok, retryAfter };
     } catch (error) {
       if (requestController.signal.aborted) throw new Error("Backend request cancelled or timed out after 35 seconds. No automatic retry was made.");
       if (error instanceof TypeError) throw new Error("Cannot reach Saral Sahayak at http://127.0.0.1:8000. Start FastAPI, then connect again.");
@@ -216,7 +219,15 @@
       requireValue(result.success || data.status === "error", "The backend HTTP status conflicts with its analysis result.");
       return { ok: true, data, status: result.status };
     }
-    const errors = { 400: "Backend could not parse the request.", 413: "Backend rejected the request as too large.", 422: "Backend rejected the request schema." };
+    const errors = {
+      400: "Backend could not parse the request (HTTP 400).",
+      401: "Backend access denied (HTTP 401). Protected analysis requires an approved authenticated gateway. Do not enter the shared server token in this extension.",
+      403: "Backend access forbidden (HTTP 403). Ask the operator to check the approved access path; do not add server credentials to the browser.",
+      413: "Backend rejected the request as too large (HTTP 413).",
+      422: "Backend rejected the request schema (HTTP 422).",
+      429: `Backend analysis capacity is limited (HTTP 429).${result.retryAfter ? ` Wait at least ${result.retryAfter} seconds before choosing to try again.` : " Try again later only if you choose."} No automatic retry was made.`,
+      504: "The backend request timed out (HTTP 504). No automatic retry was made; this is not a completed analysis."
+    };
     throw new Error(errors[result.status] || `Backend returned an unexpected response (HTTP ${result.status}).`);
   }
 
