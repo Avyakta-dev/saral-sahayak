@@ -13,7 +13,13 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from references.build_epfo_knowledge import OUTPUT, ROOT, load_records
+from references.build_epfo_knowledge import (
+    OUTPUT,
+    ROOT,
+    load_records,
+    load_source_catalog,
+    sources_and_verification,
+)
 
 REVIEW_ROOT = ROOT / "references/reviews/epfo"
 ARCHIVE = ROOT / "references/epfo-claim-rejection-rag-dataset"
@@ -91,16 +97,7 @@ def validate_readable_record(record: dict, text: str) -> None:
     expected["Related records"] = "\n".join(
         f"- [{related}](./{related}.md)" for related in record["related_reason_ids"]
     )
-    expected["Sources and verification"] = "\n".join(
-        (
-            f"- **Source types (record-level summary; not URL-position aligned):** {', '.join(record['source_types'])}",
-            f"- **Confidence:** {record['confidence']}",
-            f"- **Last verified in source record:** {record['last_verified']}",
-            f"- **Notes/caveats:** {record['notes'] or '_No additional note recorded._'}",
-            "",
-            *[f"- {url}" for url in record["source_urls"]],
-        )
-    )
+    expected["Sources and verification"] = sources_and_verification(record, load_source_catalog())
     for heading, value in expected.items():
         if content.get(heading) != value:
             raise ValueError(f"{rid}: readable evidence drift in {heading}")

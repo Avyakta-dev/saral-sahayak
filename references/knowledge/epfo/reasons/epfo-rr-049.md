@@ -55,16 +55,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Composite_Claim_Forms_31792.pdf (2016-17) introduced the two CCFs.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
-- https://www.paisabazaar.com/saving-schemes/epf-composite-claim-form/
-- https://cleartax.in/c/pf-withdrawal-online
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
+- [official] https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+
+### Secondary (news / blog / forum)
+
+- [blog] https://www.paisabazaar.com/saving-schemes/epf-composite-claim-form/
+- [blog] https://cleartax.in/c/pf-withdrawal-online
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

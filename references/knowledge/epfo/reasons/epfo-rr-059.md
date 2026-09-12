@@ -55,14 +55,23 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, circular
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, circular
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://kustodian.life/resources/epf-claim-rejected-reasons-guide
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
+
+### Secondary (news / blog / forum)
+
+- [blog] https://kustodian.life/resources/epf-claim-rejected-reasons-guide
+- [blog] https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

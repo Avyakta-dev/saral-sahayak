@@ -58,17 +58,23 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** forum, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** forum, blog, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Forum remarks are real; exact statutory para labels vary by scheme edition.
 
-- https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
-- https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
-- https://cleartax.in/s/epf-form-31
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary (news / blog / forum)
+
+- [forum] https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
+- [forum] https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
+- [blog] https://cleartax.in/s/epf-form-31
+- [news] https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- [blog] https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

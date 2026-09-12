@@ -42,3 +42,22 @@ footer { margin: 20px 0; }
 .consent small { display: block; font-weight: 400; color: #52645e; }
 #fill-outcomes { margin-top: 12px; overflow-wrap: anywhere; }
 #restored-slots { margin-top: 8px; }
+
+/* Extension UI Level 2 — disclosure panels (no vault/transport changes) */
+.local-only { border-left-color: #b06521; background: #f8efe3; }
+.stack { display: grid; gap: 6px; font-weight: 600; margin: 10px 0; }
+.stack select {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #78988c;
+  border-radius: 5px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+}
+.stack select:disabled { opacity: .65; cursor: not-allowed; background: #e9ece4; }
+#outbound-section { border-style: dashed; }
+#outbound-meta { font-family: ui-monospace, monospace; font-size: .85rem; }
+#analyze-destination { margin-bottom: 12px; }
+#first-last-row { color: #52645e; font-size: .92rem; }

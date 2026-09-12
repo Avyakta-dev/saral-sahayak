@@ -58,16 +58,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://kustodian.life/resources/epf-death-claim-process-india
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form20.pdf
-- https://zeenews.india.com/personal-finance/pf-settlement-money-may-not-reach-your-family-for-a-common-mistake-your-e-nomination-will-not-be-valid-until-you-do-this-3054752.html
-- https://epfigms.gov.in/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form20.pdf
+- [official] https://epfigms.gov.in/
+
+### Secondary (news / blog / forum)
+
+- [blog] https://kustodian.life/resources/epf-death-claim-process-india
+- [news] https://zeenews.india.com/personal-finance/pf-settlement-money-may-not-reach-your-family-for-a-common-mistake-your-e-nomination-will-not-be-valid-until-you-do-this-3054752.html
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

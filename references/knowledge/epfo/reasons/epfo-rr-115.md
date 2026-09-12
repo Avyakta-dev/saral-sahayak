@@ -57,16 +57,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, blog, circular
+- **Source types (record-level summary; not a positional zip with URLs):** news, blog, circular
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://epfwala.com/pf-claim-status-shows-settled-but-amount-not-credited/
-- https://righttoinformation.wiki/practical-guides/epfo-claim-settled-money-not-credited
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+
+### Secondary (news / blog / forum)
+
+- [news] https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- [blog] https://epfwala.com/pf-claim-status-shows-settled-but-amount-not-credited/
+- [blog] https://righttoinformation.wiki/practical-guides/epfo-claim-settled-money-not-credited
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

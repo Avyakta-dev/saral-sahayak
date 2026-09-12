@@ -56,16 +56,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Full circular text reproduced on StaffNews. Applies to transfer claims, not automatically to all settlements.
 
-- https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
-- https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
-- https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
+
+### Secondary (news / blog / forum)
+
+- [news] https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- [news] https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
+- [news] https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
+- [news] https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

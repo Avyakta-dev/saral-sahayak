@@ -59,16 +59,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Operational edge widely seen in pension desks; scheme text does not publish a portal code.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
-- https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
-- https://epfigms.gov.in/
-- https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
-- https://jeevanpramaan.gov.in
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
+- [official] https://epfigms.gov.in/
+- [official] https://jeevanpramaan.gov.in
+
+### Secondary (news / blog / forum)
+
+- [blog] https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
+- [blog] https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

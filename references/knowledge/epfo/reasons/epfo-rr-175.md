@@ -56,16 +56,25 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** DSC FAQ is official; token errors are the practical manifestation.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2020-2021/Faq_dsc.pdf
-- https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://orbitcareers.com/uan-kyc-pending-for-employer-approval/
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2020-2021/Faq_dsc.pdf
+- [official] https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
+- [official] https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- [official] https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary (news / blog / forum)
+
+- [blog] https://orbitcareers.com/uan-kyc-pending-for-employer-approval/
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

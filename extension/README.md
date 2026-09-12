@@ -106,6 +106,10 @@ Session state includes your key, raw profile values, raw file bytes, captured fi
 
 Synthetic annotated privacy-flow mocks and a state checklist live under [`mocks/privacy-ux-level-1/`](mocks/privacy-ux-level-1/). They are static HTML/SVG/docs only: no network, no vault changes, and **no claim that redaction is implemented**. Open [`mocks/privacy-ux-level-1/privacy-flow-mocks.html`](mocks/privacy-ux-level-1/privacy-flow-mocks.html) locally. Ajay’s `privacy/` runtime modules remain the fail-closed source of truth.
 
+## Extension UI Level 2 (issue 22 — partial)
+
+The trusted `privacy/privacy.html` window now includes outbound-vs-local disclosure, disabled provider/first-last/Analyze controls, and plain-text restore labelling. Evidence: [`evidence/ui-level-2-controls-preview.md`](evidence/ui-level-2-controls-preview.md). Analyze/upload/provider transport stay unavailable. Vault/controller/slots/page/raster were not modified. Issue 22 stays open.
+
 ## Checks
 
 Run from the repository root with Node.js 22:
