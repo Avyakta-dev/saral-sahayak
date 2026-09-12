@@ -1,7 +1,7 @@
 # Saral Sahayak — Hackathon Build Plan
 
 > **Hackathon build window:** 19 hours  
-> **Team:** Anish, Avyakta, Sharvya, Ajay  
+> **Team:** Anish, Avyakta, Shravya, Ajay  
 > **Primary demo:** EPFO claim rejection  
 > **Stretch goal:** PM-JAY only after the EPFO flow is stable
 
@@ -537,7 +537,7 @@ A reliable, structured, source-backed EPFO knowledge base.
 
 ---
 
-## Sharvya — Frontend / UX
+## Shravya — Frontend / UX
 
 ### Owns
 
@@ -726,7 +726,7 @@ backend/rag/
 docs/dataset.md
 ```
 
-## Sharvya
+## Shravya
 
 ```text
 frontend/
@@ -772,7 +772,7 @@ README.md
 - Define initial rejection categories
 - Start knowledge-base schema
 
-### Sharvya
+### Shravya
 
 - Create frontend scaffold
 - Build input page
@@ -813,7 +813,7 @@ Build:
 - Source metadata
 - Retrieval prototype
 
-## Sharvya
+## Shravya
 
 Build:
 
@@ -861,7 +861,7 @@ Expand:
 - Sources
 - Retrieval quality
 
-## Sharvya
+## Shravya
 
 Connect frontend to API.
 
@@ -1105,7 +1105,7 @@ Build in parallel:
                │
       ┌────────┼────────┐
       ↓        ↓        ↓
-  Avyakta   Sharvya    Ajay
+  Avyakta   Shravya    Ajay
    RAG       UI      Docs/Test
       └────────┼────────┘
                ↓

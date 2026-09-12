@@ -2,7 +2,8 @@
 .v2c/
 .video_agent/
 
-# Original PDFs stay local pending privacy review
+# Private originals stay local; reviewed public copies live in references/pdfs/
+/private-reference-originals/
 /Saral sahayak.pdf
 /Setu_Inferentia (1).pdf
 
