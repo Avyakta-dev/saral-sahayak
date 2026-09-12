@@ -413,13 +413,23 @@
       return;
     }
     if (message.type === 'expired') {
-      const expired = !message.message || [
+      const raw = typeof message.message === 'string' ? message.message : '';
+      const timeout = !raw || [
         'Privacy window expired. Reopen from the source tab.',
         'The 120-second request expired. Recapture is required.',
-      ].includes(message.message);
-      end(expired
-        ? 'The local session expired. All preview and field data have been cleared. No automatic restart.'
-        : 'Local operation blocked or source changed. Access may be unavailable or denied. All preview and field data have been cleared. Reopen from the source tab to inspect again.', false);
+      ].includes(raw);
+      const kind = timeout ? 'expired' : failClosedKind(raw);
+      // Host-authored only: classify known worker wording, never echo arbitrary/private text.
+      const host = {
+        expired: 'The local session expired. All preview and field data have been cleared. No automatic restart.',
+        blocked: 'Privacy operation blocked or source changed. Access may be unavailable or denied. All preview and field data have been cleared. Reopen from the source tab to inspect again.',
+        stale: 'The source page changed. Privacy state and preview were discarded. All preview and field data have been cleared. Reopen from the source tab to inspect again.',
+        unavailable: 'The local worker is unavailable. All session data have been cleared.',
+        cancelled: 'Cancelled. All preview and field data have been cleared.',
+        closed: 'The local session closed. All preview and field data have been cleared.',
+        ended: 'Local operation blocked or source changed. Access may be unavailable or denied. All preview and field data have been cleared. Reopen from the source tab to inspect again.',
+      };
+      end(host[kind] || host.ended, false);
     } else if (message.type === 'ready' && state === 'connecting') {
       state = 'ready';
       ui.status.textContent = 'Local worker ready. Choose Inspect to request safe field metadata.';
