@@ -116,7 +116,13 @@ function harness(options = {}) {
     },
     storage: { session: {
       setAccessLevel: async access => { record('setAccessLevel', [access]); },
-      get: async key => { record('get', [key]); return plain(session); },
+      get: async key => {
+        // Snapshot before waiting: a pending read must not see a later Clear/Connect.
+        const snapshot = plain(session);
+        record('get', [key]);
+        if (hooks.get) await hooks.get(key, snapshot);
+        return snapshot;
+      },
       set: async values => {
         // Snapshot at invocation, like Chrome serialization, but allow delayed commits.
         const snapshot = plain(values);
@@ -354,6 +360,109 @@ test('EPFO capabilities survive worker suspension, while malformed cached metada
   assert.match(rejected.error, /Saved backend capabilities are invalid/);
   assert.equal(malformed.session().epfoConnection, undefined);
   assert.equal(malformed.of('fetch').length, 0);
+});
+
+test('EPFO Clear invalidates a delayed valid capability read before later analysis', async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: EPFO_CAPABILITIES } } });
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.get = key => {
+    if (key !== 'epfoConnection' || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  h.hooks.epfoFetch = () => jsonResponse(epfoErrorAnalysis(), 500);
+  const payload = { text: 'Synthetic rejection remark', language: 'en', consent: true };
+  const old = h.send('SS_EPFO_ANALYZE', payload);
+  await entered.promise;
+  successful(await h.send('SS_CLEAR'));
+  assert.equal(h.session().epfoConnection, undefined);
+  pending.resolve();
+  failed(await old, /cancelled|cleared or replaced/);
+  assert.equal(h.of('fetch').length, 0, 'Cancelled old analysis must not send HTTP');
+  const current = await h.send('SS_EPFO_ANALYZE', payload);
+  assert.equal(h.of('fetch').length, 0, 'Cleared capabilities must not authorize later HTTP');
+  failed(current, /Connect to the backend/);
+  assert.equal(h.session().epfoConnection, undefined);
+});
+
+test('EPFO Clear invalidates a delayed Connect write in both storage and memory', async () => {
+  const h = harness();
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.set = snapshot => {
+    if (!snapshot.epfoConnection || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  h.hooks.epfoFetch = url => url.endsWith('/capabilities')
+    ? jsonResponse(EPFO_CAPABILITIES) : jsonResponse(epfoErrorAnalysis(), 500);
+  const old = h.send('SS_EPFO_CAPABILITIES');
+  await entered.promise;
+  const clearing = h.send('SS_CLEAR');
+  // Clear may serialize its removal behind the older pending storage commit.
+  await new Promise(resolve => setImmediate(resolve));
+  pending.resolve();
+  failed(await old, /cancelled|cleared or replaced/);
+  successful(await clearing);
+  assert.equal(h.session().epfoConnection, undefined);
+  h.resetCalls();
+  const current = await h.send('SS_EPFO_ANALYZE', { text: 'Synthetic rejection remark', language: 'en', consent: true });
+  assert.equal(h.of('fetch').length, 0, 'Cancelled Connect must not repopulate the in-memory cache');
+  failed(current, /Connect to the backend/);
+  assert.equal(h.session().epfoConnection, undefined);
+});
+
+for (const failure of ['malformed snapshot', 'storage rejection']) test(`EPFO stale ${failure} cannot erase a newer Connect`, async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: { schema_version: '1.0', languages: [] } } } });
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.get = key => {
+    if (key !== 'epfoConnection' || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  const fresh = { ...plain(EPFO_CAPABILITIES), languages: EPFO_CAPABILITIES.languages.map(language => ({ ...language, quality_verified: false })) };
+  h.hooks.epfoFetch = (url, init) => {
+    if (url.endsWith('/capabilities')) return jsonResponse(fresh);
+    assert.equal(url, `${EPFO_BASE}/api/v1/analyze`);
+    assert.equal(init.method, 'POST');
+    assert.deepEqual(JSON.parse(init.body), { text: 'Synthetic rejection remark', language: 'en' });
+    return jsonResponse(epfoErrorAnalysis(), 500);
+  };
+  const payload = { text: 'Synthetic rejection remark', language: 'en', consent: true };
+  const old = h.send('SS_EPFO_ANALYZE', payload);
+  await entered.promise;
+  assert.deepEqual(await h.send('SS_EPFO_CAPABILITIES'), { ok: true, data: fresh, status: 200 });
+  const connection = { connected: true, capabilities: fresh };
+  assert.deepEqual(h.session().epfoConnection, connection);
+  h.resetCalls();
+  if (failure === 'storage rejection') pending.reject(new Error('Synthetic delayed session read failure'));
+  else pending.resolve();
+  failed(await old, /cancelled|cleared or replaced|Saved backend capabilities are invalid/);
+  const afterOld = h.session().epfoConnection;
+  const current = await h.send('SS_EPFO_ANALYZE', payload);
+  assert.deepEqual({
+    connection: afterOld,
+    removals: h.of('remove').filter(call => call.args[0] === 'epfoConnection').length,
+    reads: h.of('get').filter(call => call.args[0] === 'epfoConnection').length,
+    response: current,
+    requests: h.of('fetch').map(call => call.args[0])
+  }, {
+    connection, removals: 0, reads: 0,
+    response: { ok: true, data: epfoErrorAnalysis(), status: 500 },
+    requests: [`${EPFO_BASE}/api/v1/analyze`]
+  }, 'Old read failure must preserve the newer session and warm cache');
+  assert.deepEqual(h.session().epfoConnection, connection);
 });
 
 // Exercise the real listener, capabilities discovery, transport and validators together.
