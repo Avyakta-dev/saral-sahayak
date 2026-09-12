@@ -44,3 +44,7 @@ for file in extension/privacy/*.js extension/background.js; do node --check "$fi
 - Offline VM/Chrome/canvas mocks (except native crypto) do **not** prove real pixel rendering, browser memory cleanup, Chrome/Brave lifecycle, useful sanitized screenshots or provider safety.
 
 Chrome/Brave interactive Fill on a real EPFO portal, selective pixel redaction, Analyze/upload and Avyakta UI polish remain **not run / not complete**. Keep issues 17 and 18 open until their evidence checklists are satisfied.
+
+## Related UI mocks
+
+Avyakta’s Extension UI Level 1 annotated mocks (issue 21) are at [`../mocks/privacy-ux-level-1/`](../mocks/privacy-ux-level-1/). Those files do not replace this developer UI or certify redaction.
