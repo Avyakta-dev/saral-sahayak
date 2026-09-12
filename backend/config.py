@@ -101,7 +101,9 @@ class Settings(BaseSettings):
         if path.exists() and path.is_dir():
             raise ValueError("history_persist_path must be a file path, not a directory")
         if not path.parent.is_dir():
-            raise ValueError(f"history_persist_path's parent directory does not exist: {path.parent}")
+            raise ValueError(
+                f"history_persist_path's parent directory does not exist: {path.parent}"
+            )
         return value
 
     @field_validator("cors_origins")
