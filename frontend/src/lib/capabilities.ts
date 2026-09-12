@@ -31,7 +31,14 @@ export const capabilitiesSchema = z
         agent_implemented: z.boolean(),
       })
       .strict(),
-    inputs: z.tuple([z.literal('text')]),
+    inputs: z
+      .array(z.enum(['text', 'image']))
+      .min(1)
+      .max(2)
+      .refine(
+        (inputs) => inputs.includes('text') && new Set(inputs).size === inputs.length,
+        'Inputs require text and may include image once.',
+      ),
     downloads_available: z.boolean(),
   })
   .strict()

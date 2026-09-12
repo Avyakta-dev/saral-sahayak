@@ -95,7 +95,8 @@ describe('offline capability-driven App', () => {
       'മലയാളം',
     ]);
     expect(screen.getByText('6 example languages · quality unreviewed')).toBeVisible();
-    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(screen.getAllByRole('combobox')).toHaveLength(2);
+    expect(screen.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');
     expect(screen.getByRole('button', { name: /Show me an example/ })).toBeVisible();
     for (const scenario of demo.demoScenarios) {
       expect(screen.queryByRole('button', { name: scenario.label })).not.toBeInTheDocument();

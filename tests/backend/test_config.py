@@ -21,6 +21,7 @@ def test_defaults_are_unconfigured():
     settings = Settings(_env_file=None)
     assert settings.llm_config() is None
     assert settings.llm_api_style == "responses"
+    assert settings.llm_stream is False
     assert settings.llm_timeout_seconds == 25
     assert settings.analysis_request_seconds == 30
     assert settings.llm_connect_timeout_seconds == 5
@@ -29,6 +30,103 @@ def test_defaults_are_unconfigured():
     assert settings.llm_extra_headers == {}
     assert settings.cors_origins == []
     assert settings.supported_languages == ["en", "hi", "kn", "ta", "te", "ml"]
+
+
+IMAGE_ENDPOINT = "https://account.r2.cloudflarestorage.com"
+
+
+def test_image_input_is_disabled_and_unconfigured_by_default():
+    settings = Settings(_env_file=None)
+    assert settings.image_input_enabled is False
+    assert settings.image_lifecycle_configured is False
+    assert settings.image_r2_endpoint == ""
+    assert settings.image_r2_bucket == ""
+    assert settings.image_config() is None
+    assert settings.image_upload_ttl_seconds == 120
+    assert settings.image_url_max_ttl_seconds == 120
+    assert settings.image_max_bytes == 10 * 1024 * 1024
+    assert settings.image_ocr_max_chars == 8000
+    assert settings.image_ocr_max_output_tokens == 1000
+    assert settings.image_content_types == ["image/png", "image/jpeg", "image/webp"]
+
+
+def test_image_environment_mapping(monkeypatch):
+    values = {
+        "IMAGE_INPUT_ENABLED": "true",
+        "IMAGE_LIFECYCLE_CONFIGURED": "true",
+        "IMAGE_R2_ENDPOINT": f" {IMAGE_ENDPOINT} ",
+        "IMAGE_R2_BUCKET": " synthetic-bucket ",
+        "IMAGE_UPLOAD_TTL_SECONDS": "45",
+        "IMAGE_URL_MAX_TTL_SECONDS": "60",
+        "IMAGE_MAX_BYTES": "2048",
+        "IMAGE_OCR_MAX_CHARS": "512",
+        "IMAGE_OCR_MAX_OUTPUT_TOKENS": "256",
+        "IMAGE_CONTENT_TYPES": '["image/png"]',
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    settings = Settings(_env_file=None)
+    config = settings.image_config()
+    assert config is not None
+    assert config.endpoint == IMAGE_ENDPOINT  # whitespace stripped
+    assert config.bucket == "synthetic-bucket"
+    assert config.region == "auto"
+    assert config.upload_ttl_seconds == 45
+    assert config.url_max_ttl_seconds == 60
+    assert config.max_bytes == 2048
+    assert config.ocr_max_chars == 512
+    assert config.ocr_max_output_tokens == 256
+    assert config.content_types == ("image/png",)
+
+
+@pytest.mark.parametrize(
+    ("enabled", "endpoint", "bucket"),
+    [
+        (False, IMAGE_ENDPOINT, "synthetic-bucket"),  # explicit opt-in is required
+        (True, "", "synthetic-bucket"),  # no destination
+        (True, IMAGE_ENDPOINT, ""),  # no bucket
+        (True, "   ", "synthetic-bucket"),
+    ],
+)
+def test_image_config_fails_closed_when_incomplete(enabled, endpoint, bucket):
+    settings = Settings(
+        _env_file=None,
+        image_input_enabled=enabled,
+        image_r2_endpoint=endpoint,
+        image_r2_bucket=bucket,
+    )
+    assert settings.image_config() is None
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://account.r2.cloudflarestorage.com",  # not HTTPS
+        f"{IMAGE_ENDPOINT}/path",
+        f"{IMAGE_ENDPOINT}?query=1",
+        f"{IMAGE_ENDPOINT}#fragment",
+        "https://user:pass@account.r2.cloudflarestorage.com",
+        "account.r2.cloudflarestorage.com",
+        "*",
+    ],
+)
+def test_image_endpoint_must_be_a_bare_https_origin(endpoint):
+    settings = Settings(
+        _env_file=None,
+        image_input_enabled=True,
+        image_lifecycle_configured=True,
+        image_r2_endpoint=endpoint,
+        image_r2_bucket="synthetic-bucket",
+    )
+    with pytest.raises(ValidationError):
+        settings.image_config()
+
+
+def test_image_credentials_are_not_settings_fields():
+    # The standard boto3 chain owns credentials; the app only names the destination.
+    fields = Settings.model_fields
+    assert not [name for name in fields if "access_key" in name or "secret_access" in name]
+    assert "AWS_ACCESS_KEY_ID" not in " ".join(fields)
 
 
 @pytest.mark.parametrize("style", ["responses", "chat_completions", "messages"])
@@ -173,6 +271,35 @@ def test_mapped_config_preserves_prefix_and_accepts_exact_endpoint(style, suffix
             llm_model="synthetic-model",
         ).llm_config()
         assert config.endpoint_url == "https://llm.example.invalid/proxy/v1" + suffix
+
+
+@pytest.mark.parametrize("enabled", ["true", "false"])
+def test_stream_environment_maps_without_changing_budgets(monkeypatch, enabled):
+    monkeypatch.setenv("LLM_STREAM", enabled)
+    settings = Settings(
+        _env_file=None,
+        llm_api_key=SYNTHETIC_KEY,
+        llm_base_url="https://llm.example.invalid/v1",
+        llm_model="synthetic-model",
+    )
+    assert settings.llm_config().stream is (enabled == "true")
+    assert settings.llm_config().timeout_seconds == 25
+    assert settings.llm_config().max_output_tokens == 2000
+    assert settings.analysis_budget_limits().request_seconds == 30
+
+
+@pytest.mark.parametrize("style", ["messages", "chat_completions"])
+def test_stream_unsupported_protocol_is_explicit_configuration_error(style):
+    settings = Settings(
+        _env_file=None,
+        llm_api_style=style,
+        llm_stream=True,
+        llm_api_key=SYNTHETIC_KEY,
+        llm_base_url="https://llm.example.invalid/v1",
+        llm_model="synthetic-model",
+    )
+    with pytest.raises(ValidationError, match="LLM_STREAM=true currently requires"):
+        settings.llm_config()
 
 
 def test_analysis_budget_limits_follows_setting():

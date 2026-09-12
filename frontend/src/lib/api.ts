@@ -1,5 +1,11 @@
 import { capabilitiesSchema, type Capabilities as ValidatedCapabilities } from './capabilities';
 import {
+  activitySchema,
+  liveResponseSchema,
+  uploadTicketSchema,
+  type AnalysisActivity,
+  type OutputLanguage,
+  type UploadTicket,
   requestSchema,
   responseSchema,
   transportErrorSchema,
@@ -38,6 +44,18 @@ export interface ApiClient {
   baseUrl: string;
   getCapabilities(signal: AbortSignal): Promise<ValidatedCapabilities>;
   analyze(input: AnalysisInput, signal: AbortSignal): Promise<AnalyzeResponse>;
+  analyzeStream?(
+    input: AnalysisInput,
+    signal: AbortSignal,
+    onActivity: (activity: AnalysisActivity) => void,
+  ): Promise<AnalyzeResponse>;
+  createImageUpload?(language: Language, file: File, signal: AbortSignal): Promise<UploadTicket>;
+  analyzeImageStream?(
+    key: string,
+    language: Language,
+    signal: AbortSignal,
+    onActivity: (activity: AnalysisActivity) => void,
+  ): Promise<AnalyzeResponse>;
 }
 
 export function isRetryableCode(code: string): boolean {
@@ -234,10 +252,11 @@ export function createApiClient(
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
 
   async function request<T>(
-    endpoint: 'capabilities' | 'analyze',
+    endpoint: 'capabilities' | 'analyze' | 'analyze/stream' | 'images/uploads',
     signal: AbortSignal,
     parse: (body: unknown, response: Response) => T,
     body?: string,
+    streamReader?: (response: Response, signal: AbortSignal) => Promise<T>,
   ): Promise<T> {
     if (signal.aborted) throw abortError();
     const controller = new AbortController();
@@ -265,6 +284,7 @@ export function createApiClient(
         credentials: 'omit',
         redirect: 'error',
         cache: 'no-store',
+        referrerPolicy: 'no-referrer',
         ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body }),
       });
       // An injected/nonconforming fetch may resolve after cancellation. Do not
@@ -281,6 +301,7 @@ export function createApiClient(
         cancelBody(response);
         throw invalidResponse(response.status);
       }
+      if (response.ok && streamReader) return streamReader(response, controller.signal);
       const json = await readJson(response, controller.signal);
       if (controller.signal.aborted) throw interruption ?? abortError();
       return parse(json, response);
@@ -300,8 +321,67 @@ export function createApiClient(
     }
   }
 
+  const stream = (
+    payload: string,
+    language: Language,
+    signal: AbortSignal,
+    onActivity: (activity: AnalysisActivity) => void,
+  ) =>
+    request(
+      'analyze/stream',
+      signal,
+      (body, response) => {
+        const result = liveResponseSchema.safeParse(body);
+        if (result.success && result.data.language === language && result.data.error)
+          throw new ApiError(
+            result.data.error.code,
+            safeErrorMessage(result.data.error.code),
+            response.status,
+          );
+        throw smallHttpError(body, response.status) ?? invalidResponse(response.status);
+      },
+      payload,
+      (response, requestSignal) =>
+        readAnalysisStream(response, requestSignal, language, onActivity),
+    );
+
   return {
     baseUrl: base,
+    analyzeStream(input, signal, onActivity) {
+      const parsed = requestSchema.safeParse(input);
+      if (!parsed.success)
+        return Promise.reject(
+          new ApiError('invalid_request', 'Check the text, language and request size.'),
+        );
+      return stream(JSON.stringify(parsed.data), input.language, signal, onActivity);
+    },
+    createImageUpload(language, file, signal) {
+      if (
+        !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
+        !Number.isSafeInteger(file.size) ||
+        file.size < 1 ||
+        file.size > 10 * 1024 * 1024
+      )
+        return Promise.reject(
+          new ApiError('invalid_request', 'Choose a valid image of 10 MiB or less.'),
+        );
+      return request(
+        'images/uploads',
+        signal,
+        (body, response) => {
+          const parsed = uploadTicketSchema.safeParse(body);
+          if (response.ok && parsed.success && parsed.data.content_type === file.type)
+            return parsed.data;
+          throw smallHttpError(body, response.status) ?? invalidResponse(response.status);
+        },
+        JSON.stringify({ language, content_type: file.type, content_length: file.size }),
+      );
+    },
+    analyzeImageStream(key, language, signal, onActivity) {
+      if (!/^inbox\/[0-9a-f]{32}\.(?:png|jpg|jpeg|webp)$/.test(key))
+        return Promise.reject(new ApiError('invalid_request', 'Invalid image reference.'));
+      return stream(JSON.stringify({ image_key: key, language }), language, signal, onActivity);
+    },
     getCapabilities(signal) {
       return request('capabilities', signal, (body, response) => {
         if (!response.ok)
@@ -367,7 +447,13 @@ export function getConfiguredApiClient(): ApiClient | null {
     if (typeof rawTimeout !== 'string' || !/^\d+$/.test(rawTimeout)) throw invalidConfiguration();
     timeoutMs = validateTimeout(Number(rawTimeout));
   }
-  return createApiClient(`${baseUrl}/api/v1`, { timeoutMs });
+  const client = createApiClient(`${baseUrl}/api/v1`, { timeoutMs });
+  if (
+    import.meta.env.VITE_ENABLE_ANALYSIS !== 'true' &&
+    import.meta.env.VITE_ENABLE_STREAMING !== 'true'
+  )
+    client.analyzeStream = undefined;
+  return client;
 }
 
 function requireConfiguredApiClient(): ApiClient {
@@ -386,4 +472,175 @@ export async function fetchCapabilities(signal?: AbortSignal): Promise<Capabilit
 export async function analyzeRemark(input: AnalyzeRemarkInput): Promise<AnalyzeResponse> {
   const { signal, ...payload } = input;
   return requireConfiguredApiClient().analyze(payload, signal ?? new AbortController().signal);
+}
+
+export const ANALYSIS_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
+export const RESPONSE_BYTE_LIMIT = MAX_RESPONSE_BYTES;
+const invalid = 'The backend returned an invalid response. No guidance was displayed.';
+export function safeErrorMessage(code: string): string {
+  if (code === 'analysis_timeout' || code === 'request_timeout')
+    return 'Analysis timed out. Review before trying again.';
+  return 'Analysis could not be completed safely. No guidance was displayed.';
+}
+async function readAnalysisStream(
+  response: Response,
+  requestSignal: AbortSignal,
+  language: Language,
+  onActivity: (activity: AnalysisActivity) => void,
+): Promise<AnalyzeResponse> {
+  if (
+    !/^text\/event-stream(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '') ||
+    !response.body
+  )
+    throw new ApiError('invalid_response', invalid);
+  const length = response.headers.get('content-length');
+  if (length !== null && (!/^\d+$/.test(length) || Number(length) > RESPONSE_BYTE_LIMIT))
+    throw new ApiError('invalid_response', invalid);
+  const reader = response.body.getReader();
+  const cancelRead = () => {
+    void reader.cancel().catch(() => {});
+  };
+  requestSignal.addEventListener('abort', cancelRead, { once: true });
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let buffer = '',
+    size = 0,
+    activities = 0;
+  let final: AnalyzeResponse | null = null;
+  const frame = (raw: string) => {
+    let event = '',
+      data = '';
+    for (const line of raw.split('\n')) {
+      if (!line || line.startsWith(':')) continue;
+      if (line.startsWith('event:') && !event) event = line.slice(6).replace(/^ /, '');
+      else if (line.startsWith('data:'))
+        data += (data ? '\n' : '') + line.slice(5).replace(/^ /, '');
+      else throw new ApiError('invalid_response', invalid);
+    }
+    if (!event && !data) return;
+    if (final || !data) throw new ApiError('invalid_response', invalid);
+    const value: unknown = JSON.parse(data);
+    if (event === 'activity') {
+      const parsed = activitySchema.safeParse(value);
+      if (!parsed.success || ++activities > 128) throw new ApiError('invalid_response', invalid);
+      if (!requestSignal.aborted) onActivity(parsed.data);
+    } else if (event === 'result') {
+      const parsed = liveResponseSchema.safeParse(value);
+      if (!parsed.success || parsed.data.language !== language)
+        throw new ApiError('invalid_response', invalid);
+      final = parsed.data;
+    } else throw new ApiError('invalid_response', invalid);
+  };
+  try {
+    while (true) {
+      if (requestSignal.aborted) throw abortError();
+      const { done, value } = await reader.read();
+      if (requestSignal.aborted) throw abortError();
+      if (value) {
+        size += value.byteLength;
+        if (size > RESPONSE_BYTE_LIMIT) throw new ApiError('invalid_response', invalid);
+      }
+      buffer += decoder.decode(value, { stream: !done });
+      // Normalize only complete CRLF pairs, including pairs split across chunks.
+      buffer = buffer.replace(/\r\n/g, '\n');
+      let boundary: number;
+      while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+        frame(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+      }
+      if (done) break;
+    }
+    if (buffer.trim() || !final)
+      throw new ApiError(
+        'invalid_response',
+        'The analysis stream ended without a complete validated result. No guidance was displayed.',
+      );
+    const result = final as AnalyzeResponse;
+    if (result.error) throw new ApiError(result.error.code, safeErrorMessage(result.error.code));
+    return result;
+  } catch (error) {
+    cancelRead();
+    throw error instanceof ApiError ? error : new ApiError('invalid_response', invalid);
+  } finally {
+    requestSignal.removeEventListener('abort', cancelRead);
+    reader.releaseLock();
+  }
+}
+
+export function analyzeTextStream(
+  text: string,
+  language: OutputLanguage,
+  signal: AbortSignal,
+  onActivity: (activity: AnalysisActivity) => void,
+): Promise<AnalyzeResponse> {
+  const client = createApiClient(`${getApiBaseUrl()}/api/v1`);
+  return client.analyzeStream!({ text, language }, signal, onActivity);
+}
+/** Upload the exact reviewed File; never add a forbidden Content-Length header. */
+export async function uploadImage(
+  ticket: UploadTicket,
+  file: File,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!uploadTicketSchema.safeParse(ticket).success || file.type !== ticket.content_type)
+    throw new ApiError(
+      'invalid_request',
+      'The image type changed before upload. Re-attach the image.',
+    );
+  if (signal.aborted) throw abortError();
+  const controller = new AbortController();
+  let rejectAbort: (error: Error) => void = () => undefined;
+  const interrupted = new Promise<never>((_, reject) => {
+    rejectAbort = reject;
+  });
+  const abort = () => {
+    rejectAbort(abortError());
+    controller.abort();
+  };
+  signal.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => {
+    rejectAbort(new ApiError('analysis_timeout', 'Image upload timed out.'));
+    controller.abort();
+  }, 20_000);
+  try {
+    const response = await Promise.race([
+      fetch(ticket.upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': ticket.content_type },
+        body: file,
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        signal: controller.signal,
+      }),
+      interrupted,
+    ]);
+    cancelBody(response);
+    if (controller.signal.aborted) throw abortError();
+    if (!response.ok || response.redirected)
+      throw new ApiError('image_upload_failed', 'Image upload failed. Review before trying again.');
+  } catch (cause) {
+    if (cause instanceof ApiError || (cause instanceof Error && cause.name === 'AbortError'))
+      throw cause;
+    throw new ApiError('image_upload_failed', 'Image upload failed. Review before trying again.');
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', abort);
+  }
+}
+
+export function getCapabilities(signal: AbortSignal): Promise<ValidatedCapabilities> {
+  return createApiClient(`${getApiBaseUrl()}/api/v1`).getCapabilities(signal);
+}
+export async function analyzeText(
+  text: string,
+  language: OutputLanguage,
+  signal: AbortSignal,
+): Promise<AnalyzeResponse> {
+  const result = await createApiClient(`${getApiBaseUrl()}/api/v1`).analyze(
+    { text, language },
+    signal,
+  );
+  if (result.error) throw new ApiError(result.error.code, safeErrorMessage(result.error.code));
+  return result;
 }

@@ -30,6 +30,10 @@ def build(
         elif message.provider_items:
             content.extend(deepcopy(message.provider_items))
         else:
+            content.extend(
+                {"type": "image", "source": {"type": "url", "url": url}}
+                for url in message.image_urls
+            )
             if message.content:
                 content.append({"type": "text", "text": message.content})
             content.extend(

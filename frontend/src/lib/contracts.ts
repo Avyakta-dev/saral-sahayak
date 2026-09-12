@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const languageSchema = z.enum(['en', 'hi', 'kn', 'ta', 'te', 'ml']);
 export type Language = z.infer<typeof languageSchema>;
+export const outputLanguageSchema = languageSchema;
+export type OutputLanguage = Language;
 const recordIdSchema = z
   .string()
   .length(11)
@@ -147,30 +149,24 @@ const citationSchema = z
   })
   .strict()
   .superRefine((citation, context) => {
+    if (
+      (citation.start_column == null) !== (citation.end_column == null) ||
+      (citation.start_line === citation.end_line &&
+        citation.start_column != null &&
+        citation.end_column != null &&
+        citation.end_column < citation.start_column)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['end_column'],
+        message: 'Citation columns must be paired and ordered on a single line.',
+      });
+    }
     if (citation.end_line < citation.start_line) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['end_line'],
         message: 'Citation line range is reversed.',
-      });
-    }
-    if ((citation.start_column === null) !== (citation.end_column === null)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['end_column'],
-        message: 'Citation columns must be supplied together.',
-      });
-    }
-    if (
-      citation.start_line === citation.end_line &&
-      citation.start_column !== null &&
-      citation.end_column !== null &&
-      citation.end_column < citation.start_column
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['end_column'],
-        message: 'Citation column range is reversed.',
       });
     }
   });
@@ -291,6 +287,145 @@ export type AnalyzeResponse = z.infer<typeof responseSchema>;
 export type Citation = z.infer<typeof citationSchema>;
 export type SupportedText = z.infer<typeof supportedTextSchema>;
 export type Draft = z.infer<typeof draftSchema>;
+
+// Fixtures retain historical defaults; the network boundary requires explicit wire fields.
+export const liveResponseSchema = z
+  .unknown()
+  .superRefine((value, context) => {
+    const required = [
+      'schema_version',
+      'status',
+      'language',
+      'classification',
+      'explanation',
+      'actions',
+      'required_documents',
+      'draft',
+      'citations',
+      'warnings',
+      'questions',
+      'error',
+    ];
+    if (!value || typeof value !== 'object' || required.some((key) => !Object.hasOwn(value, key))) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Incomplete analysis response.',
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+    const citations = (value as Record<string, unknown>).citations;
+    if (
+      Array.isArray(citations) &&
+      citations.some(
+        (citation) =>
+          !citation ||
+          typeof citation !== 'object' ||
+          !Object.hasOwn(citation, 'record_id') ||
+          !Object.hasOwn(citation, 'source_urls'),
+      )
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Incomplete citation metadata.',
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+  })
+  .pipe(responseSchema)
+  .superRefine((value, context) => {
+    const strings = [
+      ...value.explanation.map((block) => block.text),
+      ...value.actions.map((block) => block.text),
+      ...value.required_documents.map((block) => block.text),
+      ...value.questions,
+      ...value.warnings,
+      ...value.citations.map((citation) => citation.heading),
+      ...(value.classification
+        ? [value.classification.category, value.classification.rationale]
+        : []),
+      ...(value.draft
+        ? [
+            value.draft.title,
+            ...value.draft.blocks.map((block) => block.text),
+            ...value.draft.missing_fields,
+          ]
+        : []),
+    ];
+    if (strings.some((text) => !/[^\p{White_Space}\p{C}]/u.test(text))) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Response contains blank prose.' });
+    }
+  });
+
+/** The browser PUTs image bytes here, so it must be a bare HTTPS origin without credentials. */
+export const uploadTicketSchema = z
+  .object({
+    object_key: z.string().regex(/^inbox\/[0-9a-f]{32}\.(?:png|jpg|jpeg|webp)$/),
+    upload_url: z
+      .string()
+      .max(2048)
+      .refine(
+        (url) =>
+          safeSourceUrl(url) !== null &&
+          url.startsWith('https://') &&
+          !/[\u0000-\u0020\u007f\\]/u.test(url),
+        'Upload URLs must be HTTPS without credentials.',
+      ),
+    content_type: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    expires_in: z.number().int().positive().max(900),
+  })
+  .strict();
+export type UploadTicket = z.infer<typeof uploadTicketSchema>;
+
+/** Image mode is an alternative to text, never an addition: exactly one input is sent. */
+export function imageInputAvailable(capabilities: { inputs?: string[] } | null): boolean {
+  return capabilities?.inputs?.includes('image') === true;
+}
+
+const activityText = boundedText(1024)
+  .refine((text) => new TextEncoder().encode(text).byteLength <= 1024)
+  .refine((text) => !/[\p{C}]/u.test(text) && text.trim().length > 0);
+export const activitySchema = z
+  .object({
+    phase: z.enum(['thinking', 'reading', 'searching', 'validating']),
+    turn: z.number().int().positive().max(128).optional(),
+    path: z
+      .string()
+      .max(1000)
+      .refine(
+        (path) =>
+          path.startsWith('references/knowledge/epfo/') &&
+          path.endsWith('.md') &&
+          !/[\\%?#:\p{C}]/u.test(path) &&
+          path.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+      )
+      .optional(),
+    heading: activityText.optional(),
+    start_line: z.number().int().positive().safe().optional(),
+    end_line: z.number().int().positive().safe().optional(),
+  })
+  .strict()
+  .superRefine((event, context) => {
+    if (
+      (event.phase === 'reading' &&
+        (!event.path || event.start_line === undefined || event.end_line === undefined)) ||
+      (event.phase !== 'reading' &&
+        (event.path !== undefined ||
+          event.heading !== undefined ||
+          event.start_line !== undefined ||
+          event.end_line !== undefined)) ||
+      (event.start_line !== undefined &&
+        event.end_line !== undefined &&
+        event.end_line < event.start_line)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid reading activity metadata.',
+      });
+    }
+  });
+export type AnalysisActivity = z.infer<typeof activitySchema>;
 
 const requestBodyBytes = (body: unknown) =>
   new TextEncoder().encode(JSON.stringify(body)).byteLength;
