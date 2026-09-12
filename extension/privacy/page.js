@@ -2,7 +2,8 @@
   'use strict';
 
   // Inject in the isolated world, top frame only, on an explicit worker capture action.
-  // This adapter has no vault, screenshot, fill, storage or provider interface.
+  // This adapter has no vault, screenshot, storage or provider interface.
+  // Explicit PRIVACY_FILL may write .value only after worker approval; it never submits.
   const LIMITS = Object.freeze({ candidates: 20, examined: 1000, metadata: 1024, labels: 8, lifetime: 120000 });
   const VALUE_LIMITS = Object.freeze({ 'applicant name': 200, 'contact email': 254, 'contact phone': 60, 'postal address': 1000 });
   const AUTOCOMPLETE = Object.freeze({ name: 'applicant name', email: 'contact email', tel: 'contact phone', 'street-address': 'postal address' });
@@ -13,7 +14,7 @@
     address: 'postal address', 'street address': 'postal address', 'postal address': 'postal address'
   });
   const ERRORS = Object.freeze({ invalid: 'PRIVACY_INVALID_REQUEST', stale: 'PRIVACY_STALE', unavailable: 'PRIVACY_UNAVAILABLE', value: 'PRIVACY_VALUE_REJECTED' });
-  const TYPES = new Set(['PRIVACY_INSPECT', 'PRIVACY_READ', 'PRIVACY_CHECK', 'PRIVACY_RESET']);
+  const TYPES = new Set(['PRIVACY_INSPECT', 'PRIVACY_READ', 'PRIVACY_CHECK', 'PRIVACY_FILL', 'PRIVACY_RESET']);
   const ATTRIBUTES = ['type', 'autocomplete', 'name', 'id', 'aria-label', 'placeholder', 'title', 'aria-labelledby', 'aria-describedby', 'role', 'inputmode', 'form'];
   const normalize = text => text.trim().replace(/\s+/g, ' ').toLowerCase();
   const lookup = (registry, key) => Object.hasOwn(registry, key) ? registry[key] : null;
@@ -60,6 +61,10 @@
     const getters = {
       input: Object.getOwnPropertyDescriptor(env.HTMLInputElement.prototype, 'value').get,
       textarea: Object.getOwnPropertyDescriptor(env.HTMLTextAreaElement.prototype, 'value').get
+    };
+    const setters = {
+      input: Object.getOwnPropertyDescriptor(env.HTMLInputElement.prototype, 'value').set,
+      textarea: Object.getOwnPropertyDescriptor(env.HTMLTextAreaElement.prototype, 'value').set
     };
     let revision = 0;
     let generation = `${seed}-${revision}`;
@@ -247,15 +252,78 @@
       return result;
     }
 
+    async function fill(message) {
+      // Explicit Fill only. Never click, submit, navigate or synthesize trusted events.
+      if (!current(message.generation) || !state.read) fail(ERRORS.stale);
+      if (!Array.isArray(message.entries) || message.entries.length < 1 || message.entries.length > LIMITS.candidates) fail(ERRORS.invalid);
+      if (!await validateBindings(message.generation)) fail(ERRORS.stale);
+      const prepared = [];
+      const seen = new Set();
+      for (const entry of message.entries) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(ERRORS.invalid);
+        const keys = Object.keys(entry);
+        if (keys.length !== 3 || keys.some(key => !['id', 'label', 'value'].includes(key))) fail(ERRORS.invalid);
+        const { id, label, value } = entry;
+        if (typeof id !== 'string' || !state.fields.has(id) || seen.has(id)) fail(ERRORS.invalid);
+        seen.add(id);
+        const record = state.fields.get(id);
+        if (record.label !== label || typeof value !== 'string' || value === '') fail(ERRORS.invalid);
+        const limit = VALUE_LIMITS[label];
+        if (!limit || value.length > 2 * limit) fail(ERRORS.value);
+        let count = 0;
+        for (const character of value) { if (++count > limit) fail(ERRORS.value); }
+        // Abort only when a newer non-empty edit differs from the approved value.
+        // Empty fields and unchanged approved values remain eligible for explicit Fill.
+        const live = getters[record.element.localName].call(record.element);
+        if (typeof live !== 'string') fail(ERRORS.stale);
+        if (live !== '' && live !== value) fail(ERRORS.stale);
+        prepared.push({ id, label, value, record, live });
+      }
+      if (!await validateBindings(message.generation)) fail(ERRORS.stale);
+      const results = [];
+      for (const item of prepared) {
+        if (!current(message.generation)) {
+          results.push({ id: item.id, status: 'skipped', message: 'Page changed before write. No further fields were filled.' });
+          continue;
+        }
+        try {
+          const live = await describe(item.record.element);
+          if (!live || live.element !== item.record.element || live.label !== item.label || live.fingerprint !== item.record.fingerprint) {
+            fail(ERRORS.stale);
+          }
+          const currentValue = getters[item.record.element.localName].call(item.record.element);
+          if (typeof currentValue !== 'string' || (currentValue !== '' && currentValue !== item.value)) fail(ERRORS.stale);
+          setters[item.record.element.localName].call(item.record.element, item.value);
+          const written = getters[item.record.element.localName].call(item.record.element);
+          if (written !== item.value) throw new Error('rejected');
+          // Synthetic input/change only — never click, submit, requestSubmit or form.submit.
+          item.record.element.dispatchEvent(new env.Event('input', { bubbles: true }));
+          item.record.element.dispatchEvent(new env.Event('change', { bubbles: true }));
+          results.push({ id: item.id, status: 'filled', message: 'Applied locally. Review the page; the extension never submits.' });
+        } catch (_) {
+          results.push({ id: item.id, status: 'failed', message: 'The site rejected this field. Review the page; no retry or submit was attempted.' });
+        }
+      }
+      // Consume the page session after one Fill attempt so writes cannot be replayed.
+      invalidate();
+      return {
+        results,
+        warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
+      };
+    }
+
     async function handle(message) {
       try {
         if (!message || typeof message !== 'object' || Array.isArray(message) || !TYPES.has(message.type)) fail(ERRORS.invalid);
-        const keys = message.type === 'PRIVACY_READ' ? ['type', 'generation', 'ids'] : message.type === 'PRIVACY_CHECK' ? ['type', 'generation'] : ['type'];
+        const keys = message.type === 'PRIVACY_READ' || message.type === 'PRIVACY_FILL'
+          ? (message.type === 'PRIVACY_READ' ? ['type', 'generation', 'ids'] : ['type', 'generation', 'entries'])
+          : message.type === 'PRIVACY_CHECK' ? ['type', 'generation'] : ['type'];
         if (Object.keys(message).length !== keys.length || keys.some(key => !Object.hasOwn(message, key)) ||
             (keys.includes('generation') && (typeof message.generation !== 'string' || message.generation.length > 96))) fail(ERRORS.invalid);
         if (message.type === 'PRIVACY_INSPECT') return await inspect();
         if (message.type === 'PRIVACY_READ') return await read(message);
         if (message.type === 'PRIVACY_CHECK') return { valid: await validateBindings(message.generation), generation };
+        if (message.type === 'PRIVACY_FILL') return await fill(message);
         invalidate();
         return { reset: true };
       } catch (error) {

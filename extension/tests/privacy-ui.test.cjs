@@ -98,7 +98,7 @@ function harness(t) {
   window.close = () => { closes++; };
   const port = { onMessage: portEvent(), onDisconnect: portEvent(),
     postMessage(message) {
-      if (!['inspect', 'capture', 'review', 'cancel'].includes(message.type)) deny('unexpected Port command');
+      if (!['inspect', 'capture', 'review', 'restore', 'fill', 'cancel'].includes(message.type)) deny('unexpected Port command');
       calls.push(plain(message));
     }, disconnect() { disconnects++; port.onDisconnect.emit(); } };
   const chrome = { runtime: { connect(options) { connections.push(plain(options)); return port; }, lastError: undefined } };
@@ -153,8 +153,8 @@ function scrubbed(h, cancels = 1) {
 test('actual HTML starts disabled; ready is inert until the explicit Inspect click', t => {
   const h = harness(t);
   assert.deepEqual(h.connections, [{ name: 'privacy-local' }]); assert.deepEqual(h.calls, []);
-  for (const id of ['inspect', 'fields', 'crop-controls', 'capture', 'review-check', 'confirm', 'cancel']) assert.equal(h.get(id).disabled, true);
-  assert.equal(h.get('preview-section').hidden, true); assert.equal(h.get('preview-image').src, '');
+  for (const id of ['inspect', 'fields', 'crop-controls', 'capture', 'review-check', 'confirm', 'restore', 'fill', 'cancel']) assert.equal(h.get(id).disabled, true);
+  assert.equal(h.get('preview-section').hidden, true); assert.equal(h.get('restore-section').hidden, true); assert.equal(h.get('fill-section').hidden, true); assert.equal(h.get('preview-image').src, '');
   assert.equal(h.timers.size, 0); h.reply({ type: 'ready' });
   assert.equal(h.get('inspect').disabled, false); assert.equal(h.get('cancel').disabled, false);
   assert.deepEqual(h.calls, []); h.fire('inspect'); assert.deepEqual(h.calls, [{ type: 'inspect' }]);
@@ -186,12 +186,13 @@ test('capture and late preview replies cannot extend the inspection deadline', t
   h.advance(10000); h.reply(preview()); assert.match(h.get('expiry').textContent, /80 seconds/);
   h.advance(80000); h.get('preview-image').onload(); scrubbed(h);
 });
-test('PNG load and checked consent jointly gate review with the exact approval tag; no transmission or Fill', t => {
+test('PNG load and checked consent jointly gate review with the exact approval tag; no transmission or auto-Fill', t => {
   const h = harness(t); shown(h); noRaw(h);
   assert.equal(h.get('preview-image').src, PNG); assert.equal(h.get('preview-section').hidden, false);
   assert.deepEqual(h.get('slots').children.map(node => node.textContent), [
     'applicant name — Filled: yes — Mask: ***', '<b>contact email</b> — Filled: no — Mask: ***']);
   assert.equal(h.get('review-check').disabled, true); assert.equal(h.get('confirm').disabled, true);
+  assert.equal(h.get('restore-section').hidden, true); assert.equal(h.get('fill-section').hidden, true);
   h.get('review-check').checked = true; h.fire('confirm', 'click', true); assert.equal(h.calls.length, 2);
   h.get('review-check').checked = false; h.get('preview-image').onload();
   assert.equal(h.get('review-check').disabled, false); assert.equal(h.get('confirm').disabled, true);
@@ -200,8 +201,12 @@ test('PNG load and checked consent jointly gate review with the exact approval t
   h.get('review-check').checked = false; h.fire('review-check', 'change'); assert.equal(h.get('confirm').disabled, true);
   h.get('review-check').checked = true; h.fire('review-check', 'change'); h.fire('confirm');
   assert.deepEqual(h.calls.at(-1), { type: 'review', approvalTag: TAG }); assert.equal(h.get('confirm').disabled, true);
-  h.reply({ type: 'reviewed' }); assert.match(h.get('status').textContent, /Nothing was transmitted, restored, or filled/);
-  const unavailable = nodes(h.document.body).filter(node => node.tagName === 'BUTTON' && ['Analyze', 'Restore', 'Fill'].includes(node.textContent));
+  h.reply({ type: 'reviewed' });
+  assert.match(h.get('status').textContent, /Restore is available/);
+  assert.match(h.get('status').textContent, /Analyze\/upload\/Submit stay disabled/);
+  assert.equal(h.get('restore-section').hidden, false); assert.equal(h.get('restore').disabled, false);
+  assert.equal(h.get('fill-section').hidden, true); assert.equal(h.get('fill').disabled, true);
+  const unavailable = nodes(h.document.body).filter(node => node.tagName === 'BUTTON' && ['Analyze', 'Upload image', 'Submit'].includes(node.textContent));
   assert.equal(unavailable.length, 3);
   for (const button of unavailable) { assert.equal(button.disabled, true); assert.equal(button.listeners.size, 0); }
   assert.deepEqual(h.calls.map(call => call.type), ['inspect', 'capture', 'review']); noRaw(h);

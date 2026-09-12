@@ -11,7 +11,8 @@
   function notify(s, message) {
     try { s.port?.postMessage(message); } catch { /* A closed preview cannot receive state. */ }
   }
-  function dispose(reason = "Privacy session cleared. Reopen from the source tab.") {
+  function dispose(reason = "Privacy session cleared. Reopen from the source tab.", options = {}) {
+    const silent = options && options.silent === true;
     serial += 1;
     const previous = session;
     session = null;
@@ -21,8 +22,9 @@
     previous.preview = null;
     previous.inspection = null;
     previous.binding = null;
+    previous.restored = null;
     if (previous.documentId) chrome.tabs.sendMessage(previous.tabId, { type: "PRIVACY_RESET" }, { documentId: previous.documentId }).catch(() => {});
-    notify(previous, { type: "expired", message: reason });
+    if (!silent) notify(previous, { type: "expired", message: reason });
   }
   async function open() {
     check(!opening, "A privacy window is already opening.");
@@ -33,7 +35,7 @@
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       check(generation === serial, "Privacy opening was cancelled.");
       check(tab?.id && /^https?:\/\//.test(tab.url || ""), "Open privacy capture from a normal HTTP(S) source tab.");
-      const s = { tabId: tab.id, sourceWindowId: tab.windowId, url: tab.url, windowId: null, port: null, timer: null, vault: null, documentId: null, inspection: null, busy: false, generation, preview: null, binding: null };
+      const s = { tabId: tab.id, sourceWindowId: tab.windowId, url: tab.url, windowId: null, port: null, timer: null, vault: null, documentId: null, inspection: null, busy: false, generation, preview: null, binding: null, restored: null };
       session = s;
       s.windowReady = chrome.windows.create({ url: chrome.runtime.getURL("privacy/privacy.html"), type: "popup", width: 500, height: 760 });
       const window = await s.windowReady;
@@ -102,7 +104,76 @@
     await verify(s);
     check(s.preview && message.approvalTag === s.preview.approvalTag, "The reviewed preview is no longer current.");
     s.vault.markReviewed(message.approvalTag, s.binding);
-    return { type: "reviewed", message: "Local preview reviewed. Analyze, image upload, restoration and Fill remain disabled for this level." };
+    return {
+      type: "reviewed",
+      message: "Local preview reviewed. Restore uses a host template only; Analyze/upload stay disabled. Fill requires a separate explicit approval and never submits."
+    };
+  }
+
+  async function restore(s) {
+    await verify(s);
+    check(s.vault && s.preview, "Confirm the local preview before restoration.");
+    const snapshot = s.vault.snapshot(s.binding);
+    check(snapshot.stage === "reviewed", "Restoration requires a reviewed local preview.");
+    const template = PrivacySlots.hostTemplate(snapshot);
+    const echo = PrivacySlots.hostEchoResponse(snapshot);
+    const validated = PrivacySlots.validateSlotResponse(echo, snapshot.slots);
+    const released = s.vault.restoreLocal(s.binding);
+    const valueByToken = new Map(released.slots.filter(item => item.filled).map(item => [item.token, item.value]));
+    const restored = PrivacySlots.restoreLocal(validated, valueByToken);
+    // Trusted privacy window may display restored values for local review only.
+    s.restored = restored;
+    return {
+      type: "restored",
+      templateId: template.template_id,
+      title: template.title,
+      notice: template.blocks[0].text,
+      slots: restored.map(item => Object.freeze({
+        slot: item.slot,
+        label: item.label,
+        filled: item.filled,
+        value: item.filled ? item.value : null,
+        unresolved: !item.filled
+      })),
+      remainingMs: released.remainingMs
+    };
+  }
+
+  async function fill(s, message) {
+    await verify(s);
+    check(message.confirmed === true, "Approve filling selected fields before Fill.");
+    check(Array.isArray(message.slots) && message.slots.length > 0, "Select at least one restored field to fill.");
+    check(s.restored && s.vault && s.inspection, "Restore locally before Fill.");
+    const allowed = new Set(s.restored.filter(item => item.filled).map(item => item.slot));
+    check(message.slots.every(slot => typeof slot === "string" && allowed.has(slot)), "Only restored filled fields can be selected for Fill.");
+    check(new Set(message.slots).size === message.slots.length, "Duplicate Fill selections are not allowed.");
+    const released = s.vault.consumeFill(message.slots, s.binding);
+    s.vault = null;
+    s.restored = null;
+    const entries = released.map(item => ({ id: item.slot, label: item.label, value: item.value }));
+    let response;
+    try {
+      response = await chrome.tabs.sendMessage(s.tabId, {
+        type: "PRIVACY_FILL",
+        generation: s.inspection.generation,
+        entries
+      }, { documentId: s.documentId });
+    } catch {
+      dispose("The page stopped responding during Fill. Inspect it for partial changes. Nothing was submitted.");
+      return null;
+    }
+    // Clear private values from this controller after the write attempt.
+    for (const entry of entries) entry.value = "";
+    check(response && !response.error && Array.isArray(response.results), "Fill was rejected by the page adapter.");
+    const result = {
+      type: "filled",
+      results: response.results,
+      warnings: response.warnings || [],
+      message: "Fill attempt finished. The extension never clicks Submit. Review the page yourself."
+    };
+    notify(s, result);
+    dispose("Fill finished. Local privacy state was cleared. Submission remains manual.", { silent: true });
+    return null;
   }
 
   chrome.runtime.onConnect.addListener(port => {
@@ -140,6 +211,12 @@
           case "inspect": check(!s.inspection, "Reopen before inspecting a different page."); return inspect(s);
           case "capture": return capture(s, message);
           case "review": return review(s, message);
+          case "restore": return restore(s);
+          case "fill": return fill(s, message);
+          case "analyze":
+          case "upload":
+          case "submit":
+            throw new Error("Analyze, upload and Submit remain disabled. Fill is separate and never submits.");
           default: throw new Error("This action is not available in local-only privacy mode.");
         }
       })().then(result => { if (session === s) notify(s, result); }).catch(() => {

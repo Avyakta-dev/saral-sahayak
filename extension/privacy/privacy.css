@@ -39,3 +39,6 @@ footer { margin: 20px 0; }
   section { padding: 14px; }
   .crop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.consent small { display: block; font-weight: 400; color: #52645e; }
+#fill-outcomes { margin-top: 12px; overflow-wrap: anywhere; }
+#restored-slots { margin-top: 8px; }
