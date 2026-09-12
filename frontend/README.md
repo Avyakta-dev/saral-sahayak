@@ -20,6 +20,8 @@ npm run preview
 
 Production preview uses <http://127.0.0.1:4173> by default.
 
+For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory. This is not a deployed or API-connected service.
+
 ## Use the interface
 
 - Type or paste a fictional remark into the single chat composer. Enter sends; Shift+Enter adds a line. Composition/IME input is respected.
