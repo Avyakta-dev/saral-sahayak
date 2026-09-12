@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager, suppress
@@ -22,6 +24,7 @@ from backend.api.schemas import (
 )
 from backend.config import PUBLIC_KNOWLEDGE_ROOT, Settings
 from backend.images.pipeline import ImagePipeline
+from backend.images.storage import StorageError
 from backend.knowledge_readiness import check_corpus
 from backend.languages import LANGUAGES
 from backend.llm import LLMClient
@@ -147,7 +150,7 @@ class _SharedBudgetService:
         if self.pipeline is None:
             raise AnalysisError("image_input_unavailable", "Image input is unavailable.", 503)
         budget = Budget(self.limits)
-        text = await self.pipeline.extract(request.image_key, budget)
+        text = await self.pipeline.extract(request.image_key, budget, language=request.language)
         # Fresh text-only history: the key and the image never reach the agent or ledger.
         reviewed = AnalyzeRequest(text=text, language=request.language, details=request.details)
         return await self.service.analyze(reviewed, budget=budget, activity=activity)
@@ -266,9 +269,14 @@ def create_app(
             else None
         )
         # Shares the analysis client; the pipeline owns no separate provider connection.
-        app.state.image_pipeline = (
-            ImagePipeline(image, client) if client is not None and image is not None else None
-        )
+        app.state.image_pipeline = None
+        if client is not None and image is not None:
+            try:
+                app.state.image_pipeline = ImagePipeline(image, client)
+            except StorageError:
+                # Missing credentials/dependencies never take down text analysis.
+                # No raw exception, bucket, key or provider detail is logged.
+                pass
         try:
             yield
         finally:
@@ -435,7 +443,9 @@ def create_app(
                 503,
             )
         try:
-            key, url, ttl = pipeline.admit(payload.content_type)
+            key, url, ttl = pipeline.admit(
+                payload.content_type, payload.content_length, language=payload.language
+            )
         except AnalysisError as exc:
             return _transport_failure(exc.code, exc.message, exc.http_status)
         return UploadTicket(

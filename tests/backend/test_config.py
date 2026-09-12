@@ -38,6 +38,7 @@ IMAGE_ENDPOINT = "https://account.r2.cloudflarestorage.com"
 def test_image_input_is_disabled_and_unconfigured_by_default():
     settings = Settings(_env_file=None)
     assert settings.image_input_enabled is False
+    assert settings.image_lifecycle_configured is False
     assert settings.image_r2_endpoint == ""
     assert settings.image_r2_bucket == ""
     assert settings.image_config() is None
@@ -52,6 +53,7 @@ def test_image_input_is_disabled_and_unconfigured_by_default():
 def test_image_environment_mapping(monkeypatch):
     values = {
         "IMAGE_INPUT_ENABLED": "true",
+        "IMAGE_LIFECYCLE_CONFIGURED": "true",
         "IMAGE_R2_ENDPOINT": f" {IMAGE_ENDPOINT} ",
         "IMAGE_R2_BUCKET": " synthetic-bucket ",
         "IMAGE_UPLOAD_TTL_SECONDS": "45",
@@ -112,6 +114,7 @@ def test_image_endpoint_must_be_a_bare_https_origin(endpoint):
     settings = Settings(
         _env_file=None,
         image_input_enabled=True,
+        image_lifecycle_configured=True,
         image_r2_endpoint=endpoint,
         image_r2_bucket="synthetic-bucket",
     )

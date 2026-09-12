@@ -1,4 +1,16 @@
 export const en = {
+  imageConsentTitle: 'Approve this image analysis',
+  imageConsentDestination:
+    'The complete selected image file, including its contents and any embedded metadata, will be uploaded to the private storage host controlled by the configured analysis service. The service will process it with its configured model, which may be remote. No typed text or chat history is sent with the image.',
+  imageConsentPrivacy:
+    'Review the image below. Remove personal identifiers before attaching it; this page does not automatically redact your image. Use fictional or manually redacted material. Cancelling cannot recall an image already uploaded or received by the model.',
+  analyzeReviewedImage: 'Analyze reviewed image',
+  imageUploadNote:
+    'Images stay local until separate approval. If image analysis is enabled, Analyze reviewed image uploads the selected file for model processing. No automatic redaction.',
+  imageOnly: 'Send either the image or your text, not both. Clear the text or remove the image.',
+  approvedInput: 'Only approved input is sent',
+  serviceDestination: 'Configured analysis service: {destination}',
+
   uiLanguage: 'Interface language',
   uiReview: 'Interface translations need native-language review.',
   skip: 'Skip to content',
@@ -175,7 +187,7 @@ export const en = {
   sources: 'Sources',
   sampleEvidence: 'Synthetic evidence only. These locations have not been read or verified.',
   liveEvidence:
-    'Evidence locations supplied by the backend. Read provenance is not independent policy or source verification.',
+    'Source details supplied by the analysis service. Citations are not independent verification of current policy.',
   markdownPath: 'Markdown path',
   recordId: 'Record ID',
   supportingDocument: 'Supporting document (no record ID)',
@@ -184,8 +196,7 @@ export const en = {
   columns: 'Columns (zero-based)',
   sourceUrls: 'Original source URLs',
   noSampleUrl: 'No source URL supplied. Evidence cannot be verified from this preview.',
-  noLiveUrl:
-    'No source URL in this excerpt. Check the separately cited source excerpt; no URL is inferred.',
+  noLiveUrl: 'No source URL supplied. The underlying source cannot be verified here.',
   newTab: '(opens in a new tab)',
   illustrativeUrl: 'Illustrative URL — not a live source',
   unsafeUrl: 'Unavailable link — unsafe URL rejected',

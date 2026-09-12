@@ -6,7 +6,7 @@ stored on a message that reaches the agent, the ledger or a response.
 
 import unicodedata
 from typing import Any, Literal
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -54,8 +54,20 @@ def echoes_hidden(text: str, hidden: tuple[str, ...]) -> bool:
             continue
         if value.casefold() in lowered:
             return True
-        host = urlsplit(value).hostname
-        if host and host.casefold() in lowered:
+        parsed = urlsplit(value)
+        if parsed.hostname and parsed.hostname.casefold() in lowered:
+            return True
+        # Detect isolated object IDs and signed credentials, not just full URL echoes.
+        # Deliberately exclude dates, expiry counters and other common short values.
+        decoded_text = unquote(lowered)
+        basename = parsed.path.rsplit("/", 1)[-1].split(".", 1)[0]
+        protected = [basename] if len(basename) >= 16 else []
+        for name, secret in parse_qsl(parsed.query):
+            if name.casefold() in {"x-amz-signature", "x-amz-credential", "x-amz-security-token"}:
+                protected.append(secret)
+                if name.casefold() == "x-amz-credential":
+                    protected.append(secret.split("/", 1)[0])
+        if any(len(secret) >= 16 and secret.casefold() in decoded_text for secret in protected):
             return True
     return False
 

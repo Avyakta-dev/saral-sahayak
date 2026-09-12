@@ -57,16 +57,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** forum, news, official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** forum, news, official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.reddit.com/r/epfoindia/comments/1qdcnw9/epfo_rejecting_my_form31_due_to_insufficient/
-- https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
-- https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary (news / blog / forum)
+
+- [forum] https://www.reddit.com/r/epfoindia/comments/1qdcnw9/epfo_rejecting_my_form31_due_to_insufficient/
+- [forum] https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
+- [news] https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

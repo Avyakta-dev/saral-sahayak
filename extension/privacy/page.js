@@ -15,7 +15,8 @@
   });
   const ERRORS = Object.freeze({ invalid: 'PRIVACY_INVALID_REQUEST', stale: 'PRIVACY_STALE', unavailable: 'PRIVACY_UNAVAILABLE', value: 'PRIVACY_VALUE_REJECTED' });
   const TYPES = new Set(['PRIVACY_INSPECT', 'PRIVACY_READ', 'PRIVACY_CHECK', 'PRIVACY_FILL', 'PRIVACY_RESET']);
-  const ATTRIBUTES = ['type', 'autocomplete', 'name', 'id', 'aria-label', 'placeholder', 'title', 'aria-labelledby', 'aria-describedby', 'role', 'inputmode', 'form'];
+  const CONSTRAINTS = ['minlength', 'maxlength', 'pattern', 'required', 'multiple'];
+  const ATTRIBUTES = ['type', 'autocomplete', 'name', 'id', 'aria-label', 'placeholder', 'title', 'aria-labelledby', 'aria-describedby', 'role', 'inputmode', 'form', ...CONSTRAINTS];
   const normalize = text => text.trim().replace(/\s+/g, ' ').toLowerCase();
   const lookup = (registry, key) => Object.hasOwn(registry, key) ? registry[key] : null;
 
@@ -72,6 +73,7 @@
     let observer = null;
     let timer = null;
     let removers = [];
+    let fillEvent = null;
     const fail = code => { throw new Error(code); };
     const attr = (node, key) => {
       const value = node.getAttribute(key) || '';
@@ -80,9 +82,9 @@
     };
     const nextGeneration = () => { generation = `${seed}-${++revision}`; };
 
-    function notify() {
+    function notify(retiredGeneration) {
       try {
-        const pending = env.chrome.runtime.sendMessage({ type: 'PRIVACY_INVALIDATED' }, () => { void env.chrome.runtime.lastError; });
+        const pending = env.chrome.runtime.sendMessage({ type: 'PRIVACY_INVALIDATED', generation: retiredGeneration }, () => { void env.chrome.runtime.lastError; });
         pending?.catch?.(() => {});
       } catch (_) { /* Losing the worker never retains or restores the session. */ }
     }
@@ -94,15 +96,17 @@
       timer = null;
       for (const remove of removers) remove();
       removers = [];
+      fillEvent = null;
       state?.fields.clear();
       state = null;
     }
 
     function invalidate() {
       const hadState = state !== null;
+      const retiredGeneration = generation;
       cleanup();
       nextGeneration();
-      if (hadState) notify();
+      if (hadState) notify(retiredGeneration);
     }
 
     function geometry() {
@@ -119,8 +123,13 @@
     }
 
     function listen(target, type) {
-      target.addEventListener(type, invalidate, true);
-      removers.push(() => target.removeEventListener(type, invalidate, true));
+      const onEvent = event => {
+        // Only our exact in-flight notification is exempt. Site/nested events,
+        // mutations and navigation still revoke the generation during Fill.
+        if (event !== fillEvent) invalidate();
+      };
+      target.addEventListener(type, onEvent, true);
+      removers.push(() => target.removeEventListener(type, onEvent, true));
     }
 
     function monitor() {
@@ -167,7 +176,7 @@
       return text;
     }
 
-    async function describe(element) {
+    function describeMetadata(element) {
       const tag = element.localName;
       if (!(tag === 'input' && element instanceof env.HTMLInputElement) && !(tag === 'textarea' && element instanceof env.HTMLTextAreaElement)) return null;
       if (element.ownerDocument !== document || !element.isConnected || element.getRootNode() !== document ||
@@ -177,19 +186,34 @@
           element.hasAttribute('readonly') || element.isContentEditable || !visible(element)) return null;
       const attributes = {};
       for (const key of ATTRIBUTES) attributes[key] = attr(element, key);
+      for (const key of ['required', 'multiple']) attributes[key] = element.hasAttribute(key) ? 'true' : '';
       const labels = [];
       if (element.labels.length > LIMITS.labels) return null;
       for (const label of element.labels) labels.push(plainLabel(label, element));
       const form = element.form;
       const formMetadata = form ? ['id', 'name', 'autocomplete', 'aria-label'].map(key => attr(form, key)) : [];
-      const metadata = { tag, type, attributes, labels, formMetadata };
+      const metadata = { tag, type, attributes, labels, formMetadata,
+        constraintPresence: CONSTRAINTS.map(key => element.hasAttribute(key)) };
       const label = classify(metadata);
       if (!label) return null;
+      return { element, form, label, metadata: JSON.stringify(metadata) };
+    }
+
+    async function describe(element) {
+      const before = describeMetadata(element);
+      if (!before) return null;
       // Only a non-value digest and exact node references survive inspection.
-      const bytes = new env.TextEncoder().encode(JSON.stringify(metadata));
+      const bytes = new env.TextEncoder().encode(before.metadata);
       const digest = await env.crypto.subtle.digest('SHA-256', bytes);
+      const after = describeMetadata(element);
+      if (!after || after.form !== before.form || after.metadata !== before.metadata) return null;
       const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-      return { element, form, label, fingerprint };
+      return { element, form: after.form, label: after.label, fingerprint };
+    }
+
+    function sameBinding(live, record) {
+      return Boolean(live && live.element === record.element && live.form === record.form &&
+        live.label === record.label && live.fingerprint === record.fingerprint);
     }
 
     async function validateBindings(expected) {
@@ -209,7 +233,7 @@
     async function inspect() {
       invalidate(); // Superseding inspection revokes any previous session.
       const started = env.performance.now();
-      state = { fields: new Map(), started, deadline: started + LIMITS.lifetime, url: pageUrl(), geometry: geometry(), read: false };
+      state = { fields: new Map(), started, deadline: started + LIMITS.lifetime, url: pageUrl(), geometry: geometry(), read: false, fill: false };
       const expected = generation;
       const active = state;
       monitor();
@@ -252,64 +276,154 @@
       return result;
     }
 
+    function acceptsValue(item) {
+      const element = item.record.element;
+      const tag = element.localName;
+      // Detached control only: native validity inspection emits no invalid event
+      // and never changes the real page. It receives only an approved value.
+      const probe = document.createElement(tag);
+      try {
+        if (tag === 'input') probe.setAttribute('type', element.type);
+        for (const key of CONSTRAINTS) {
+          if (element.hasAttribute(key)) probe.setAttribute(key, attr(element, key));
+        }
+        for (const key of ['minlength', 'maxlength']) {
+          const value = attr(element, key);
+          if (/^\d+$/.test(value)) {
+            const bound = Number(value);
+            if (key === 'minlength' ? item.value.length < bound : item.value.length > bound) return false;
+          }
+        }
+        setters[tag].call(probe, item.value);
+        return getters[tag].call(probe) === item.value && probe.validity.valid;
+      } finally {
+        setters[tag].call(probe, '');
+      }
+    }
+
     async function fill(message) {
       // Explicit Fill only. Never click, submit, navigate or synthesize trusted events.
-      if (!current(message.generation) || !state.read) fail(ERRORS.stale);
-      if (!Array.isArray(message.entries) || message.entries.length < 1 || message.entries.length > LIMITS.candidates) fail(ERRORS.invalid);
-      if (!await validateBindings(message.generation)) fail(ERRORS.stale);
+      if (!current(message.generation) || !state.read || state.fill) fail(ERRORS.stale);
+      const active = state;
+      active.fill = true; // Consume before the first await, including failed attempts.
       const prepared = [];
-      const seen = new Set();
-      for (const entry of message.entries) {
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(ERRORS.invalid);
-        const keys = Object.keys(entry);
-        if (keys.length !== 3 || keys.some(key => !['id', 'label', 'value'].includes(key))) fail(ERRORS.invalid);
-        const { id, label, value } = entry;
-        if (typeof id !== 'string' || !state.fields.has(id) || seen.has(id)) fail(ERRORS.invalid);
-        seen.add(id);
-        const record = state.fields.get(id);
-        if (record.label !== label || typeof value !== 'string' || value === '') fail(ERRORS.invalid);
-        const limit = VALUE_LIMITS[label];
-        if (!limit || value.length > 2 * limit) fail(ERRORS.value);
-        let count = 0;
-        for (const character of value) { if (++count > limit) fail(ERRORS.value); }
-        // Abort only when a newer non-empty edit differs from the approved value.
-        // Empty fields and unchanged approved values remain eligible for explicit Fill.
-        const live = getters[record.element.localName].call(record.element);
-        if (typeof live !== 'string') fail(ERRORS.stale);
-        if (live !== '' && live !== value) fail(ERRORS.stale);
-        prepared.push({ id, label, value, record, live });
-      }
-      if (!await validateBindings(message.generation)) fail(ERRORS.stale);
-      const results = [];
-      for (const item of prepared) {
-        if (!current(message.generation)) {
-          results.push({ id: item.id, status: 'skipped', message: 'Page changed before write. No further fields were filled.' });
-          continue;
+      try {
+        if (!Array.isArray(message.entries) || message.entries.length < 1 || message.entries.length > LIMITS.candidates) fail(ERRORS.invalid);
+        if (!await validateBindings(message.generation)) fail(ERRORS.stale);
+        const seen = new Set();
+        for (const entry of message.entries) {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) fail(ERRORS.invalid);
+          const keys = Object.keys(entry);
+          if (keys.length !== 3 || keys.some(key => !['id', 'label', 'value'].includes(key))) fail(ERRORS.invalid);
+          const { id, label, value } = entry;
+          if (typeof id !== 'string' || !state.fields.has(id) || seen.has(id)) fail(ERRORS.invalid);
+          seen.add(id);
+          const record = state.fields.get(id);
+          if (record.label !== label || typeof value !== 'string' || value === '') fail(ERRORS.invalid);
+          const limit = VALUE_LIMITS[label];
+          if (!limit || value.length > 2 * limit) fail(ERRORS.value);
+          let count = 0;
+          for (const character of value) { if (++count > limit) fail(ERRORS.value); }
+          // Abort only when a newer non-empty edit differs from the approved value.
+          // Empty fields and unchanged approved values remain eligible for explicit Fill.
+          const live = getters[record.element.localName].call(record.element);
+          if (typeof live !== 'string') fail(ERRORS.stale);
+          if (live !== '' && live !== value) fail(ERRORS.stale);
+          const metadata = describeMetadata(record.element);
+          if (!metadata || metadata.form !== record.form) fail(ERRORS.stale);
+          prepared.push({ id, label, value, record, live, metadata: metadata.metadata });
         }
-        try {
-          const live = await describe(item.record.element);
-          if (!live || live.element !== item.record.element || live.label !== item.label || live.fingerprint !== item.record.fingerprint) {
-            fail(ERRORS.stale);
+        if (!await validateBindings(message.generation)) fail(ERRORS.stale);
+        // All-or-nothing preflight, synchronously after the last await. A later
+        // field changing during hashing must prevent even the first field's write.
+        for (const item of prepared) {
+          const live = describeMetadata(item.record.element);
+          if (!current(message.generation) || !live || live.form !== item.record.form || live.metadata !== item.metadata ||
+              getters[item.record.element.localName].call(item.record.element) !== item.live) fail(ERRORS.stale);
+          if (!acceptsValue(item)) fail(ERRORS.value);
+        }
+        for (const item of prepared) {
+          if (!current(message.generation)) break;
+          try {
+            const before = describeMetadata(item.record.element);
+            const live = await describe(item.record.element);
+            // Hashing yields: recheck generation, exact form/node and current
+            // metadata synchronously on this side of the await before any setter.
+            const after = describeMetadata(item.record.element);
+            if (!current(message.generation) || !sameBinding(live, item.record) || !before || !after ||
+                after.form !== item.record.form || after.metadata !== before.metadata) {
+              if (state === active) invalidate();
+              break;
+            }
+            const currentValue = getters[item.record.element.localName].call(item.record.element);
+            // Preserve preflight's empty/approved policy, but never overwrite an
+            // intervening edit (including an approved value becoming empty).
+            if (currentValue !== item.live) {
+              invalidate();
+              break;
+            }
+            item.attempted = true;
+            setters[item.record.element.localName].call(item.record.element, item.value);
+            if (getters[item.record.element.localName].call(item.record.element) !== item.value) fail(ERRORS.value);
+            // Synthetic input/change only. Keep capture observers active, exempting
+            // only these exact events; nested site events still invalidate.
+            for (const type of ['input', 'change']) {
+              if (!current(message.generation)) break;
+              fillEvent = new env.Event(type, { bubbles: true });
+              try { item.record.element.dispatchEvent(fillEvent); } finally { fillEvent = null; }
+            }
+            item.completed = true;
+          } catch (_) {
+            item.completed = false;
+            if (!item.attempted) {
+              if (state === active) invalidate();
+              break;
+            }
           }
-          const currentValue = getters[item.record.element.localName].call(item.record.element);
-          if (typeof currentValue !== 'string' || (currentValue !== '' && currentValue !== item.value)) fail(ERRORS.stale);
-          setters[item.record.element.localName].call(item.record.element, item.value);
-          const written = getters[item.record.element.localName].call(item.record.element);
-          if (written !== item.value) throw new Error('rejected');
-          // Synthetic input/change only — never click, submit, requestSubmit or form.submit.
-          item.record.element.dispatchEvent(new env.Event('input', { bubbles: true }));
-          item.record.element.dispatchEvent(new env.Event('change', { bubbles: true }));
-          results.push({ id: item.id, status: 'filled', message: 'Applied locally. Review the page; the extension never submits.' });
-        } catch (_) {
-          results.push({ id: item.id, status: 'failed', message: 'The site rejected this field. Review the page; no retry or submit was attempted.' });
         }
+        // Do not report success before site handlers (or later fields' handlers)
+        // have had the chance to reject/revert an earlier write.
+        for (const item of prepared) {
+          if (!item.completed || !current(message.generation)) continue;
+          try {
+            const before = describeMetadata(item.record.element);
+            const live = await describe(item.record.element);
+            const after = describeMetadata(item.record.element);
+            if (!current(message.generation) || !sameBinding(live, item.record) || !before || !after ||
+                after.form !== item.record.form || after.metadata !== before.metadata) {
+              if (state === active) invalidate();
+              break;
+            }
+            item.verifiedMetadata = after.metadata;
+          } catch (_) { item.completed = false; }
+        }
+        // Final synchronous sweep catches changes during another field's hash.
+        const results = prepared.map(item => {
+          let filled = false;
+          try {
+            const live = item.verifiedMetadata && describeMetadata(item.record.element);
+            filled = Boolean(item.completed && current(message.generation) && live &&
+              live.form === item.record.form && live.metadata === item.verifiedMetadata &&
+              getters[item.record.element.localName].call(item.record.element) === item.value);
+          } catch (_) { /* Never expose page exceptions or values. */ }
+          return {
+            id: item.id,
+            status: filled ? 'filled' : item.attempted ? 'failed' : 'skipped',
+            message: filled ? 'Applied locally. Review the page; the extension never submits.' : item.attempted
+              ? 'The field could not be verified after writing. Review the page; no retry or submit was attempted.'
+              : 'Page changed before write. No further fields were filled.'
+          };
+        });
+        return {
+          results,
+          warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
+        };
+      } finally {
+        prepared.length = 0; // No preflight values survive this operation.
+        // Completion consumes the snapshot and sends only its local generation.
+        // A late operation must not clear a newer inspection.
+        if (state === active) invalidate();
       }
-      // Consume the page session after one Fill attempt so writes cannot be replayed.
-      invalidate();
-      return {
-        results,
-        warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
-      };
     }
 
     async function handle(message) {

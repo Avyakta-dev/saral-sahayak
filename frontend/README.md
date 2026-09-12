@@ -1,6 +1,6 @@
 # Saral Sahayak web frontend
 
-A responsive, conversational React + TypeScript interface for EPFO claim guidance. This is Shravya's web UI, not Ajay's extension or an implementation of the analysis/OCR backend.
+A responsive, conversational React + TypeScript interface for EPFO text guidance. The web UI belongs to Shravya; backend orchestration, provider configuration and OCR/document services remain separate team responsibilities.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. The server binds to loopback and requires port 5173. It is not exposed to the local network.
+Open <http://127.0.0.1:5173>. The development server binds to loopback and requires port 5173.
 
 ```sh
 npm run build
@@ -20,66 +20,72 @@ npm run preview
 
 Production preview uses <http://127.0.0.1:4173> by default.
 
-For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory. This is not a deployed or API-connected service.
+For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory. Hosting preparation alone does not deploy or connect a backend API.
 
-## Opt-in local live text demo
+## Connect the application API
 
-Default development without a flag and all standard production/Vercel builds remain preview-only. For an authorized local demo, set `VITE_ENABLE_ANALYSIS=true` in your shell or an ignored `frontend/.env.local`, then run `npm run dev`. Do not put model keys or provider configuration in any `VITE_` variable. This change does not create an environment file.
+The committed `.env.example` contains **public configuration only**. Copy it to an ignored `frontend/.env.local`, set the application server root and restart Vite:
 
-The development server proxies same-origin `/api` requests only to `http://127.0.0.1:8000`; start the backend separately following [the local demo guide](../docs/local-demo.md). There is no client provider connection, configurable remote proxy or CORS relaxation. Restart Vite after changing the flag. `npm run build` explicitly forces preview mode even when a local live flag exists; the Vercel build remains unchanged.
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_API_TIMEOUT_MS=120000
+VITE_PREVIEW_ONLY=false
+```
 
-Live mode fetches read-only capabilities and offers only enabled output languages (up to all six). The separate English/Hindi selector controls fictional samples. The independent Interface language selector localizes controls, consent, errors and disclosures to English, Hindi, Kannada, Tamil, Telugu or Malayalam using local dictionaries; it never translates input, prior responses or original evidence metadata. It defaults to English and stays in memory only. Interface changes invalidate pending consent but do not send requests, change output language or cancel an active request. All six translation catalogs require native-language review; see [interface language notes](../docs/interface-languages.md). Availability means model configuration plus corpus structure, not verified model connectivity, evidence correctness or language quality.
+The shared `VITE_API_BASE_URL` convention is a server root, not an `/api/v1` prefix. The client appends `/api/v1` itself. Empty or omitted roots use same-origin `/api/v1`; set `VITE_PREVIEW_ONLY=true` only for an intentionally offline example build.
 
-Paste/import redacted rejection wording, select the output language, then **Review**. The per-request consent dialog displays the exact trimmed text and destination disclosure. **Back to edit** or Escape sends nothing; **Analyze reviewed text** sends only `{text, language}` to the backend/configured model. Images block analysis until removed: no image, filename, bytes, base64, identifiers object or conversation history is transmitted. A text file is read locally into the editable composer; its filename is not sent. Each request is independent.
+- This is the Saral Sahayak API, **not an LLM provider URL**. Never place provider keys, passwords or tokens in any `VITE_*` variable; these values are visible in the browser.
+- Absolute production URLs require HTTPS. HTTP is accepted only for loopback development. A root-relative prefix such as `/api/v1` is supported only when a real same-origin backend/reverse proxy serves it. The existing static Vercel SPA fallback is not an API proxy.
+- The backend owner must allow the exact frontend origin through CORS. `localhost` and `127.0.0.1`, schemes and ports differ. The frontend does not weaken CORS or send cookies/authorization headers.
+- Metadata GET requests are capped at five seconds. The analysis timeout defaults to 120 seconds and may be configured from 1,000 to 300,000 ms to suit the approved deployment deadline.
+- Empty API configuration defaults to same-origin discovery. A static SPA fallback returning HTML is rejected, not mistaken for an available API. An invalid configured URL produces a blocked configuration error, not a silent mock fallback. Explicit example mode remains available.
+- Protected analysis may return `access_denied`, `analysis_capacity` or `request_timeout` even when capabilities report availability. Access denial and capacity saturation are not blindly retried. A protected deployment needs an authenticated/rate-limited **server-side gateway** as described in [protected analysis](../docs/protected-analysis.md); never put its shared token in browser code or headers.
 
-Stop, edit, output/sample language changes, new chat and unmount abort requests and invalidate stale completions. Consent never carries over. Cancellation cannot recall text already received by the backend/model. The frontend stores no input outside transient component memory and does not log it. Responses are bounded at 2 MiB, validated before display, and limited to 125 seconds (capabilities: 15 seconds/16 KiB). No automatic retries or raw provider error display. Failures, unsupported remarks and clarification do not become sample answers or usable drafts. Only final validated JSON is rendered, not unvalidated streamed model tokens.
+With a configured client, the UI reads `GET /api/v1/capabilities`, derives enabled/default languages and native names from the response, and enables **Analyze text** only when the metadata permits text analysis. Availability indicates configuration/structural readiness, **not verified model connectivity, policy accuracy or language quality**.
 
-The live UI uses `POST /api/v1/analyze/stream`. Its SSE reader accepts up to 128 strictly validated activity events plus one final result, handles split UTF-8/CRLF and comments, and fails closed on incomplete, excessive or unexpected events. The chat activity panel shows only host-reported phases and actual Markdown paths, headings and line ranges; it invents no timed steps, percentages or source checks. Activity history stays per turn in memory after completion/error, in a bounded scrollable list. Working animation respects reduced motion. Source files are not fetched by the browser. The final answer appears only after a validated result and complete stream; an error never becomes a partial draft.
+Only an explicit Analyze action submits text to `POST /api/v1/analyze`. A typed request uses the original text, chosen enabled language and schema-default null detail fields. Set trusted public `VITE_ENABLE_STREAMING=true` (or the legacy local `VITE_ENABLE_ANALYSIS=true`) to use Review → Analyze with `/api/v1/analyze/stream`. Both transports share validated API roots, cancellation and deadlines; neither falls back to canned output.
 
-## Use the interface (default preview)
+Optional images require an explicit `image` input in validated capabilities and backend image configuration. One image is an alternative to text, not additional context. Review shows the selected image and disclosures before a separate **Analyze reviewed image** action. The complete selected file, including embedded metadata, is uploaded by presigned PUT to service-controlled private storage; the backend processes it with its configured model (possibly remote). The browser does not automatically redact personal data. Remove identifiers manually before attaching. Upload tickets include exact byte length; PUT uses the original File and no manually set Content-Length header. Images do not receive automatic or blind same-message retries. Cancellation cannot recall data already received.
 
-- Type or paste a fictional remark into the single chat composer. Enter sends; Shift+Enter adds a line. Composition/IME input is respected.
-- Use **Attach** to choose an image or plain `.txt` file. Camera selection uses the device's file/camera picker; actual capture depends on the browser and device.
-- Paste a screenshot or drop an image onto the composer. Select its thumbnail to enlarge it, or remove/replace it before sending.
-- Choose **Show me an example** for a clearly labelled visual walkthrough. Overview, Next steps and Draft are compact keyboard-accessible tabs, not separate pages or a user-selected success/error matrix.
-- Expand Source only when evidence details are wanted. Checklist ticks are temporary personal tracking. Copy sample retains the sample's disclosures and placeholders.
-- Language selection changes future sample output, not English interface controls or earlier replies.
-- Edit a message to return its wording/image to the composer. New chat or reload clears temporary state. Only the latest six turns are retained in memory.
+The independent six-language Interface language selector changes local controls and disclosures, never user text, response prose, evidence metadata or the output language. Native-language review remains outstanding.
 
-**Sending your own text or image does not return a canned sample as though it were analysis.** It shows an honest connection limitation instead. Only the explicit example button loads sample guidance.
+When enabled, streaming uses `POST /api/v1/analyze/stream`. Its SSE reader accepts up to 128 strictly validated activity events plus one final result, handles split UTF-8/CRLF and comments, and fails closed on incomplete, excessive or unexpected events. The chat activity panel shows only host-reported phases and actual Markdown paths, headings and line ranges; it invents no timed steps, percentages or source checks. Activity history stays per turn in memory after completion/error, in a bounded scrollable list. Working animation respects reduced motion. Source files are not fetched by the browser. The final answer appears only after a validated result and complete stream; an error never becomes a partial draft.
 
-## Working local input versus backend capabilities
+## Use the interface
 
-Implemented locally:
+- Type or paste a remark into the composer. Enter sends/analyzes; Shift+Enter adds a line. IME composition is respected. Remove personal identifiers before using API mode.
+- **Attach** supports local PNG/JPEG/WebP previews and editable UTF-8 `.txt` imports. Camera selection uses the device picker on supported devices; it does not implement OCR.
+- API replies render the actual success, clarification, unsupported or error envelope. Clarification editing retains the original text and questions. Unsupported/error outcomes never expose ready-to-use guidance or a draft.
+- **Cancel analysis**, editing, language/mode changes, new chat and changed capabilities invalidate pending work. Late responses cannot replace newer state.
+- Transient failures permit at most two explicit same-message retries; retrying resends the text. Configuration, knowledge, validation and budget failures do not get blind retries. Metadata refreshes are also limited to two per connection, including an explicit return from examples to API mode.
+- **Use examples** or **Show me an example** is an explicit switch to labelled offline content. Failed API requests never substitute a sample answer. **Use API** explicitly returns to the configured connection.
+- Overview, Next steps and Draft remain compact keyboard-accessible tabs. Source disclosures preserve paths, record IDs, exact headings, lines, zero-based columns and URLs. Copying a draft retains its factual-block citations, limitations and missing-field placeholders.
+- Output language selection affects future replies, not independent interface controls or earlier responses. Preview options come from a validated six-language fixture; API options come only from live capabilities. Quality flags are reported metadata rather than fluency guarantees.
+- Text and local images are kept in browser memory only; new chat/reload clears them. Only the latest six turns are retained. API mode intentionally sends reviewed text to the configured service, never silently in the background.
 
-- Image selection, real browser decoding, thumbnails/enlargement, removal/replacement, pasted screenshots and drag/drop.
-- PNG/JPEG/WebP MIME plus signature validation, a 10 MiB file limit, successful decode and a 40-megapixel decoded-dimension limit. SVG, GIF, PDF, mismatched/corrupt and oversized inputs are refused.
-- Plain UTF-8 `.txt` imports up to 64 KiB/8,000 Unicode code points. Invalid encoding, binary controls, blank content and misleading file types are rejected. Imported text remains editable.
-- Original-text 8,000-codepoint validation and serialized trimmed `{text, language}` 32,768-byte validation. Input is not silently truncated.
-- Object URL cleanup on removal, replacement, dropped conversation turns, reset and unmount. Stale file selections and cancelled sample responses cannot reappear later.
+## Safety and limits
 
-Not connected or implemented by this frontend:
+- Validate PNG/JPEG/WebP MIME and signatures, a 10 MiB file limit, successful decode and a 40-megapixel decoded-dimension limit. SVG, GIF, PDF, corrupt, mismatched and oversized files are refused.
+- `.txt` imports are limited to 64 KiB and 8,000 Unicode code points. Invalid UTF-8, binary controls, blank content and misleading file types are rejected.
+- Requests enforce the original 8,000-codepoint limit and a 32,768-byte serialized JSON budget, including schema defaults. Text is not silently truncated.
+- HTTP responses are streamed with a 1 MiB limit, validated JSON content type/schema and matching response language. Redirects are rejected. Small 400/401/413/422/429/504 envelopes are handled separately from full analysis errors. Unknown/invalid responses produce safe messages without printing raw bodies or configuration.
+- There are no automatic retries, accounts, analytics, remote fonts or persisted claim history. Local object URLs are released on removal, replacement, dropped turns, reset and unmount.
+- React renders untrusted content as text. Only validated HTTP(S) citation links can be opened, without opener/referrer access. A citation is not independent policy verification.
 
-- OCR, PDF reading, voice, document downloads and live-government integration. Analysis is connected only in the opt-in local mode described above; model calls remain backend-owned.
-- No claim assessment or extraction from an attached image. Local file selection is not a server upload.
-- No accounts, analytics, remote fonts, local/session storage or persisted claim history. Text/images stay in browser memory; analysis requests are sent only after per-request approval in opt-in live mode.
+No provider keys, real claim fixtures or private originals belong in Git. Use synthetic or redacted material for testing. Download, OCR, PDF and voice controls remain unavailable without an agreed service contract. A true future download-availability flag alone is insufficient to invent a document endpoint.
 
-Use fictional or properly redacted material. The interface never needs Aadhaar, PAN, UAN or bank details for testing. The sample is neither verified advice nor a usable claim draft. Original fixture citations and `example.invalid` URLs are imaginary; those URLs remain plain text rather than live links.
+## Implementation map
 
-## Contract and implementation
+- `src/App.tsx`: explicit API/preview modes, capabilities, request lifecycle, privacy notices, local attachments, clarification and retry limits.
+- `src/lib/api.ts`: trusted public API configuration, bounded GET/POST transport, cancellation/timeouts and safe error handling.
+- `src/lib/contracts.ts`: current request/response/citation and small transport-error schemas, generated-prose validation and input budgets.
+- `src/lib/capabilities.ts`: capabilities validation, offline fixture and enabled-language selection.
+- `src/components/AnswerCard.tsx` and `Evidence.tsx`: distinct API/sample presentation, uncertainty, draft copying and exact evidence details.
+- `src/lib/attachments.ts`: bounded local image/text handling, not extraction or transmission.
+- `src/lib/demo.ts`, `mockContent.ts`, `walkthrough.ts`: explicit fictional examples preserving synthetic provenance and unreviewed translation disclosures.
+- `scripts/fixture_backend.py`: test-only real FastAPI/AnalysisService HTTP server with injected fake model and temporary synthetic Markdown; not a deployment service.
 
-The version 1.0 validator accepts all six backend languages and paired nullable zero-based citation columns, with strict object fields and state/citation invariants. The live boundary additionally requires explicit response fields and visible prose; historical fixture defaults remain compatible. This validates transport structure, not semantic grounding. See [`../docs/backend-contract.md`](../docs/backend-contract.md). Only four synthetic JSON examples are imported from `../docs/examples/`; no knowledge corpus or archived dataset enters the bundle.
-
-- `src/App.tsx`: conversational shell, local messages, composer, attachment lifecycle, cancellation and connection notices.
-- `src/components/AnswerCard.tsx`: compact answer tabs, personal checklist, document tile, sample draft/copy feedback and guidance-free non-success states.
-- `src/components/Evidence.tsx`: claim-level Markdown path, record ID, exact heading, lines and original URLs; unsafe links are not activated.
-- `src/lib/attachments.ts`: bounded local image and UTF-8 text handling; never OCR or transmission.
-- `src/lib/contracts.ts`: strict version 1.0 response/state/citation validation and input budgets.
-- `src/lib/demo.ts`: unchanged source-fixture behavior and abort-safe sample delay.
-- `src/lib/walkthrough.ts`: short English/Hindi fictional display content that preserves original synthetic provenance and warnings.
-- `src/styles.css`: forest/cream visual system, illustration, responsive chat/composer, focus and reduced-motion support.
-
-Schema validity is not evidence verification. Source-authority, verification-date or policy-confidence information is never fabricated. React renders untrusted text rather than injecting HTML; source links reject unsafe syntax and credentials. Hindi sample translations are not live Hindi analysis and require the team's language review before release.
+Original fixture warnings are historical test data, not current backend readiness reports. No knowledge corpus or archived dataset is bundled into the UI.
 
 ## Tests
 
@@ -87,18 +93,34 @@ Schema validity is not evidence verification. Source-authority, verification-dat
 npm run check
 npm run test:e2e
 npm run test:e2e:live
+npm run test:api
 ```
 
-`check` runs formatting, TypeScript/production build and Vitest unit/component tests. Playwright uses installed Google Chrome on desktop and Pixel-sized mobile layouts, with axe accessibility scans. Browser tests use synthetic canvas-generated image files and test camera-input routing, not physical camera hardware. No real provider/backend connection is required.
+`check` runs formatting, TypeScript/production build and Vitest unit/component tests. `test:e2e` starts an isolated example-only Vite server with `VITE_PREVIEW_ONLY=true` and no `.env` reads for preview regression; default same-origin behavior is covered by API UI/client tests. `test:api` uses the actual backend factory, analysis service, tools and ledger over loopback HTTP, with a fake model and temporary synthetic corpus; it does not intercept analysis responses or call a real provider.
 
-Set `PLAYWRIGHT_CHANNEL` to an installed compatible channel such as `msedge` if necessary. For the version-matched browser used in CI, run `npx playwright install chromium` and then `PLAYWRIGHT_CHANNEL=chromium npm run test:e2e` (PowerShell: `$env:PLAYWRIGHT_CHANNEL='chromium'; npm run test:e2e`). Preview E2E always starts an isolated server on port 5174 with the flag forced false; live E2E uses port 5175 with the flag forced true and mocked routes (no backend proxy). Neither reuses an existing server. The original preview suite is unchanged. Live tests exercise consent, output languages, success/citations/draft, clarification/unsupported/errors, image non-transmission and cancellation races. These mocks do not establish provider or translation quality. Screenshots/traces/reports under `test-results/` and `playwright-report/` are ignored and contain synthetic test content only.
+### Real API test prerequisites
 
-The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull requests and pushes to `main`. It verifies Python/backend and knowledge integrity, extension tests and syntax, frontend formatting/build/unit tests, and Chromium desktop/mobile E2E including accessibility and local-data privacy checks. It uses no provider credentials or live analysis requests. Failed browser runs retain synthetic test artifacts for seven days. Adding this workflow does not configure branch protection or make these checks mandatory for merging.
+The backend's secure file tools require POSIX `dir_fd`/`O_NOFOLLOW`; do not bypass them with a Windows shim. On Linux/macOS, use the repository's locked Python environment (`uv sync --frozen`), then run the API suite. The config uses `uv run --no-sync` when available, or an existing interpreter specified by `FIXTURE_PYTHON`.
 
-## Integration boundary
+On Windows, the standard Python launcher delegates to an existing WSL environment. Set `FIXTURE_WSL_PYTHON` to that Linux environment's Python path (and optionally `FIXTURE_WSL_DISTRO`, default `Ubuntu`). For example in PowerShell:
 
-Local live text integration is opt-in and does not establish production readiness or deployment. Original fixture warnings remain historical test data, not current readiness reports. Backend configuration, provider compatibility, grounded supported-case acceptance and independent six-language quality review remain separate responsibilities. No live provider requests are part of the frontend regression suites.
+```powershell
+$env:FIXTURE_WSL_PYTHON='/home/your-user/.cache/saral-api-tests/bin/python'
+npm run test:api
+```
 
-Coordinate real API/CORS origins and response handling with Anish, and image extraction/document services with Ajay. A working input control must not imply a working backend feature. Do not weaken CORS, silently substitute fixtures for API errors or enable voice/PDF/download controls without an agreed service.
+In Git Bash, also set `MSYS2_ENV_CONV_EXCL=FIXTURE_WSL_PYTHON` to prevent Windows path rewriting. Test scripts install nothing automatically. Prepare Linux dependencies from the repository lock in a separate user-owned environment; do not replace a Windows `.venv` with Linux binaries.
 
-Preview approval remains required before commits. Push approval is a separate gate; the PR follows the approved push.
+The API suite exclusively owns ports **8011** (fixture backend) and **5174** (isolated Vite). Occupied ports cause failure; existing processes are never reused or killed. The fixture clears inherited settings, refuses external network connections, avoids `.env`, and cleans its child processes and temporary corpus. Windows cleanup uses a lease so terminating the launcher does not orphan the WSL server.
+
+Playwright uses installed Google Chrome by default, desktop/mobile layouts and axe checks. Set `PLAYWRIGHT_CHANNEL` to another installed compatible channel such as `msedge`. For the version-matched browser used in CI, run `npx playwright install chromium` and then `PLAYWRIGHT_CHANNEL=chromium npm run test:e2e` (PowerShell: `$env:PLAYWRIGHT_CHANNEL='chromium'; npm run test:e2e`). Generated screenshots/traces/reports under `test-results/` and `playwright-report*/` are ignored and contain synthetic data only.
+
+The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull requests and pushes to `main`. It verifies Python/backend and knowledge integrity, extension tests and syntax, frontend formatting/build/unit tests, and Chromium desktop/mobile E2E including accessibility and local-data privacy checks. It uses no provider credentials or live analysis requests. Failed browser runs retain synthetic test artifacts for seven days. Adding this workflow does not configure branch protection or make these checks mandatory for merging. The dedicated `test:api` suite is an additional explicitly invoked acceptance check, not a claim that the existing CI workflow runs it.
+
+## Review and integration status
+
+Anish accepted issue 24 through merged PR 35. This follow-up implements issue 25 and requests review; issue 26 requires completed/reviewed issue 25 before advancing. Live draft Download is shown only when `capabilities.downloads_available` is true; with the backend flag still false, export stays copy-only. Real provider policy/translation quality, physical camera behavior, OCR and deployment are not certified by these tests.
+
+See [WEB_UI_ACCEPTANCE.md](WEB_UI_ACCEPTANCE.md) for coverage, exact test evidence and remaining gates. Coordinate backend/API/CORS settings with Anish and image/document services with Ajay. No automatic issue closure or merge is implied by this document.
+
+`test:e2e:live` is an offline browser suite despite its historical name: an isolated Vite server ignores .env files; analysis and image storage routes are mocked or loopback fixtures. It never contacts real model providers.

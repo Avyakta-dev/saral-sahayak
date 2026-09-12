@@ -470,7 +470,8 @@
     "related_reason_ids": [
       "epfo-rr-009",
       "epfo-rr-005",
-      "epfo-rr-054"
+      "epfo-rr-054",
+      "epfo-rr-181"
     ],
     "source_urls": [
       "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf",
@@ -484,7 +485,7 @@
       "blog"
     ],
     "confidence": "high",
-    "notes": "OCS FAQ Q2(a).",
+    "notes": "OCS FAQ Q2(a). Offline review flag: activation channel guidance conflicts with epfo-rr-181 (UMANG Face Authentication path). Read both records and their Sources; do not combine into one authoritative checklist until current channel rules are verified.",
     "last_verified": "2026-09-12"
   },
   {
@@ -2237,7 +2238,7 @@
       "forum"
     ],
     "confidence": "high",
-    "notes": "OCS FAQ Q4 is the primary official source.",
+    "notes": "OCS FAQ Q4 is the primary official source. Offline review flag: FAQ age/currency and possible supersession were not re-fetched; do not treat the under-six-months skip-10C claim as independently verified current entitlement.",
     "last_verified": "2026-09-12"
   },
   {
@@ -2475,7 +2476,7 @@
       "news"
     ],
     "confidence": "medium",
-    "notes": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes.",
+    "notes": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes. Offline review flag: withhold definitive 12-month/purpose-code entitlement until an authoritative current instrument is reviewed.",
     "last_verified": "2026-09-12"
   },
   {
@@ -2530,7 +2531,7 @@
       "blog"
     ],
     "confidence": "medium",
-    "notes": "25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them.",
+    "notes": "25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them. Offline review flag: portal-calculated amount is not independently established legal authority; do not promise a retention percentage from secondary reporting alone.",
     "last_verified": "2026-09-12"
   },
   {
@@ -10721,7 +10722,7 @@
       "official"
     ],
     "confidence": "high",
-    "notes": "2025-26 channel shift; cite FAT circular and contemporary news.",
+    "notes": "2025-26 channel shift; cite FAT circular and contemporary news. Offline review flag: older portal Activate-UAN steps in epfo-rr-007 may be stale for the same member journey; do not treat either record alone as current-policy proof.",
     "last_verified": "2026-09-12"
   }
 ]

@@ -39,6 +39,48 @@ test('host echo + validate + one-pass restore rejects forged and misplaced token
   }
 });
 
+test('outbound rejects duplicate identities and value-shaped request IDs', () => {
+  for (const entries of [[registry[0], registry[0]], [registry[0], { ...registry[1], token: tokenA }]]) {
+    assert.throws(() => slots.outboundEnvelope({ ...snapshot, slots: entries }), /SLOT_REJECTED/);
+  }
+  assert.throws(() => slots.outboundEnvelope({ ...snapshot, requestId: 'Synthetic private name' }), /SLOT_REJECTED/);
+});
+
+test('slot arrays reject accessors without invoking them and reject sparse/extra entries', () => {
+  let calls = 0;
+  const getterArray = [registry[0]];
+  Object.defineProperty(getterArray, '0', { enumerable: true, get() { calls++; return registry[0]; } });
+  assert.throws(() => slots.outboundEnvelope({ ...snapshot, slots: getterArray }), /SLOT_REJECTED/);
+  assert.equal(calls, 0);
+  const sparse = new Array(1);
+  const extra = [registry[0]]; extra.secret = 'private';
+  for (const entries of [sparse, extra]) assert.throws(() => slots.outboundEnvelope({ ...snapshot, slots: entries }), /SLOT_REJECTED/);
+});
+
+test('response validation rejects duplicate registry tokens even for unfilled slots', () => {
+  const duplicate = registry.map(item => ({ ...item, filled: false, token: tokenA }));
+  const response = { schema_version: slots.SCHEMA, template_id: slots.TEMPLATE_ID,
+    slots: duplicate.map(item => ({ slot: item.slot, label: item.label, token: null })) };
+  assert.throws(() => slots.validateSlotResponse(response, duplicate), /SLOT_REJECTED/);
+});
+
+test('restoration rejects invalid structure before consulting any private values', () => {
+  let reads = 0;
+  class ObservedMap extends Map { get(key) { reads++; return super.get(key); } }
+  const values = new ObservedMap([[tokenA, 'Synthetic Person']]);
+  const valid = { slot: 'field-1', label: 'applicant name', token: tokenA };
+  for (const invalid of [
+    { slot: 'field-2', label: 'password', token: null },
+    { slot: 'field-2', label: 'contact phone', token: null, extra: true },
+    { ...valid },
+    { slot: 'field-2', label: 'contact phone', token: tokenA }
+  ]) {
+    reads = 0;
+    assert.throws(() => slots.restoreLocal([valid, invalid], values), /SLOT_REJECTED/);
+    assert.equal(reads, 0);
+  }
+});
+
 test('literal token-like values are not recursively substituted', () => {
   const echo = slots.hostEchoResponse({
     requestId: snapshot.requestId,

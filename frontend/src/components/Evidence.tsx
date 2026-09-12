@@ -8,9 +8,17 @@ type EvidenceProps = {
   citations: Citation[];
   sample?: boolean;
   mode?: 'live' | 'sample';
+  isSample?: boolean;
 };
 
-export function Evidence({ ids, citations, mode, sample = mode !== 'live' }: EvidenceProps) {
+export function Evidence({
+  ids,
+  citations,
+  mode,
+  isSample,
+  sample = isSample ?? true,
+}: EvidenceProps) {
+  if (mode !== undefined) sample = mode === 'sample';
   const { locale, t } = useLocale();
   if (!ids.length) return null;
   const evidence = ids.map((id) => citations.find((citation) => citation.id === id));
@@ -50,9 +58,10 @@ export function Evidence({ ids, citations, mode, sample = mode !== 'live' }: Evi
               </div>
               {citation.start_column != null && citation.end_column != null && (
                 <div>
-                  <dt>{t('columns')}</dt>
+                  <dt>Column endpoints (zero-based)</dt>
                   <dd>
-                    {citation.start_column}–{citation.end_column}
+                    Line {citation.start_line}, column {citation.start_column} → line{' '}
+                    {citation.end_line}, column {citation.end_column}
                   </dd>
                 </div>
               )}

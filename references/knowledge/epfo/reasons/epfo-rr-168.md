@@ -57,16 +57,25 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, news, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** CoC validity/extension is standard IW practice documented on TaxGuru/EPFO IW materials.
 
-- https://www.epfindia.gov.in/site_en/International_workers.php
-- https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
-- https://taxguru.in/corporate-law/epfo-issue-certificate-coverage-reg.html
-- https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
-- https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_en/International_workers.php
+
+### Secondary (news / blog / forum)
+
+- [news] https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
+- [news] https://taxguru.in/corporate-law/epfo-issue-certificate-coverage-reg.html
+- [blog] https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
+- [blog] https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

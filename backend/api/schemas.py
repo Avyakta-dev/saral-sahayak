@@ -22,7 +22,9 @@ class AnalyzeRequest(ContractModel):
     text: str | None = Field(default=None, max_length=8000)
     # Excluded from serialization so the opaque key can never enter the agent prompt,
     # the evidence ledger, citations or an error body.
-    image_key: str | None = Field(default=None, min_length=1, max_length=64, exclude=True)
+    image_key: str | None = Field(
+        default=None, min_length=1, max_length=64, exclude=True, repr=False
+    )
     language: LanguageCode = "en"
     details: ClaimDetails = Field(default_factory=ClaimDetails)
 
@@ -45,6 +47,7 @@ class AnalyzeRequest(ContractModel):
 class UploadTicketRequest(ContractModel):
     language: LanguageCode = "en"
     content_type: str = Field(min_length=1, max_length=100)
+    content_length: int = Field(strict=True, gt=0, le=10 * 1024 * 1024)
 
 
 class UploadTicket(ContractModel):

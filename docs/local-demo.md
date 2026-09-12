@@ -18,14 +18,15 @@ Check `http://127.0.0.1:8000/health/ready`. Readiness verifies configuration and
 Install the locked dependencies with `npm --prefix frontend ci`. To opt in locally, add this non-secret flag to ignored `frontend/.env.local`, preserving any existing settings:
 
 ```dotenv
-VITE_ENABLE_ANALYSIS=true
+VITE_ENABLE_STREAMING=true
+VITE_PREVIEW_ONLY=false
 ```
 
-Then start `npm --prefix frontend run dev` and open `http://127.0.0.1:5173/`. Restart Vite after configuration changes if it does not reload automatically. Development API calls use the same-origin `/api` proxy to the loopback backend; no provider credentials are sent to the browser. Default production hosting remains an offline preview and is not connected by this development proxy.
+Then start `npm --prefix frontend run dev` and open `http://127.0.0.1:5173/`. Restart Vite after configuration changes if it does not reload automatically. Development API calls use the same-origin `/api` proxy to the loopback backend; no provider credentials are sent to the browser. Production has no development proxy. Set VITE_PREVIEW_ONLY=true for an intentionally offline build; otherwise the API client uses its validated configured server root (same-origin when blank).
 
 ## Rehearse safely
 
-Use fictional/redacted text, review it, and explicitly approve analysis. The configured model may be a remote paid provider even though the app runs locally. Never use real Aadhaar, UAN, PAN, bank numbers or claim documents for the demonstration. Image reading/OCR is not connected; attachments stay local. The explicit example walkthrough is fictional and separate from model analysis.
+Use fictional/redacted text, review it, and explicitly approve analysis. The configured model may be a remote paid provider even though the app runs locally. Never use real Aadhaar, UAN, PAN, bank numbers or claim documents for the demonstration. Images stay local unless validated capabilities explicitly enable image input and the user separately approves the preview. Image Analyze uploads the entire selected File, including embedded metadata, to service-controlled private storage for backend/model processing. There is no browser automatic personal-data redaction; manually remove identifiers before attaching. Backend image security and lifecycle configuration are required and disabled by default. The explicit example walkthrough is fictional and separate from model analysis.
 
 A suitable synthetic text-only case:
 
@@ -41,7 +42,7 @@ One synthetic service-level run on the merged backend with 60/45-second process 
 
 After the model was changed, non-streaming final generation timed out. Responses streaming initially rejected a changed terminal encrypted-reasoning blob; the adapter now accepts that specific opaque-field update and replays the final value without relaxing tool identity, arguments or citation checks. The updated model's subsequent streamed service run completed transport but failed final validation in 55.86 seconds. A full live request through the Vite proxy then emitted 11 real activity events and ended with `invalid_model_output` in 20.29 seconds. This verifies live activity transport, not a successful answer with the updated model. Do not present it as passing model acceptance.
 
-## Verification for this integration
+## Historical verification before publication merge
 
 - Backend-only regression suite: 788 passed, including 40 activity-stream tests.
 - Full Python suite: 1,005 passed, two existing review-inventory failures. The new local `original-error-sources.md` archive document is not yet fingerprinted in the saved review inventory; this work did not overwrite that separate dataset change.
