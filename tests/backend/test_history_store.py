@@ -73,12 +73,31 @@ def test_success_is_cached_and_replayed_without_draft():
 
 def test_error_and_clarification_are_never_cached():
     for status, extra in [
-        ("error", {"classification": None, "explanation": [], "actions": [],
-                    "required_documents": [], "draft": None, "citations": [],
-                    "error": {"code": "analysis_failed", "message": "failed"}}),
-        ("needs_clarification", {"classification": None, "explanation": [], "actions": [],
-                                   "required_documents": [], "draft": None, "citations": [],
-                                   "error": None, "questions": ["Which claim number?"]}),
+        (
+            "error",
+            {
+                "classification": None,
+                "explanation": [],
+                "actions": [],
+                "required_documents": [],
+                "draft": None,
+                "citations": [],
+                "error": {"code": "analysis_failed", "message": "failed"},
+            },
+        ),
+        (
+            "needs_clarification",
+            {
+                "classification": None,
+                "explanation": [],
+                "actions": [],
+                "required_documents": [],
+                "draft": None,
+                "citations": [],
+                "error": None,
+                "questions": ["Which claim number?"],
+            },
+        ),
     ]:
         store_ = CaseHistoryStore()
         record = store_.start("alice", "en", "Ambiguous question")
