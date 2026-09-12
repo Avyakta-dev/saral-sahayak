@@ -180,4 +180,3 @@ def test_analysis_budget_limits_follows_setting():
     assert settings.analysis_budget_limits().request_seconds == 45
     default = Settings(_env_file=None)
     assert default.analysis_budget_limits().request_seconds == 30
-

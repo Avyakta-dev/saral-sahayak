@@ -273,7 +273,9 @@ def test_lifespan_closes_only_owned_model_client(tmp_path, settings, model, monk
     model.complete.assert_not_called()
 
 
-def test_create_app_wires_analysis_request_budget(tmp_path, model, readiness_bypass, service_factory):
+def test_create_app_wires_analysis_request_budget(
+    tmp_path, model, readiness_bypass, service_factory
+):
     settings = Settings(
         _env_file=None,
         llm_base_url="https://provider.example.invalid/private-route",
