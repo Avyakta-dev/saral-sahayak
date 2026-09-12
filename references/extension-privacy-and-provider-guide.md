@@ -77,6 +77,8 @@ Custom **API base URL, model identifier and API key** are future settings for lo
 
 **Acceptance/artifact:** a reviewable threat/data-flow contract with explicit prohibited data, trust boundaries, approval checklist and unresolved decisions. Include synthetic acceptance scenarios and proposed file ownership; all runtime checks are planned/not run. Do not create code or enable a provider. Stop for approval.
 
+**Issue #16 review artifact:** [screenshot, vault and placeholder threat contract](planning/extension-privacy-threat-contract.md). Its decisions are proposed, runtime checks are not run, and Anish/Avyakta approval remains required before #17. The artifact does not certify or change the existing raw-data extension paths.
+
 ## Extension Privacy Level 2 — client vault and redacted capture
 
 **Owner:** Ajay; consumes Level 1 approval and Avyakta's UI mocks.
