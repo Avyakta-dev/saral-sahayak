@@ -42,7 +42,8 @@ A live port is not durable memory. MV3 worker suspension/disconnect loses the va
 - 21 isolated page adapter tests: no values during inspection, selected-only native reads, prohibited metadata/controls, single-use IDs, mutation/navigation/expiry invalidation and no persistence/DOM/network behavior.
 - 35 controller/raster tests: exact window/port, no stale injection after cancellation, masked-only preview messages, late response suppression, source/TTL cleanup, unsupported actions, crop bounds and full opaque canvas operations.
 - Five background integration regressions cover cancellation while legacy cleanup/storage is pending, trusted window creation, no private network/capture and concurrent-action handling.
-- Existing extension regression tests preserved; full run at this slice: **195 passed, 0 failed** on Node 22.18.0.
+- 31 production privacy-UI checks cover explicit capture/review, invalid previews, deadline preservation and complete DOM scrubbing on terminal states. They found misleading expiry copy, corrected without changing lifecycle policy.
+- Existing extension regression tests preserved; full run after UI coverage: **226 passed, 0 failed** on Node 22.18.0.
 - Tests use synthetic VM/Chrome/canvas mocks except native crypto. They do **not** prove real pixel rendering, actual browser memory cleanup, Chrome/Brave lifecycle, useful sanitized screenshots or provider safety.
 - No provider/backend/upload calls, credential reads, new host setup or new synthetic HTML page in this task. The local privacy page is the actual feature UI, not a test page.
 

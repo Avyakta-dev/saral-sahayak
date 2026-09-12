@@ -27,6 +27,14 @@ Only `Synthetic Person` was entered into the source page's name field. Existing 
 
 An open runtime port does not guarantee MV3 worker survival. The observed disconnect was not worked around with storage, heartbeat traffic or an extended deadline. No cause is inferred solely from the disconnect. The source name is synthetic and may remain on the local source page. The first closed session's window was closed through its own Close control. The second session is subject to its existing fail-closed disconnect/expiry behavior; the refused click was not replayed.
 
+## Follow-up run and UI regression coverage
+
+A subsequent attempt on the same Chrome installation reopened the local privacy window. The ready state appeared, but an Inspect action was followed by the same worker-disconnected/cleared state before Capture could be completed. This adds a reproducible usability limitation to investigate; it does not establish why Chrome ended the connection. No heartbeat, persistence or longer lifetime was introduced to bypass it.
+
+The production privacy UI is now independently exercised by `extension/tests/privacy-ui.test.cjs`: 31 offline VM checks passed for initial states, explicit Inspect/Capture messages, selected IDs and crop, image-load/review gating, exact review tag, malformed previews, non-renewing deadlines, cancellation/disconnect/pagehide/expiry scrubbing, and no network/storage/action APIs. These are UI-logic checks with mocked DOM/port, not real PNG-decoding or browser lifecycle evidence.
+
+This coverage identified and corrected a misleading HTML sentence that claimed the displayed expiry began at Capture. The wording now describes the earlier Inspect deadline and the separate vault ceiling; no deadline or security behavior was changed.
+
 ## Interpretation
 
 This establishes real Chrome compatibility for the new entry point, trusted preview connection, explicit inspection and safe-label presentation. It does **not** establish a real completed vault capture, useful screenshot redaction, complete data destruction, zero network exposure or passing issue 17 acceptance. Unit/VM tests remain separately labelled in `extension/privacy/README.md`; they cannot replace the missing browser checks.
