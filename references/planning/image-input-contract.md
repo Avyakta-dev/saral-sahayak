@@ -1,8 +1,8 @@
 # Image Level 1 — controlled image admission and shared analysis contract
 
-Owner: Ajay (`Ajay-B-Acharya`). Issue: [#11](https://github.com/Avyakta-dev/saral-sahayak/issues/11). Shared API, security, protocol and budget approval: Anish (`iotserver24`).
+Owner: Ajay (`Ajay-B-Acharya`). Issue: [#11](https://github.com/iotserver24/saral-sahayak/issues/11). Shared API, security, protocol and budget approval: Anish (`iotserver24`).
 
-**Status: proposed, ready for review; image implementation and live checks not started.** This is the independently actionable contract artifact, not completed host approval. No runtime code, configuration, provider, uploader, fixture or test is created by this document. Do not close #11 until the decisions in section 8 are accepted. [#12](https://github.com/Avyakta-dev/saral-sahayak/issues/12) remains gated.
+**Status: proposed, ready for review; image implementation and live checks not started.** This is the independently actionable contract artifact, not completed host approval. No runtime code, configuration, provider, uploader, fixture or test is created by this document. Do not close #11 until the decisions in section 8 are accepted. [#12](https://github.com/iotserver24/saral-sahayak/issues/12) remains gated.
 
 ## 1. Sources and observed baseline
 

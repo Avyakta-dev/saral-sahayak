@@ -1,10 +1,10 @@
 # Extension Privacy Level 1 — screenshot, vault and placeholder contract
 
-**Owner:** Ajay (`Ajay-B-Acharya`) · **Issue:** [#16](https://github.com/Avyakta-dev/saral-sahayak/issues/16)
+**Owner:** Ajay (`Ajay-B-Acharya`) · **Issue:** [#16](https://github.com/iotserver24/saral-sahayak/issues/16)
 **Status:** proposal ready for review; not approved or implemented.
-**Baseline inspected:** `a3bf062` (2026-09-12). Shared security/API reviewer: Anish (`iotserver24`). Extension UI reviewer: Avyakta (`Avyakta-dev`), [UI issue #21](https://github.com/Avyakta-dev/saral-sahayak/issues/21). Shravya retains main web UI ownership.
+**Baseline inspected:** `a3bf062` (2026-09-12). Shared security/API reviewer: Anish (`iotserver24`). Extension UI reviewer: Avyakta (`Avyakta-dev`), [UI issue #21](https://github.com/iotserver24/saral-sahayak/issues/21). Shravya retains main web UI ownership.
 
-This is the scoped artifact for issue #16. It changes no runtime code, permissions, endpoint, provider mode, UI, credential, uploader or storage. It does not certify the existing extension. Every numerical choice below is a **proposed ceiling requiring review**, not an observed runtime guarantee. Runtime acceptance scenarios are planned / not run. Do not close #16 or begin [#17](https://github.com/Avyakta-dev/saral-sahayak/issues/17) until approval is evidenced.
+This is the scoped artifact for issue #16. It changes no runtime code, permissions, endpoint, provider mode, UI, credential, uploader or storage. It does not certify the existing extension. Every numerical choice below is a **proposed ceiling requiring review**, not an observed runtime guarantee. Runtime acceptance scenarios are planned / not run. Do not close #16 or begin [#17](https://github.com/iotserver24/saral-sahayak/issues/17) until approval is evidenced.
 
 ## 1. Authority, scope and inspected baseline
 
