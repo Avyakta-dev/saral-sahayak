@@ -2,6 +2,8 @@
 
 ## Read before working
 
+Read the [team issue board](references/team-issue-board.md) first for the current merge baseline, verified issue assignments and corpus status; it supersedes older status paragraphs below.
+
 1. Read [references/README.md](references/README.md) for the shared reference library and source precedence.
 2. Read [CONTRIBUTING.md](CONTRIBUTING.md) for ownership and the temporary task branch workflow.
 3. Read the named contributor's section in [team work levels](references/team-work-levels.md).
