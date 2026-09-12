@@ -2,6 +2,12 @@
 
 An AI-assisted guide to understanding and resolving rejected EPFO claims, with plain-language explanations, actionable checklists, source citations, and draft resubmission or grievance letters.
 
+## Why not just ChatGPT?
+
+Hackathon judges (and most first-time readers) ask whether a general chatbot already solves EPFO rejections. Short answer: **ChatGPT can discuss EPFO; Saral Sahayak is built to ground, cite, fail closed, and draft from a curated 181-reason Markdown corpus**—not embeddings/RAG theater. Niche depth is intentional.
+
+→ **[Why not ChatGPT? (judge-skimmable)](docs/why-not-chatgpt.md)** — differences, honest non-claims (live acceptance still open), and a 60-second synthetic demo script.
+
 ## Current status
 
 Anish's Level 2 implementation has explicitly resumed. The backend now includes typed API contracts, configurable model protocol adapters, an analysis service reusing bounded Markdown tools and the evidence ledger, and six-language API support. This does not mark Level 2 complete: the production Markdown corpus is still absent; frontend, OCR, document downloads and deployment remain outside this implementation. Knowledge-file generation remains a separate task.
