@@ -88,7 +88,7 @@ export async function fetchCapabilities(signal?: AbortSignal): Promise<Capabilit
   } catch (cause) {
     if (isAbortError(cause)) throw cause;
     throw new Error(
-      'Could not reach the analysis service. Check that the backend is running and VITE_API_BASE_URL is set if needed.',
+      'Could not reach the analysis service. Check that the backend is running, VITE_API_BASE_URL matches, and CORS_ORIGINS includes this exact page origin.',
     );
   }
 
@@ -133,7 +133,7 @@ export async function analyzeRemark(input: AnalyzeRemarkInput): Promise<AnalyzeR
   } catch (cause) {
     if (isAbortError(cause)) throw cause;
     throw new Error(
-      'Could not reach the analysis service. Check that the backend is running and VITE_API_BASE_URL is set if needed.',
+      'Could not reach the analysis service. Check that the backend is running, VITE_API_BASE_URL matches, and CORS_ORIGINS includes this exact page origin.',
     );
   }
 
