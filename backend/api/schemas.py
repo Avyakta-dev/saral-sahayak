@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.evidence import EvidenceLedger
+from backend.languages import LanguageCode
 
 
 class ContractModel(BaseModel):
@@ -18,7 +19,7 @@ class ClaimDetails(ContractModel):
 
 class AnalyzeRequest(ContractModel):
     text: str = Field(min_length=1, max_length=8000)
-    language: Literal["en", "hi"] = "en"
+    language: LanguageCode = "en"
     details: ClaimDetails = Field(default_factory=ClaimDetails)
 
     @field_validator("text")
@@ -36,12 +37,22 @@ class Citation(ContractModel):
     heading: str = Field(min_length=1, max_length=300)
     start_line: int = Field(ge=1)
     end_line: int = Field(ge=1)
+    start_column: int | None = Field(default=None, ge=0)
+    end_column: int | None = Field(default=None, ge=0)
     source_urls: list[str] = Field(default_factory=list, max_length=30)
 
     @model_validator(mode="after")
     def validate_location(self):
         if self.end_line < self.start_line:
             raise ValueError("Citation line range is reversed")
+        if (self.start_column is None) != (self.end_column is None):
+            raise ValueError("Citation columns must be supplied together")
+        if (
+            self.start_line == self.end_line
+            and self.start_column is not None
+            and self.end_column < self.start_column
+        ):
+            raise ValueError("Citation column range is reversed")
         if any(part in {"..", ".", ""} for part in self.path.split("/")):
             raise ValueError("Citation path must be canonical")
         for url in self.source_urls:
@@ -89,7 +100,7 @@ class ErrorDetail(ContractModel):
 class AnalyzeResponse(ContractModel):
     schema_version: Literal["1.0"] = "1.0"
     status: Literal["success", "needs_clarification", "unsupported", "error"]
-    language: Literal["en", "hi"] = "en"
+    language: LanguageCode = "en"
     classification: Classification | None = None
     explanation: list[SupportedText] = Field(default_factory=list, max_length=30)
     actions: list[SupportedText] = Field(default_factory=list, max_length=30)
@@ -131,4 +142,8 @@ class AnalyzeResponse(ContractModel):
     def validate_evidence(self, ledger: EvidenceLedger) -> None:
         """Validate provenance against host reads, not semantic correctness of claims."""
         for citation in self.citations:
-            ledger.validate_citation(citation)
+            values = citation.model_dump()
+            if citation.start_column is None:
+                values.pop("start_column")
+                values.pop("end_column")
+            ledger.validate_citation(values)

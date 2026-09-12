@@ -4,12 +4,12 @@ Ownership follows the [current Markdown agent design](references/planning/markdo
 
 | Owner | Responsibilities |
 | --- | --- |
-| Anish | Architecture, backend API and schemas, read-only Markdown tools, safe budgets, agent/LLM integration, citations, deployment and future multilingual APIs; Level 2 implementation paused until explicitly resumed |
+| Anish | Architecture, backend API and schemas, read-only Markdown tools, safe budgets, agent/LLM integration, citations, deployment and multilingual APIs; Level 2 explicitly resumed, not declared complete |
 | Avyakta | EPFO research, Markdown knowledge authoring/curation, aliases as reference content, remedies, index clarity, source authority/currency and evidence verification |
 | Shravya | Web frontend, input/language/result states, citations and accessibility; shared presentation consistency with Ajay |
 | Ajay | Chrome/Brave MV3 extension first, synthetic fixtures, browser/security regression and handoff; OCR/image handling and document downloads deferred, not reassigned |
 
-Ajay follows the [five-level extension guide](references/ajay-extension-guide.md), starting with Level 1 only and stopping/reporting at each checkpoint. The existing FastAPI/adapters/file-tools/tests foundation stays; the real agent is not implemented and valid analysis requests return 503. Current language codes are only `en`/`hi`. Do not change backend contracts or resume Anish's paused Level 2 to unblock the extension.
+Ajay follows the [five-level extension guide](references/ajay-extension-guide.md), starting with Level 1 only and stopping/reporting at each checkpoint, independently of Anish's resumed work. The analysis service reuses the existing FastAPI/adapters/file-tools/evidence foundation; the production corpus remains absent. Analysis gates missing model configuration or corpus structure with 503. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, still defaults to `en`, and exposes only enabled codes through `GET /api/v1/capabilities`; quality is unverified for every language. Do not change backend contracts to unblock the extension. This implementation round remains local, with no push or live provider requests.
 
 ## Branch workflow
 
@@ -40,7 +40,7 @@ This is the intended collaboration workflow, not a claim about completed branch 
 
 These paths describe the intended implementation; inspect the repository before claiming that a component exists.
 
-- **Anish:** `backend/main.py`, `backend/api/`, `backend/orchestrator/`, most of `backend/agents/`, proposed `backend/tools/knowledge_files.py`, `backend/services/llm.py`, `backend/config.py`, environment examples and deployment configuration.
+- **Anish:** existing `backend/main.py`, `backend/api/`, `backend/agent/`, `backend/tools/`, `backend/evidence.py`, `backend/knowledge_readiness.py`, `backend/llm/`, `backend/languages.py`, `backend/config.py`, environment examples and future deployment configuration.
 - **Avyakta:** knowledge content and evidence review for `references/knowledge/epfo/`; source record/catalog curation in `references/epfo-claim-rejection-rag-dataset/`, coordinated with the separate Markdown generator to avoid drift. This is not retriever ownership.
 - **Shravya:** future `frontend/`.
 - **Ajay:** proposed `extension/` popup, fixtures and extension tests per the [extension guide](references/ajay-extension-guide.md). Existing `tests/backend/` stays intact. Future `documents/`, `backend/services/documents.py` and coordinated OCR/extractor work remain deferred responsibilities, not authorization to edit backend code for this extension task.
@@ -53,7 +53,7 @@ Ask your coding agent to read [AGENTS.md](AGENTS.md), [references/README.md](ref
 
 ## First deliverables
 
-- **Anish:** preserve the existing API/adapters/file-tools/tests foundation; Level 2 agent integration remains paused until he explicitly resumes it. Shared contracts and future multilingual APIs remain his ownership.
+- **Anish:** preserve and reuse the API/adapters/file-tools/evidence/tests foundation in resumed Level 2 integration. Shared contracts and six-language support remain his ownership. Supply/review the separately generated corpus and evaluate model compatibility and linguistic/semantic quality before claiming a working production flow; no live requests or push in this round.
 - **Avyakta:** review the 181-record Markdown conversion, navigation, source mappings and caveats; prepare evidence-backed supported, ambiguous and unknown cases.
 - **Shravya:** build the input and result flow using agreed synthetic mock responses before connecting the API; include path/section and original-URL citations.
 - **Ajay:** start only Level 1 of the [extension guide](references/ajay-extension-guide.md): a minimal offline Chrome/Brave MV3 paste popup with no permissions or network. Report checks and stop before the next level; keep existing backend tests.

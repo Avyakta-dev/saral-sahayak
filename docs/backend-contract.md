@@ -1,8 +1,8 @@
-# Backend foundation contract
+# Backend agent contract
 
 ## Current status
 
-The FastAPI factory, configuration and JSON schemas exist. The LLM boundary provides explicit, single-turn protocol adapters; it is **not an analysis agent**. Agent orchestration is not implemented. No provider/model connectivity has been verified, and no production knowledge corpus is supplied by this foundation task. A synthetic index or complete credentials must never imply readiness. This document describes code behavior, not completion of the broader planning milestones.
+Anish's Level 2 implementation has explicitly resumed. The FastAPI factory, configuration, schemas and single-turn LLM adapters now integrate `backend/agent/service.py`, reusing bounded Markdown tools and the request-local evidence ledger. This is not a declaration that Level 2 is complete. The production knowledge corpus is still absent; no live provider requests were made in this round, and model connectivity, policy correctness and language quality remain unverified. Changes remain local, with no push. A synthetic index or complete credentials alone must never imply readiness.
 
 The four [JSON examples](examples/) are synthetic UI/schema fixtures, never responses served by the analysis endpoint. Their warnings are intentional. The success example's `epfo-rr-001` is a format illustration, not a real classification; its `synthetic-examples/schema-only.md` citation, heading, line range and `example.invalid` URL are imaginary. No corresponding knowledge file is created or claimed to have been read. Do not present these examples as policy advice, a usable draft, source verification or a live demo.
 
@@ -28,11 +28,33 @@ uv run ruff check backend tests/backend
 
 | Route | Current result |
 | --- | --- |
-| `GET /health/live` | **200**, `{"status":"alive","version":"0.1.0"}`; process liveness only |
-| `GET /health/ready` | **503**, `{"status":"not_ready","checks":{...}}`; never calls a provider |
-| `POST /api/v1/analyze` | **503** with `AnalyzeResponse.status="error"` and `error.code="agent_not_implemented"` for schema-valid input; no mock success or fallback advice |
+| `GET /health/live` | **200**, `{"status":"alive","version":"0.2.0"}`; process liveness only |
+| `GET /health/ready` | **200** / `ready` or **503** / `not_ready`, with `checks`; no provider call |
+| `GET /api/v1/capabilities` | **200**, enabled language metadata, availability and checks; no provider call |
+| `POST /api/v1/analyze` | Valid enabled requests reach the actual service only after model-configuration and corpus-structure gates pass; missing dependencies return **503**, never mock success or fallback advice |
 
-Readiness checks are `model_configured`, `model_connectivity_verified`, `knowledge_index_present`, `knowledge_content_verified` and `agent_implemented`. Only configuration validation and safe index presence can currently report true. Connectivity/content verification and agent implementation remain false. Index presence is not corpus completeness, source currency or citation verification.
+Checks are `model_configured`, `model_connectivity_verified`, `knowledge_index_present`, `knowledge_structure_ready`, `knowledge_content_verified` and `agent_implemented`. `agent_implemented` is true; connectivity/content verification remain false. Readiness and `analysis_available` are **only** `model_configured && knowledge_structure_ready`, not a live model probe or policy/language-quality guarantee. An analysis service must also have started to serve requests.
+
+### Capabilities and enabled languages
+
+Capabilities returns `schema_version: "1.0"`, `default_language: "en"`, `languages`, `analysis_available`, `checks`, `inputs: ["text"]` and `downloads_available: false`. Each language entry has `code`, `name`, `native_name`, `quality_verified: false`. Only codes enabled by `SUPPORTED_LANGUAGES` are returned, in configured order. Defaults are:
+
+| Code | Name | Native name |
+| --- | --- | --- |
+| `en` | English | English |
+| `hi` | Hindi | हिन्दी |
+| `kn` | Kannada | ಕನ್ನಡ |
+| `ta` | Tamil | தமிழ் |
+| `te` | Telugu | తెలుగు |
+| `ml` | Malayalam | മലയാളം |
+
+Clients should build live selectors from this read-only endpoint, not hardcode six enabled options or infer translation quality from API acceptance. Existing requests that omit `language` still default to English. Strict clients must expand request/response language enums and allow the optional citation column fields described below; the schema version remains `1.0`. Synthetic fixture JSON remains unchanged.
+
+### Structural corpus gate
+
+`check_corpus` inspects the fixed 186 required Markdown paths: `README.md`, `sources.md`, `glossary.md`, `claim-types-overview.md`, `resolution-playbooks.md`, plus `reasons/epfo-rr-001.md` through `reasons/epfo-rr-181.md`. All must be nonempty regular UTF-8 files without NULs and have a nonblank ATX heading outside fenced examples. Root ancestors, directories and leaves reject symlinks. Scans are bounded at 2 MiB/file and 16 MiB total and reject changed/unreadable files.
+
+The index must contain inline links of the exact form `[label](reasons/epfo-rr-NNN.md)` for all 181 IDs, outside fenced examples. Each reason must contain its own canonical ID and at least one literal valid HTTP(S) URL outside fenced examples; a global source catalog alone is insufficient. Supporting files need headings, not a particular heading schema. This checks structure only: it does not validate remedy semantics, caveat preservation, source authority/currency, translations or model compatibility, and it never fetches source URLs. Generation and independent evidence review remain separate tasks.
 
 ### Request JSON
 
@@ -47,19 +69,29 @@ Send `Content-Type: application/json` with UTF-8 text:
 ```
 
 - `text`: required string, 1–8,000 characters, whitespace-only rejected; accepted text is stripped.
-- `language`: `en` (default) or `hi`. Accepting Hindi input does not claim implemented Hindi analysis.
+- `language`: `en` (unchanged default), `hi`, `kn`, `ta`, `te` or `ml`. A known but disabled code returns 422 / `language_disabled` in a full analysis envelope; an unknown code fails schema validation. Acceptance does not verify translation quality.
 - `details`: optional object, defaulting to all-null fields. Optional/null `claimant_name`, `claim_id`, `claim_type` have maximum lengths 200, 100, 100 respectively. No invented identifiers.
 - Unknown fields are rejected at every API model level. Do not put provider credentials in requests.
 - Body limit is **32,768 bytes**, inclusive, across received chunks, independently of character lengths or `Content-Length`. UTF-8 and JSON escaping affect byte length.
 
-Failure envelopes differ in the current foundation:
+Transport/validation errors and analysis failure envelopes differ:
 
 | Failure | HTTP | JSON |
 | --- | --- | --- |
 | Invalid schema or malformed JSON | 422 | `{"error":{"code":"invalid_request","message":"Request does not match the API schema."}}` |
 | Invalid UTF-8 body | 400 | Framework-generated generic `detail` parsing error; no submitted content is echoed |
 | Body over 32 KiB | 413 | `{"error":{"code":"request_too_large","message":"Request exceeds 32 KiB."}}` |
-| Valid input, missing agent | 503 | Full versioned analysis envelope with `agent_not_implemented` |
+| Known but disabled language | 422 | Full analysis envelope with `language_disabled` |
+| Missing/invalid model configuration | 503 | Full analysis envelope with `model_not_configured` |
+| Missing/incomplete corpus or unavailable required knowledge | 503 | Full analysis envelope with `knowledge_unavailable` |
+| Service lifecycle not started | 503 | Full analysis envelope with `service_unavailable` |
+| Request budget exhausted | 503 | Full analysis envelope with `budget_exhausted` |
+| Model/provider unavailable | 502 | Full analysis envelope with `model_unavailable`; sanitized, no provider body or secrets |
+| Invalid final model output after bounded repair | 502 | Full analysis envelope with `invalid_model_output` |
+| Analysis/model timeout | 504 | Full analysis envelope with `analysis_timeout` |
+| Unexpected service / route failure | 500 / 502 | Full analysis envelope with sanitized `analysis_failed` |
+
+Gates run in order: enabled language, model configuration, corpus structure, then service lifecycle. Thus missing model configuration takes precedence over the absent corpus. Disconnects cancel in-flight work; 499 / `client_disconnected` is an internal response path, not a response a disconnected client can rely on receiving.
 
 Validation errors do not echo submitted input, credentials or raw Pydantic errors. Clients must check HTTP status and handle the small transport/validation envelopes separately from `AnalyzeResponse`.
 
@@ -68,15 +100,15 @@ Validation errors do not echo submitted input, credentials or raw Pydantic error
 | Field | Shape / meaning |
 | --- | --- |
 | `status` | `success`, `needs_clarification`, `unsupported`, `error` |
-| `language` | `en` or `hi` |
+| `language` | `en`, `hi`, `kn`, `ta`, `te` or `ml`; matches the request |
 | `classification` | Null or `{reason_id, category, confidence, rationale}`; reason ID matches `epfo-rr-NNN`, confidence is `low`/`medium`/`high`, not a probability |
 | `explanation`, `actions`, `required_documents` | Arrays of `{text, citation_ids}`; every item requires at least one known citation ID |
 | `draft` | Null or `{title, blocks, missing_fields}`; block is `{text, kind, citation_ids}` with kind `factual`, `template` or `user_supplied`; factual blocks require citations |
-| `citations` | Array of `{id, path, record_id, heading, start_line, end_line, source_urls}` |
+| `citations` | Array of `{id, path, record_id, heading, start_line, end_line, source_urls}` plus optional nullable `start_column`, `end_column` |
 | `warnings`, `questions` | String arrays; clarification questions do not carry guidance |
 | `error` | Null or `{code, message}` |
 
-Citation IDs match `ev-[A-Za-z0-9-]+` and must be unique. Referenced IDs must exist. Paths must be canonical `.md` paths under `references/knowledge/epfo/`, without empty, `.` or `..` components. Record IDs are nullable for supporting documents. Heading is required; line numbers are positive and ordered. Source URLs must be HTTP(S), have a hostname and no username credentials. The schema currently permits empty source URL arrays; **schema acceptance alone does not prove evidence fidelity**, record existence or a supported claim.
+Citation IDs match `ev-[A-Za-z0-9-]+` and must be unique. Referenced IDs must exist. Paths must be canonical `.md` paths under `references/knowledge/epfo/`, without empty, `.` or `..` components. Record IDs are nullable for supporting documents. Heading is required; line numbers are positive and ordered. Optional column offsets are zero-based, supplied together or both null/omitted, and ordered on a single line; host citations preserve exact ledger offsets. Source URLs must be HTTP(S), have a hostname and no username credentials. The schema currently permits empty source URL arrays; **schema acceptance alone does not prove evidence fidelity**, record existence or a supported claim.
 
 State invariants:
 
@@ -85,7 +117,9 @@ State invariants:
 - `unsupported` requires explanatory warnings; no guidance, questions or error.
 - `error` requires error details; no guidance or questions.
 
-The schema supports all four states for future integration. The actual analysis endpoint currently returns **only error/503**, with the submitted language and empty/null guidance fields.
+The integrated API can return all four states: validated model outcomes produce `success`, `needs_clarification` or `unsupported` (HTTP 200), while host failures produce `error` with the appropriate non-2xx status and no guidance. Service-level success is stricter than schema-only acceptance: it also requires actions, an explanation citing the selected reason actually read, and source URLs read for that reason. The absent production corpus currently blocks real analysis. Offline fake-model/synthetic-corpus checks are not live provider, fluent-language or policy verification.
+
+Drafts are assembled by the host, not freely generated by the model: a fixed localized request title/framing, literal user-supplied details (never translated identities), explicit `[claimant_name]` / `[claim_id]` / `[claim_type]` placeholders when missing, and copies of validated cited action blocks. Action prose is requested in the selected language; validation checks schema and provenance, not translation fidelity. There is no second model draft channel or model-supplied draft identity. Non-success states have no draft.
 
 ## Configuration and protocol selection
 
@@ -104,7 +138,10 @@ LLM_MAX_OUTPUT_TOKENS=2000
 LLM_EXTRA_HEADERS={"X-Synthetic-Token":"synthetic-secret-placeholder"}
 LLM_ANTHROPIC_VERSION=2023-06-01
 CORS_ORIGINS=["http://localhost:5173"]
+SUPPORTED_LANGUAGES=["en","hi","kn","ta","te","ml"]
 ```
+
+`SUPPORTED_LANGUAGES` is a JSON array of known, unique language codes and must include `en`. It defaults to all six codes; empty lists, duplicates, unknown codes or omission of English are rejected. This controls enabled API choices, not model or linguistic verification.
 
 Do not use these fictional endpoint/model values as a working setup. Set the protocol supported by your chosen provider/proxy and replace the endpoint, model and secrets locally. Omit extra headers or use `{}` when unnecessary. Never commit real keys. API key and extra-header values are secret wrappers; do not unwrap or log them except when constructing the outbound request.
 
@@ -122,7 +159,7 @@ The client performs one nonstreaming turn with bounded response size/time and ex
 
 ## Local Markdown tools and evidence
 
-`KnowledgeFiles` is an implemented read-only local boundary, not yet wired into analysis. Use one context and shared `Budget` per request, rooted at an explicit absolute public directory:
+`AnalysisService` reuses `KnowledgeFiles` and its immutable evidence ledger with one shared `Budget` per request, rooted at the public knowledge directory. It bootstraps a bounded index read through the same tool boundary, then sequentially dispatches validated model-selected list/read calls. It preserves provider continuation state and allows at most one invalid-final-output repair within the shared budget; no provider retry/fallback loop. The underlying boundary can also be used as follows:
 
 ```python
 from backend.tools.budget import Budget
@@ -137,14 +174,16 @@ with KnowledgeFiles(public_root, budget=Budget()) as files:
 
 This is an integration sketch requiring an existing trusted root, exact heading and constructed response, not a runnable production demo. `list_files(relative_dir, cursor=..., limit=...)` returns bounded entries without file bodies. `read_file(relative_path, heading=... or start_line=..., cursor=..., max_lines=..., max_bytes=...)` returns text, canonical path, evidence ID, heading context, lines/columns, literal source URLs and explicit truncation/continuation metadata. It rejects traversal, symlinks (including root ancestors), nonregular and non-Markdown reads; it never fetches URLs. Knowledge content remains untrusted data.
 
-Default request limits: 12 tool calls, 8 distinct files, 50 listing entries/page, 120 lines and 12 KiB/read, 48 KiB and 12,000 accounted tokens across tool output. Serialized metadata and errors count. Without a tokenizer, each UTF-8 byte is conservatively counted as one token, so the token cap can bind before the byte cap. Local scan limits are 2 MiB/file and 4,096 directory entries. Budgets also expose 12 model turns, 4,096 cumulative model-output tokens and 2 retries for future orchestration to charge; these are not automatic client retries. A retry additionally consumes the attempted tool call/model turn. The shared 30-second deadline and 3-second tool deadline are cooperative monotonic checks, not hard cancellation of blocked filesystem syscalls; use local filesystems, not network mounts. Terminal `BudgetExceeded` must stop orchestration.
+Default request limits: 12 tool calls, 8 distinct files, 50 listing entries/page, 120 lines and 12 KiB/read, 48 KiB and 12,000 accounted tokens across tool output. Serialized metadata and errors count. Without a tokenizer, each UTF-8 byte is conservatively counted as one token, so the token cap can bind before the byte cap. Local scan limits are 2 MiB/file and 4,096 directory entries. The service also charges the shared limits of 12 model turns and 4,096 cumulative model-output tokens; the budget allows 2 retries, but the current service uses at most one final-output repair. These are not automatic client retries. A retry additionally consumes the attempted tool call/model turn. The shared 30-second deadline and 3-second tool deadline are cooperative monotonic checks, not hard cancellation of blocked filesystem syscalls; use local filesystems, not network mounts. Terminal `BudgetExceeded` must stop orchestration.
 
-`AnalyzeResponse.validate_evidence(ledger)` checks each citation against the request-local immutable read snapshot, including path, record ID, heading, line range and URLs; unknown IDs or forged metadata fail. It must be called explicitly after schema validation. Reads without heading context cannot directly satisfy the API's required nonempty citation heading: select an existing section or abstain, never invent one. The ledger does not infer source authority/currency or prove that a claim is supported; semantic grounding remains separate. Synthetic documentation examples intentionally do not pass a production evidence check.
+The model supplies evidence IDs, never citation metadata. The host resolves IDs against immutable read snapshots, constructs path/record ID/heading/line-and-column/URL citations, and calls `AnalyzeResponse.validate_evidence(ledger)` before returning. Unknown IDs and forged metadata fail. Index excerpts and reads without heading context cannot be cited as substantive evidence.
+
+If a claim's remedy excerpt contains no URL, the model must also read and cite a source-bearing section from the **same file and record**, usually its Sources section. The host returns both as separate citations: it does not copy or merge source URLs into the remedy citation. Unrelated global source URLs cannot satisfy this check. This proves read provenance only, not that the translated claim follows from the evidence, that the source is authoritative/current, or that policy assertions are correct. Synthetic documentation examples remain schema-only and intentionally do not pass a production evidence check.
 
 ## CORS and remaining integration
 
 CORS is off by default. `CORS_ORIGINS` is a JSON array of exact HTTP(S) origins, with no path, query, fragment or user credentials; `*` is rejected. `localhost` differs from `127.0.0.1`, and scheme/port must match. Allowed methods are GET/POST and the configured request header is Content-Type (browser-safelisted headers also apply); credentialed CORS is disabled. CORS is browser response policy, not authentication or a server-side access-control substitute.
 
-Remaining work is to wire bounded Markdown tools and shared budgets into the agent; supply and independently verify generated production knowledge; verify citations against evidence actually read; integrate safe clarification/abstention and drafts; then perform an authorized live model compatibility check. No archive retrieval, embeddings, deterministic alias retriever or full-corpus prompting should be introduced as a shortcut.
+Remaining work includes supplying and independently reviewing the generated production corpus, evaluating semantic grounding and translations in all enabled languages, integrating clients, and performing live model compatibility checks only when separately authorized. This round made no live requests. Offline tests use fake models/transports and synthetic files, not proof of fluent output or a production end-to-end flow. No archive retrieval, embeddings, deterministic alias retriever or full-corpus prompting should be introduced as a shortcut.
 
-Schema hardening to agree before integration: validate classification IDs against actual corpus records and require the existing evidence helper in the future agent response path. Consider rejecting whitespace-only response headings/questions and harmonizing the generic 400 parsing envelope. These are follow-up recommendations, not claims that the current schema already enforces them. Keep synthetic fixture validation separate from production evidence acceptance.
+The service already requires the selected reason to appear in cited explanation evidence and validates all emitted citation metadata against its ledger. Source correctness, claim support and translation fidelity remain independent review obligations. Potential follow-ups include whitespace-only prose validation and harmonizing the generic 400 parsing envelope; keep schema fixture validation separate from production evidence acceptance.

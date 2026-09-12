@@ -1,8 +1,8 @@
 # Start here: team and agent references
 
-This folder is the shared reference library for Saral Sahayak. Give your coding agent your name and ask it to read this file before planning or implementing your work. The FastAPI foundation, model adapters, bounded file tools and offline tests exist; the real agent is not implemented and valid analysis requests return 503. Current languages are `en`/`hi` only; Anish owns separate future multilingual API work.
+This folder is the shared reference library for Saral Sahayak. Give your coding agent your name and ask it to read this file before planning or implementing your work. The FastAPI foundation, adapters, bounded file tools and evidence ledger now have an analysis service. The production corpus is still absent: analysis is gated with 503 for missing model configuration or structurally incomplete knowledge, not a missing-agent placeholder. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, with `en` unchanged as default; `GET /api/v1/capabilities` reports only enabled languages, native names and `quality_verified: false`. Configuration/structural readiness is not model, source or translation verification.
 
-**Current priority:** Anish's Level 2 implementation is paused until explicitly resumed. Ajay starts the [extension guide](ajay-extension-guide.md) at Level 1 only, stopping and reporting after each requested level. His OCR/document downloads are deferred, not reassigned. Shravya retains web UI ownership and shared UI consistency; preserve existing tests.
+**Current priority:** Anish's Level 2 implementation has explicitly resumed, not automatically completed. Changes remain local; no push or live provider requests in this round. Ajay independently starts the [extension guide](ajay-extension-guide.md) at Level 1 only, stopping and reporting after each requested level. His OCR/document downloads are deferred, not reassigned. Shravya retains web UI ownership and shared UI consistency; preserve existing tests.
 
 ## Copy-paste prompt
 

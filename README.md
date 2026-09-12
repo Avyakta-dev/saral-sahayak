@@ -4,13 +4,13 @@ An AI-assisted guide to understanding and resolving rejected EPFO claims, with p
 
 ## Current status
 
-This branch contains the backend foundation: typed API contracts, configurable model protocol adapters, bounded Markdown tools and offline tests. The real analysis agent, production Markdown corpus, frontend, OCR, document downloads and deployment are not implemented. Knowledge-file generation remains a separate task.
+Anish's Level 2 implementation has explicitly resumed. The backend now includes typed API contracts, configurable model protocol adapters, an analysis service reusing bounded Markdown tools and the evidence ledger, and six-language API support. This does not mark Level 2 complete: the production Markdown corpus is still absent; frontend, OCR, document downloads and deployment remain outside this implementation. Knowledge-file generation remains a separate task.
 
-The health endpoint can report a running server, but readiness and analysis explicitly report not-ready until agent integration is implemented. See the [backend contract and local setup](docs/backend-contract.md).
+Liveness is not analysis readiness. Readiness requires model configuration and a structurally complete corpus; it does not verify model connectivity, policy correctness or translation quality. Missing model configuration or corpus gates analysis with 503. No live provider requests were made in this round. See the [backend contract and local setup](docs/backend-contract.md).
 
-**Current work priority:** Anish's Level 2 agent implementation is paused until he explicitly resumes it. Ajay's next task is Chrome/Brave MV3 extension assistance, using the same backend and the [five-level extension guide](references/ajay-extension-guide.md): offline paste popup → synthetic states → click-only selection/preview → explicit Analyze transport → security/accessibility handoff. This is a plan, not an implemented extension. Ajay's OCR/document downloads are deferred, not reassigned; existing tests remain. Shravya owns the web UI and shared presentation consistency. Anish retains agent/backend and future multilingual API ownership; the current contract accepts only `en`/`hi`, not additional languages.
+**Current work priority:** Anish owns the resumed agent/backend and multilingual API work; changes remain local, with no push in this round. Ajay's independent next task remains Chrome/Brave MV3 extension assistance, using the same backend and the [five-level extension guide](references/ajay-extension-guide.md): offline paste popup → synthetic states → click-only selection/preview → explicit Analyze transport → security/accessibility handoff. This is a plan, not an implemented extension. Ajay's OCR/document downloads are deferred, not reassigned; existing tests remain. Shravya owns the web UI and shared presentation consistency. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, with English still the default; clients discover enabled languages through `GET /api/v1/capabilities`, not a hardcoded list. All language quality flags remain false.
 
-The planned tool-using agent reads selected Markdown sections under `references/knowledge/epfo/` and bases answers on those sections and their original source URLs. It does not use embeddings, a vector database, a RAG/chunk pipeline or a deterministic alias retriever. It must not load the whole corpus into a prompt.
+The tool-using agent reads selected Markdown sections under `references/knowledge/epfo/` and bases answers on those sections and their original source URLs. It does not use embeddings, a vector database, a RAG/chunk pipeline or a deterministic alias retriever. It must not load the whole corpus into a prompt.
 
 ## Start here with your coding agent
 
@@ -36,7 +36,7 @@ Knowledge remains educational material, not official EPFO guidance or legal advi
 
 ## Initial scope
 
-Start with text-based EPFO rejection analysis. Ground explanations, remedies and drafts in evidence actually read. Add Hindi, optional image extraction and document downloads incrementally. PM-JAY and voice are not part of the first working flow.
+Start with text-based EPFO rejection analysis in the enabled API languages; language quality still needs independent review. Ground explanations and remedies in evidence actually read. The host assembles localized request drafts from validated cited action blocks and literal user details/placeholders, not free model-generated identities. Add optional image extraction and document downloads incrementally. PM-JAY and voice are not part of the first working flow.
 
 ## Local setup and collaboration
 
@@ -47,7 +47,7 @@ uv sync --frozen
 uv run uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-Copy `.env.example` to `.env` only when configuring your own provider; never commit the key. No live provider calls occur at startup. `/health/live` reports liveness; `/health/ready` and `/api/v1/analyze` intentionally return 503 in this foundation. Interactive API documentation is at `/docs`. Offline checks are `uv run pytest` and `uv run ruff check backend tests`.
+Copy `.env.example` to `.env` only when configuring your own provider; never commit the key. No live provider calls occur at startup. `SUPPORTED_LANGUAGES` is a JSON array of known, unique codes and must include `en`. `/health/live` reports liveness; `/health/ready` and capabilities report configuration/structural availability only. `/api/v1/analyze` returns 503 for missing model configuration or corpus; configured requests with complete structure reach the actual service. Interactive API documentation is at `/docs`. Offline checks are `uv run pytest` and `uv run ruff check backend tests`; fake-model tests do not verify live compatibility or fluent translations.
 
 `main` is the shared integration baseline. Each task starts on a local temporary descriptive branch from up-to-date `main`; push that branch only when its pull request is ready, merge the reviewed PR into `main`, then delete the task branch locally and remotely. See [CONTRIBUTING.md](CONTRIBUTING.md) for the intended workflow; this is not a claim that remote settings or branch cleanup have been completed.
 
