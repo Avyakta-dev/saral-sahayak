@@ -521,7 +521,6 @@ describe('AnswerCard', () => {
       );
     }
     for (const selector of [
-      '.sample-banner',
       '.answer-header',
       '.answer-tabs',
       '.steps-progress',
@@ -529,6 +528,11 @@ describe('AnswerCard', () => {
       '.draft-toolbar',
       '.draft-missing',
       '.copy-feedback',
+    ]) {
+      expect(container.querySelector(selector)).toHaveAttribute('lang', 'en');
+    }
+    for (const selector of [
+      '.sample-banner',
       '.answer-disclosure summary',
       '.answer-disclosure > p',
     ]) {

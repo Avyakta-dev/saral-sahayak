@@ -19,6 +19,7 @@ export const en = {
   sampleLanguage: 'Sample language',
   outputLanguage: 'Output language',
   analysisLanguage: 'Analysis output language',
+  analyzeText: 'Analyze text',
   sampleLanguageTitle: 'Language for new sample replies',
   liveBadge: 'Local live text',
   previewBadge: 'Preview',
@@ -99,6 +100,9 @@ export const en = {
   send: 'Send message',
   review: 'Review',
   liveLimit: 'Text-only analysis after approval. No images sent.',
+  downloadAvailable:
+    'Live drafts can save a local text file when the service reports downloads available. This is not a document service or claim submission.',
+  downloadUnavailable: 'Document downloads are unavailable.',
   previewLimit: 'Local preview. Analysis & image reading aren’t connected.',
   details: 'Details',
   chooseImage: 'Choose image file',

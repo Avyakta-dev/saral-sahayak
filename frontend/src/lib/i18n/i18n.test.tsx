@@ -8,6 +8,7 @@ import {
   locales,
   translate,
   messageKey,
+  type Message,
   type UiLocale,
 } from './index';
 import { en, type MessageKey } from './en';
@@ -38,11 +39,27 @@ it('interpolates arbitrary literal values without replacement syntax or recursiv
   expect(messageKey('PRIVATE_PROVIDER_SECRET')).toBe('errorGeneric');
 });
 let changeLocale: (locale: UiLocale) => void;
-function Harness() {
+function Harness({
+  value = 'This image is empty. Choose another image.',
+}: {
+  value?: string | Message;
+}) {
   const { setLocale, message } = useLocale();
   changeLocale = setLocale;
-  return <p>{message('This image is empty. Choose another image.')}</p>;
+  return <p>{message(value)}</p>;
 }
+it('translates structured error keys without mapping localized strings through English', () => {
+  render(
+    <LocaleProvider>
+      <Harness value={{ key: 'imageOnly' }} />
+    </LocaleProvider>,
+  );
+  for (const locale of locales) {
+    act(() => changeLocale(locale));
+    expect(screen.getByText(translate(locale, 'imageOnly'))).toBeVisible();
+  }
+});
+
 it('updates stored host errors reactively and restores document lang on unmount', () => {
   const original = document.documentElement.lang;
   const view = render(
@@ -76,5 +93,11 @@ it('preserves Hindi model/sample prose, draft placeholders and checklist while U
       'hi',
     );
     expect(screen.getByText(response.actions[0].text)).toBeVisible();
+    expect(screen.getByText(translate(locale, 'sampleBanner'))).toHaveAttribute('lang', locale);
+    expect(screen.getByText(translate(locale, 'sampleDisclosure'))).toHaveAttribute('lang', locale);
+    expect(screen.getByText(translate(locale, 'sampleDisclosureNote'))).toHaveAttribute(
+      'lang',
+      locale,
+    );
   }
 });

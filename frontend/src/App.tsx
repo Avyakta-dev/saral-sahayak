@@ -192,7 +192,7 @@ export default function App({
   const [language, setLanguage] = useState<Language>(() => offlineCapabilities.default_language);
   const [attachment, setAttachment] = useState<ImageAttachment | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | Message>('');
   const [notice, setNotice] = useState<string | Message>('');
   const [readingFile, setReadingFile] = useState(false);
   const [pending, setPending] = useState(false);
@@ -684,18 +684,18 @@ export default function App({
     if (mode === 'api') {
       if (!apiReady) return;
       if (attachment && imageEnabled && text.trim()) {
-        setError(t('imageOnly'));
+        setError({ key: 'imageOnly' });
         return;
       }
       if (attachment && reviewedFlow && !imageEnabled) {
-        setError(t('errorImageBlocked'));
+        setError({ key: 'errorImageBlocked' });
         return;
       }
       if (!apiInputValid) {
         setError(
           attachment && !text.trim()
-            ? 'Paste the rejection wording. Images stay local; no text has been extracted.'
-            : (validateInput(text, language) ?? 'Enter a rejection remark.'),
+            ? { key: 'errorImageBlocked' }
+            : (validateInput(text, language) ?? { key: 'errorEmpty' }),
         );
         return;
       }
@@ -1042,13 +1042,7 @@ export default function App({
                 className="send-button stop-button"
                 type="button"
                 onClick={cancelSample}
-                aria-label={
-                  mode === 'api'
-                    ? reviewedFlow
-                      ? t('stopAnalysis')
-                      : 'Cancel analysis'
-                    : t('stopSample')
-                }
+                aria-label={mode === 'api' ? t('stopAnalysis') : t('stopSample')}
               >
                 <Square size={17} aria-hidden="true" />
               </button>
@@ -1066,7 +1060,7 @@ export default function App({
                   mode === 'api'
                     ? reviewedFlow || (imageEnabled && attachment)
                       ? t('reviewAnalysis')
-                      : 'Analyze text'
+                      : t('analyzeText')
                     : t('send')
                 }
               >
@@ -1074,7 +1068,7 @@ export default function App({
                   reviewedFlow || (imageEnabled && attachment) ? (
                     t('review')
                   ) : (
-                    'Analyze text'
+                    t('analyzeReviewed')
                   )
                 ) : (
                   <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />
@@ -1616,19 +1610,19 @@ export default function App({
           </p>
         </details>
         <div className="connection-note">
-          <strong>{mode === 'api' ? 'Text only' : 'Not connected yet'}</strong>
+          <strong>{mode === 'api' ? t('liveBadge') : t('previewBadge')}</strong>
           <p>
             {mode === 'api'
               ? imageEnabled
                 ? t('imageUploadNote')
-                : 'Image extraction, voice and PDF reading are not connected. Images are local previews only.'
-              : 'Live analysis, image text extraction, voice, PDF reading and document downloads. Sample answers are illustrative—not advice or a usable claim draft.'}
+                : t('liveLimit')
+              : t('previewInfo')}
           </p>
           {mode === 'api' && (
             <p>
               {capabilities?.downloads_available
-                ? 'Live drafts can save a local text file when the service reports downloads available. That is not a document service or claim submission.'
-                : 'Document downloads are unavailable.'}
+                ? t('downloadAvailable')
+                : t('downloadUnavailable')}
             </p>
           )}
         </div>
@@ -1637,8 +1631,8 @@ export default function App({
           {mode === 'api'
             ? imageEnabled
               ? t('imageConsentPrivacy')
-              : 'Use fictional or redacted text without personal IDs. Analyze sends only your text and language to the configured service. Images stay local. This UI keeps no saved chat history.'
-            : 'Use fictional or redacted material. In example mode, images and text stay in memory, clear on reload, and are never sent to a server. Camera availability depends on your device.'}
+              : t('livePrivacy')
+            : t('previewPrivacy')}
         </p>
         <small>{t('disclaimer')}</small>
         <small>{t('uiReview')}</small>

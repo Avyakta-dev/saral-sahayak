@@ -144,7 +144,7 @@ describe('offline capability-driven App', () => {
     expect(
       within(dialog).getByText(/Sample translations have not been independently reviewed/),
     ).toBeVisible();
-    expect(within(dialog).getByText('Not connected yet')).toBeVisible();
+    expect(within(dialog).getAllByText('Preview').length).toBeGreaterThan(0);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close preview details' }));
     fireEvent.change(input(), { target: { value: 'Synthetic quality-flag test' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
