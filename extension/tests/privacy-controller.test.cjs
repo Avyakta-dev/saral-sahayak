@@ -13,7 +13,7 @@ const flush = async () => { await new Promise(setImmediate); await new Promise(s
 const crop = { x: 0, y: 0, width: 100, height: 60 };
 const limits = { width: 800, height: 600, dpr: 1 };
 const artifact = { preview: 'data:image/png;base64,U1RVQg==', digest: 'a'.repeat(64), coverage: 'fully-masked', transport: 'disabled' };
-function deferred() { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
+function deferred() { let resolve, reject; const promise = new Promise((r, j) => { resolve = r; reject = j; }); return { promise, resolve, reject }; }
 function event() {
   const listeners = new Set();
   return { addListener: fn => listeners.add(fn), removeListener: fn => listeners.delete(fn), emit: (...args) => { for (const fn of listeners) fn(...args); } };
@@ -21,7 +21,7 @@ function event() {
 function harness(t) {
   let now = 0, timerId = 0, context;
   const timers = new Map(), forbidden = [], messages = [], injections = [], rasters = [], ports = [], vaults = [], bindings = [], windows = [];
-  const holds = {}, contexts = [], contextQueries = [];
+  const holds = {}, contexts = [], contextQueries = [], fillEntries = [], fillReleases = [];
   const tab = { id: 7, windowId: 3, url: 'https://example.invalid/form', active: true };
   const inspection = { generation: 'generation-1', candidates: [{ id: 'field-1', label: 'applicant name' }, { id: 'field-2', label: 'contact email' }], cropLimits: limits, policy: 'opaque-only' };
   const realm = value => vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(value))})`, context);
@@ -38,7 +38,12 @@ function harness(t) {
       onRemoved: event(), onUpdated: event(), onActivated: event(),
       sendMessage: async (id, message, options) => {
         messages.push(plain({ id, message, options }));
-        if (holds[message.type]) await holds[message.type].promise;
+        // Keep transport references separately from the wire snapshot to observe cleanup.
+        if (message.type === 'PRIVACY_FILL') fillEntries.push(message.entries);
+        if (holds[message.type]) {
+          const response = await holds[message.type].promise;
+          if (message.type === 'PRIVACY_FILL' && response !== undefined) return realm(response);
+        }
         switch (message.type) {
           case 'PRIVACY_INSPECT': return realm(inspection);
           case 'PRIVACY_CHECK': return realm({ valid: true });
@@ -75,6 +80,10 @@ function harness(t) {
   // Observe real instances without replacing their validation, randomness, or private storage.
   const begin = context.PrivacyVault.Vault.prototype.begin;
   context.PrivacyVault.Vault.prototype.begin = function (binding) { vaults.push(this); bindings.push(binding); return begin.call(this, binding); };
+  const consumeFill = context.PrivacyVault.Vault.prototype.consumeFill;
+  context.PrivacyVault.Vault.prototype.consumeFill = function (...args) {
+    const released = consumeFill.apply(this, args); fillReleases.push(released); return released;
+  };
   vm.runInContext(source('controller'), context);
   const api = context.LocalPrivacy;
   function connect(sender = { id: chrome.runtime.id, url: chrome.runtime.getURL('privacy/privacy.html'), tab: { windowId: 9 } }, name = 'privacy-local') {
@@ -102,7 +111,7 @@ function harness(t) {
     assert.doesNotMatch(JSON.stringify([publicOutput, publicMessages, rasters]), /Synthetic Person/);
     assert.equal(chrome.tabs.captureVisibleTab, undefined); assert.equal(chrome.tabs.captureTab, undefined);
   });
-  return { api, chrome, tab, holds, contexts, contextQueries, ports, messages, injections, rasters, vaults, bindings, windows, timers, connect, start, capture, reads, deadVaults,
+  return { api, chrome, tab, holds, contexts, contextQueries, ports, messages, injections, rasters, vaults, bindings, windows, timers, fillEntries, fillReleases, connect, start, capture, reads, deadVaults,
     async advance(ms) { now += ms; for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.fn(); } await flush(); }
   };
 }
@@ -237,6 +246,144 @@ test('host-local restore then explicit Fill never submits and consumes the vault
   assert.equal(fillMessage.entries[0].id, 'field-1');
   assert.equal(fillMessage.entries[0].value, 'Synthetic Person');
   h.deadVaults();
+});
+
+async function pendingFill(h, slots = ['field-1']) {
+  const p = await h.start();
+  await p.send({ type: 'capture', ids: slots, crop });
+  assert.equal(p.output.at(-1).type, 'preview');
+  await p.send({ type: 'review', approvalTag: p.output.at(-1).approvalTag });
+  await p.send({ type: 'restore' });
+  assert.equal(p.output.at(-1).type, 'restored');
+  const hold = deferred(); h.holds.PRIVACY_FILL = hold;
+  await p.send({ type: 'fill', confirmed: true, slots });
+  assert.equal(h.reads('PRIVACY_FILL').length, 1, 'Fill must reach the pending page request');
+  assert.equal(p.output.at(-1).type, 'restored', 'no outcome before the page responds');
+  h.deadVaults();
+  return { p, hold };
+}
+
+function assertFillCleanup(h) {
+  assert.equal(h.fillEntries.length, 1);
+  assert.equal(h.fillReleases.length, 1);
+  const entries = h.fillEntries[0], released = h.fillReleases[0];
+  assert.notEqual(entries, released, 'transport entries must not alias the frozen release');
+  assert.equal(Object.isFrozen(released), true);
+  released.forEach((item, index) => {
+    assert.equal(Object.isFrozen(item), true);
+    assert.notEqual(entries[index], item);
+    assert.equal(item.value, 'Synthetic Person', 'the frozen vault release must not be mutated');
+    assert.equal(entries[index].value, '', 'mutable transport values must be scrubbed');
+  });
+}
+
+for (const outcome of ['resolve', 'reject']) test(`REGRESSION: superseded pending Fill ${outcome} cannot notify or dispose a new ready session`, async t => {
+  const h = harness(t); const { p, hold } = await pendingFill(h);
+  const replacement = await h.start(false);
+  const oldOutput = plain(p.output), newOutput = plain(replacement.output);
+  const resetCount = h.reads('PRIVACY_RESET').length;
+  assert.equal(resetCount, 1, 'supersession clears the old page binding');
+  assert.deepEqual(plain(h.fillEntries[0]).map(entry => entry.value), [''], 'supersession clears pending transport values before the old response settles');
+  delete h.holds.PRIVACY_FILL;
+  if (outcome === 'reject') hold.reject(new Error('Synthetic Fill transport failure'));
+  else hold.resolve();
+  await flush();
+  assert.deepEqual(p.output, oldOutput, `${outcome}: no late old-session messages`);
+  assert.equal(p.output.some(message => message.type === 'filled'), false);
+  assert.deepEqual(replacement.output, newOutput, `${outcome}: new ready session is untouched`);
+  assert.equal(h.reads('PRIVACY_RESET').length, resetCount, 'old completion must not reset the new page');
+  assert.equal(h.timers.size, 1, 'new session retains its deadline');
+  await replacement.send({ type: 'inspect' }); await h.capture(replacement);
+  assert.equal(replacement.output.at(-1).type, 'preview', 'new session remains usable');
+  assert.equal(h.vaults.at(-1).snapshot(h.bindings.at(-1)).stage, 'sealed');
+  assertFillCleanup(h);
+});
+
+test('REGRESSION: own page invalidation during Fill defers teardown, reports results, then silently disposes', async t => {
+  for (const statuses of [['filled', 'filled'], ['filled', 'skipped']]) {
+    const h = harness(t); const { p, hold } = await pendingFill(h, ['field-1', 'field-2']);
+    const output = plain(p.output), outputsAtReset = [];
+    const sendMessage = h.chrome.tabs.sendMessage;
+    h.chrome.tabs.sendMessage = (...args) => {
+      if (args[1].type === 'PRIVACY_RESET') outputsAtReset.push(plain(p.output));
+      return sendMessage(...args);
+    };
+    const response = {
+      results: statuses.map((status, index) => ({ id: `field-${index + 1}`, status,
+        message: status === 'filled' ? 'Applied locally. Review the page; the extension never submits.' : 'Page changed before write. No further fields were filled.' })),
+      warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
+    };
+    // The page adapter owns write stopping; this controller test only mocks its outcome.
+    h.api.invalidated({ type: 'PRIVACY_INVALIDATED' }, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' });
+    await flush();
+    assert.deepEqual(p.output, output, 'invalidation must not expire the pending outcome channel');
+    assert.equal(h.reads('PRIVACY_RESET').length, 0, 'do not tear down before page results arrive');
+    assert.equal(h.timers.size, 1, 'invalidation must not remove the Fill deadline');
+    await p.send({ type: 'fill', confirmed: true, slots: ['field-1'] });
+    assert.equal(h.reads('PRIVACY_FILL').length, 1, 'pending Fill cannot be replayed');
+    hold.resolve(response); await flush();
+    assert.deepEqual(p.output.slice(output.length), [{ type: 'filled', ...response,
+      message: 'Fill attempt finished. The extension never clicks Submit. Review the page yourself.' }]);
+    assert.deepEqual(outputsAtReset, [p.output], 'report the outcome before resetting the page');
+    assert.equal(h.reads('PRIVACY_RESET').length, 1);
+    assert.equal(h.timers.size, 0);
+    const messageCount = h.messages.length, outputCount = p.output.length;
+    await p.send({ type: 'restore' }); await p.send({ type: 'fill', confirmed: true, slots: ['field-1'] });
+    assert.equal(h.messages.length, messageCount, 'completed session cannot restore or fill again');
+    assert.equal(p.output.length, outputCount, 'silent disposal must preserve the displayed outcome');
+    assertFillCleanup(h);
+  }
+});
+
+test('REGRESSION: cancel, disconnect and TTL suppress late Fill success/errors without harming a newer request', async t => {
+  for (const ending of ['cancel', 'disconnect', 'ttl']) for (const outcome of ['resolve', 'reject']) {
+    const label = `${ending}/${outcome}`;
+    const h = harness(t); const { p, hold } = await pendingFill(h);
+    await endings[ending](h, p);
+    assert.deepEqual(plain(h.fillEntries[0]).map(entry => entry.value), [''], `${label}: pending transport values clear before the response settles`);
+    assert.equal(h.timers.size, 0, label);
+    assert.equal(h.reads('PRIVACY_RESET').length, 1, label);
+    const replacement = await h.start(); await h.capture(replacement);
+    const oldOutput = plain(p.output), newOutput = plain(replacement.output);
+    const resetCount = h.reads('PRIVACY_RESET').length;
+    const newVault = h.vaults.at(-1), newBinding = h.bindings.at(-1);
+    const snapshot = plain(newVault.snapshot(newBinding));
+    delete h.holds.PRIVACY_FILL;
+    if (outcome === 'reject') hold.reject(new Error('Synthetic Fill transport failure'));
+    else hold.resolve();
+    await flush();
+    assert.deepEqual(p.output, oldOutput, label);
+    assert.equal(p.output.some(message => message.type === 'filled'), false, label);
+    assert.deepEqual(replacement.output, newOutput, label);
+    assert.deepEqual(plain(newVault.snapshot(newBinding)), snapshot, `${label}: new request remains intact`);
+    assert.equal(h.timers.size, 1, label);
+    assert.equal(h.reads('PRIVACY_RESET').length, resetCount, label);
+    await replacement.send({ type: 'review', approvalTag: newOutput.at(-1).approvalTag });
+    await replacement.send({ type: 'restore' });
+    assert.equal(replacement.output.at(-1).type, 'restored', `${label}: new request remains usable`);
+    assertFillCleanup(h);
+  }
+});
+
+test('REGRESSION: Fill scrubs mutable entries on success and errors without mutating frozen consumeFill results', async t => {
+  for (const outcome of ['success', 'reject', 'page-error']) {
+    const h = harness(t); const { p, hold } = await pendingFill(h, ['field-1', 'field-2']);
+    const released = h.fillReleases[0], snapshot = plain(released);
+    assert.equal(Object.isFrozen(released), true);
+    assert.equal(released.every(Object.isFrozen), true);
+    assert.deepEqual(plain(h.fillEntries[0]).map(entry => entry.value), ['Synthetic Person', 'Synthetic Person']);
+    const outputCount = p.output.length;
+    if (outcome === 'reject') hold.reject(new Error('Synthetic Fill transport failure'));
+    else if (outcome === 'page-error') hold.resolve({ error: 'Synthetic page rejection' });
+    else hold.resolve();
+    await flush();
+    assertFillCleanup(h);
+    assert.deepEqual(plain(released), snapshot, `${outcome}: frozen release is unchanged`);
+    assert.deepEqual(p.output.slice(outputCount).map(message => message.type), [outcome === 'success' ? 'filled' : 'expired'], outcome);
+    if (outcome === 'reject') assert.match(p.output.at(-1).message, /stopped responding during Fill/);
+    assert.equal(h.timers.size, 0, outcome);
+    assert.equal(h.reads('PRIVACY_RESET').length, 1, outcome);
+  }
 });
 
 test('Fill without confirmation or before restore fails closed', async t => {
