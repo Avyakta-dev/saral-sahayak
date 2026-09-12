@@ -23,9 +23,10 @@
     const text = parts.join(' ').normalize('NFKC').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
     const words = text.replace(/[^\p{L}\p{N}]+/gu, ' ');
     const compact = words.replace(/\s/g, '');
-    return /\b(password|passwd|passphrase|credential|otp|captcha|recaptcha|hcaptcha|cvv|cvc|csc|ssn|aadhaar|aadhar|adhar|bank|banking|iban|ifsc|swift|routing|payment|credit|debit|card|pin|username|login|signin|consent|terms|agree|agreement|pan)\b/.test(words) ||
-      /password|passwd|credential|captcha|otp|cvv|cvc|ssn|bank|payment|onetimecode|onetimepassword|securitycode|verificationcode|authcode|authenticator|accesstoken|secretkey|apikey|socialsecurity|aadhaar|aadhar|accountnumber|accountno|acctno|creditcard|debitcard|cardnumber|cardholder|cardexpiry|cardexpiration|ccnumber|ccname|ccexp|cccsc|transactionamount|transactioncurrency|deleteaccount|accountdelete|closeaccount|accountclose|accountclosure|removeaccount|deactivateaccount|acceptterms|termsofservice|termsandconditions|acceptpolicy|privacypolicy|agreeto/.test(compact) ||
-      /आधार|पासवर्ड|ओटीपी|बैंक/.test(text);
+    return /\b(password|passwd|passphrase|credential|otp|captcha|recaptcha|hcaptcha|cvv|cvc|csc|ssn|uan|aadhaar|aadhar|adhar|bank|banking|iban|ifsc|swift|routing|payment|credit|debit|card|pin|username|login|signin|consent|terms|agree|agreement|pan)\b/.test(words) ||
+      /password|passwd|credential|captcha|otp|cvv|cvc|ssn|bank|payment|onetimecode|onetimepassword|securitycode|verificationcode|authcode|authenticator|accesstoken|secretkey|apikey|socialsecurity|aadhaar|aadhar|universalaccountnumber|accountnumber|accountno|acctno|creditcard|debitcard|cardnumber|cardholder|cardexpiry|cardexpiration|ccnumber|ccname|ccexp|cccsc|transactionamount|transactioncurrency|deleteaccount|accountdelete|closeaccount|accountclose|accountclosure|removeaccount|deactivateaccount|acceptterms|termsofservice|termsandconditions|acceptpolicy|privacypolicy|agreeto/.test(compact) ||
+      /^(?:epf|member)?uan(?:number|no|id)?$/.test(compact) ||
+      /आधार|पासवर्ड|ओटीपी|बैंक|यू\s*ए\s*एन|यूनिवर्सल\s*अकाउंट\s*नंबर|सार्वभौमिक\s*खाता\s*संख्या/.test(text);
   }
 
   function validSender(sender, extensionId) {

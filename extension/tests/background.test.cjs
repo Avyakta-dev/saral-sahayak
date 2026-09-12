@@ -12,6 +12,11 @@ const mappingSource = readFileSync(path.join(__dirname, '..', 'mapping.js'), 'ut
 const EXTENSION_ID = 'synthetic-extension-id';
 const POPUP_URL = `chrome-extension://${EXTENSION_ID}/popup.html`;
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+const EPFO_BASE = 'http://127.0.0.1:8000';
+const EPFO_CAPABILITIES = {
+  schema_version: '1.0', default_language: 'en', analysis_available: true,
+  languages: [{ code: 'en', name: 'English', native_name: 'English', quality_verified: true }]
+};
 const KEY = 'sk-synthetic-offline-test-key';
 const TAB = { id: 41, windowId: 7, url: 'https://forms.example.invalid/apply?private=page-url-marker' };
 const DOCUMENT_ID = 'synthetic-document-41';
@@ -34,6 +39,23 @@ function deferred() {
   let reject;
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
+}
+
+function jsonResponse(data, status = 200) {
+  const bytes = new TextEncoder().encode(JSON.stringify(data));
+  let sent = false;
+  return {
+    ok: status >= 200 && status < 300, status,
+    headers: { get: name => name.toLowerCase() === 'content-type' ? 'application/json' : null },
+    body: { getReader: () => ({
+      read: async () => sent ? { done: true } : (sent = true, { done: false, value: bytes }),
+      cancel: async () => {}
+    }) }
+  };
+}
+
+function epfoErrorAnalysis() {
+  return { schema_version: '1.0', language: 'en', status: 'error', explanation: [], actions: [], required_documents: [], citations: [], warnings: [], questions: [], classification: null, draft: null, error: { code: 'synthetic', message: 'Synthetic backend error.' } };
 }
 
 function modelResponse(mappings = [item()], options = {}) {
@@ -91,6 +113,11 @@ function harness(options = {}) {
         record('set', [snapshot]);
         if (hooks.set) await hooks.set(snapshot);
         Object.assign(session, snapshot);
+      },
+      remove: async key => {
+        record('remove', [key]);
+        if (hooks.remove) await hooks.remove(key);
+        delete session[key];
       }
     } },
     tabs: {
@@ -99,7 +126,7 @@ function harness(options = {}) {
         assert.equal(tabId, TAB.id);
         assert.deepEqual(plain(target), { documentId: DOCUMENT_ID });
         if (message.type === 'SS_SCAN') return plain(h.captured);
-        if (message.type === 'SS_RESET') return { ok: true };
+        if (message.type === 'SS_RESET') return { reset: true };
         assert.equal(message.type, 'SS_FILL', 'Unexpected content operation');
         return { results: message.entries.map(entry => ({ selector: entry.selector, status: 'filled', message: 'Synthetic fill acknowledgement.' })), warnings: ['Synthetic fill warning.'] };
       }),
@@ -120,7 +147,11 @@ function harness(options = {}) {
     // Never expose the host fetch, require, process, DOM, or browser to worker code.
     fetch: async (url, init) => {
       record('fetch', [url, { ...init, signal: undefined }]);
-      assert.equal(url, ENDPOINT, 'Only the fixed provider endpoint is permitted');
+      if (url.startsWith(EPFO_BASE)) {
+        assert.equal(typeof hooks.epfoFetch, 'function', 'Unexpected EPFO fetch: no offline response was configured');
+        return hooks.epfoFetch(url, init);
+      }
+      assert.equal(url, ENDPOINT, 'Only fixed endpoints are permitted');
       assert.equal(typeof hooks.fetch, 'function', 'Unexpected fetch: no offline response was configured');
       return hooks.fetch(url, init);
     },
@@ -237,6 +268,37 @@ test('only the exact extension popup sender can invoke any worker action', async
   assert.deepEqual(h.calls, []);
 });
 
+test('EPFO capabilities survive worker suspension, while malformed cached metadata fails closed', async () => {
+  const first = harness();
+  first.hooks.epfoFetch = (url, init) => {
+    assert.equal(url, `${EPFO_BASE}/api/v1/capabilities`);
+    assert.equal(init.method, 'GET');
+    return jsonResponse(EPFO_CAPABILITIES);
+  };
+  const connected = await first.send('SS_EPFO_CAPABILITIES');
+  assert.equal(connected.ok, true);
+  assert.deepEqual(connected.data, EPFO_CAPABILITIES);
+  assert.deepEqual(first.session().epfoConnection, { connected: true, capabilities: EPFO_CAPABILITIES });
+
+  const restarted = harness({ session: first.session() });
+  restarted.hooks.epfoFetch = (url, init) => {
+    assert.equal(url, `${EPFO_BASE}/api/v1/analyze`);
+    assert.deepEqual(JSON.parse(init.body), { text: 'Synthetic rejection remark', language: 'en' });
+    return jsonResponse(epfoErrorAnalysis(), 500);
+  };
+  const analyzed = await restarted.send('SS_EPFO_ANALYZE', { text: 'Synthetic rejection remark', language: 'en', consent: true });
+  assert.equal(analyzed.ok, true);
+  assert.equal(analyzed.data.status, 'error');
+  assert.equal(restarted.of('fetch').length, 1, 'Reloaded worker must not reconnect before analysis');
+
+  const malformed = harness({ session: { epfoConnection: { connected: true, capabilities: { schema_version: '1.0', languages: [] } } } });
+  const rejected = await malformed.send('SS_EPFO_ANALYZE', { text: 'Synthetic rejection remark', language: 'en', consent: true });
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /Saved backend capabilities are invalid/);
+  assert.equal(malformed.session().epfoConnection, undefined);
+  assert.equal(malformed.of('fetch').length, 0);
+});
+
 test('SS_SAVE and SS_GET return only file metadata and hasKey, while trusted session retains inputs', async () => {
   const h = harness();
   const state = await saved(h);
@@ -256,6 +318,25 @@ test('SS_SAVE and SS_GET return only file metadata and hasKey, while trusted ses
   privateStateAbsent(await saved(h, { key: '', file: undefined }));
   assert.equal(h.session().formAssistant.key, KEY);
   assert.deepEqual(h.session().formAssistant.file, FILE);
+});
+
+test('saving over a scan resets its content snapshot before session storage changes', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  await saved(h, { profile: { ...PROFILE, name: 'Updated Name' } });
+  assert.deepEqual(h.calls.map(call => call.name), ['sendMessage', 'set']);
+  assert.equal(h.of('sendMessage')[0].args[1].type, 'SS_RESET');
+});
+
+test('save preserves the prior scan reference when content cleanup is not confirmed', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  h.hooks.sendMessage = () => ({ reset: false });
+  failed(await h.send('SS_SAVE', { profile: PROFILE, key: KEY, model: 'gpt-4o-mini', file: FILE }), /previous scan could not be cleared/);
+  assert.equal(h.session().formAssistant.scan.documentId, DOCUMENT_ID);
+  assert.equal(h.of('set').length, 0);
 });
 
 test('SS_SCAN explicitly injects content, targets the injected document, and captures a screenshot without network or fills', async () => {
@@ -281,6 +362,32 @@ test('SS_SCAN explicitly injects content, targets the injected document, and cap
   h.resetCalls();
   successful(await h.send('SS_GET'));
   assert.deepEqual(h.calls, []);
+});
+
+test('switching scan targets resets the previous document before injecting the replacement', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  h.tab = { id: 52, windowId: 8, url: 'https://other.example.invalid/form' };
+  h.documentId = 'synthetic-document-52';
+  h.documentUrl = h.tab.url;
+  h.captured = { ...h.captured, token: 'replacement-token', url: h.tab.url };
+  h.hooks.executeScript = request => request.files
+    ? [{ frameId: 0, documentId: h.documentId }]
+    : [{ frameId: 0, documentId: h.documentId, result: h.documentUrl }];
+  h.hooks.sendMessage = (tabId, message, target) => {
+    if (message.type === 'SS_RESET') {
+      assert.equal(tabId, TAB.id);
+      assert.deepEqual(plain(target), { documentId: DOCUMENT_ID });
+      return { reset: true };
+    }
+    assert.equal(message.type, 'SS_SCAN');
+    assert.equal(tabId, h.tab.id);
+    return plain(h.captured);
+  };
+  successful(await h.send('SS_SCAN'));
+  assert.deepEqual(h.calls.slice(0, 3).map(call => [call.name, call.args[1]?.type]), [['query', undefined], ['sendMessage', 'SS_RESET'], ['executeScript', undefined]]);
+  assert.equal(h.session().formAssistant.scan.documentId, h.documentId);
 });
 
 test('scan rejects unsupported pages, missing document IDs, and invalid content replies', async t => {
@@ -519,8 +626,9 @@ test('SS_CLEAR removes sensitive session state and invalidates a completed revie
   await reviewed(h);
   h.resetCalls();
   cleared(h, successful(await h.send('SS_CLEAR')));
-  assert.deepEqual(h.calls.map(call => call.name), ['sendMessage', 'set']);
+  assert.deepEqual(h.calls.map(call => call.name), ['sendMessage', 'remove', 'set']);
   assert.deepEqual(h.of('sendMessage')[0].args, [TAB.id, { type: 'SS_RESET' }, { documentId: DOCUMENT_ID }]);
+  assert.deepEqual(h.of('remove')[0].args, ['epfoConnection']);
   failed(await h.send('SS_FILL', { confirmed: true, entries: [{ selector: '#name', value: PROFILE.name }] }), /Generate a new review/);
   failed(await h.send('SS_ANALYZE', { consent: true }), /Scan and review/);
   assert.equal(h.fills().length, 0);
@@ -589,7 +697,7 @@ test('SS_CLEAR prevents an outstanding fill acknowledgement from restoring state
   const started = deferred();
   const pending = deferred();
   h.hooks.sendMessage = (_tabId, message) => {
-    if (message.type === 'SS_RESET') return { ok: true };
+    if (message.type === 'SS_RESET') return { reset: true };
     assert.equal(message.type, 'SS_FILL');
     assert.equal(h.session().formAssistant.stage, 'done');
     started.resolve();

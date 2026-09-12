@@ -119,7 +119,7 @@ function payload(name = 'resume.pdf', type = 'application/pdf', text = '%PDF-syn
 function fillOne(fixture, value) { const scan = fixture.controller.scan(); return fixture.controller.fill(request(scan, [{ selector: scan.fields[0].selector, value }])); }
 
 test('sensitive metadata excludes credentials, OTP, payment, identity, bank, consent and deletion', () => {
-  for (const name of ['password', 'one-time-code', 'verifyOTP', 'g-recaptcha', 'cardNumber', 'cc-csc', 'SSN', 'aadhaar', 'aadharNumber', 'bankAccount', 'IFSC', 'CVV', 'deleteAccount', 'close_account', 'acceptTerms', 'username', 'securityCode', 'cvvnumber', 'otpcode', 'paymentdetails', 'bankdetails', 'accountclose', 'termsofservice']) {
+  for (const name of ['password', 'one-time-code', 'verifyOTP', 'g-recaptcha', 'cardNumber', 'cc-csc', 'SSN', 'UAN', 'uanNumber', 'universalAccountNumber', 'Universal Account Number', 'यू ए एन', 'यूनिवर्सल अकाउंट नंबर', 'सार्वभौमिक खाता संख्या', 'aadhaar', 'aadharNumber', 'bankAccount', 'IFSC', 'CVV', 'deleteAccount', 'close_account', 'acceptTerms', 'username', 'securityCode', 'cvvnumber', 'otpcode', 'paymentdetails', 'bankdetails', 'accountclose', 'termsofservice']) {
     assert.equal(api.isSensitive([name]), true, name);
   }
   for (const name of ['Full name', 'email', 'Phone', 'Address', 'Postal code', 'Resume']) assert.equal(api.isSensitive([name]), false, name);
@@ -146,6 +146,17 @@ test('scan excludes unsafe types, read-only, hidden, disabled and fieldset contr
   const g = fixture([blocked]); fieldset.parentElement = g.body; blocked.parentElement = fieldset;
   Object.defineProperty(blocked, 'value', { get() { assert.fail('Disabled fieldset value accessed'); } });
   assert.equal(g.controller.scan().fields.length, 0);
+});
+
+test('scan excludes UAN labels, IDs and names before reading their values', () => {
+  const fields = [
+    new Input({ id: 'uan' }),
+    new Input({ name: 'universalaccountnumber' }),
+    new Input({ id: 'safe-id' })
+  ];
+  fields[2].labels = [{ textContent: 'यू ए एन' }];
+  fields.forEach(field => Object.defineProperty(field, 'value', { get() { assert.fail('UAN value accessed'); } }));
+  assert.equal(fixture(fields).controller.scan().fields.length, 0);
 });
 
 test('labels and aria metadata are bounded and sensitive fallback sources remain excluded', () => {

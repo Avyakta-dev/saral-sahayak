@@ -59,6 +59,24 @@ async function samePage(scan) {
   return tab;
 }
 
+async function resetScan(scan, required = true) {
+  if (!scan) return true;
+  try {
+    const response = await chrome.tabs.sendMessage(scan.tabId, { type: "SS_RESET" }, { documentId: scan.documentId });
+    check(response?.reset === true, "The previous page did not confirm scan cleanup.");
+    return true;
+  } catch (error) {
+    if (!required) return false;
+    throw new Error("The previous scan could not be cleared. Return to that page or clear the session before replacing it.");
+  }
+}
+
+async function discardScan(version) {
+  if (!state.scan) return;
+  await resetScan(state.scan);
+  check(version === revision, "This operation was cancelled.");
+}
+
 async function save(payload, version) {
   const profile = validateProfile(payload.profile);
   check(typeof payload.model === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,99}$/.test(payload.model), "Enter a valid vision-capable OpenAI model ID.");
@@ -68,12 +86,14 @@ async function save(payload, version) {
     key = payload.key;
   }
   const file = payload.file === undefined ? state.file : validateFile(payload.file);
+  await discardScan(version);
   return persist({ ...freshState(), key, profile, model: payload.model, file }, version);
 }
 
 async function scanPage(version) {
   const tab = await activeTab();
   check(version === revision, "This scan was cancelled.");
+  await discardScan(version);
   let injected;
   try {
     injected = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
@@ -218,11 +238,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       EPFOBridge.cancel();
       revision += 1;
       controller?.abort();
+      const version = revision;
       const previousScan = state.scan;
-      if (previousScan) {
-        chrome.tabs.sendMessage(previousScan.tabId, { type: "SS_RESET" }, { documentId: previousScan.documentId }).catch(() => {});
-      }
-      return persist(freshState(), revision);
+      await Promise.all([resetScan(previousScan, false), EPFOBridge.clearConnection()]);
+      return persist(freshState(), version);
     }
     check(!busy, "An operation is already running. Wait or clear the session to cancel.");
     busy = true;

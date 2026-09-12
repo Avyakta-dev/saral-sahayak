@@ -2,9 +2,12 @@
 
 (function (root) {
   const BASE = "http://127.0.0.1:8000";
+  const SESSION_KEY = "epfoConnection";
   let generation = 0;
   let controller = null;
   let capabilities = null;
+  let loadingCapabilities = null;
+  let connectionWrites = Promise.resolve();
 
   function requireValue(condition, message) {
     if (!condition) throw new Error(message);
@@ -73,7 +76,51 @@
       seen.add(item.code);
     }
     requireValue(seen.has(data.default_language) && typeof data.analysis_available === "boolean", "The backend default language or availability is invalid.");
-    return data;
+    return {
+      schema_version: "1.0",
+      default_language: data.default_language,
+      analysis_available: data.analysis_available,
+      languages: data.languages.map(item => ({
+        code: item.code, name: item.name, native_name: item.native_name, quality_verified: item.quality_verified
+      }))
+    };
+  }
+
+  async function clearConnection() {
+    capabilities = null;
+    loadingCapabilities = null;
+    connectionWrites = connectionWrites.catch(() => {}).then(() => chrome.storage.session.remove(SESSION_KEY));
+    await connectionWrites;
+  }
+
+  async function storeCapabilities(value) {
+    const validated = validateCapabilities(value);
+    connectionWrites = connectionWrites.catch(() => {}).then(() => chrome.storage.session.set({ [SESSION_KEY]: { connected: true, capabilities: validated } }));
+    await connectionWrites;
+    capabilities = validated;
+    return validated;
+  }
+
+  async function loadCapabilities() {
+    if (capabilities) return capabilities;
+    if (loadingCapabilities) return loadingCapabilities;
+    loadingCapabilities = (async () => {
+      try {
+        const stored = await chrome.storage.session.get(SESSION_KEY);
+        const connection = stored?.[SESSION_KEY];
+        requireValue(connection && connection.connected === true, "Connect to the backend and select one of its enabled languages first.");
+        capabilities = validateCapabilities(connection.capabilities);
+        return capabilities;
+      } catch (error) {
+        capabilities = null;
+        await chrome.storage.session.remove(SESSION_KEY).catch(() => {});
+        if (error?.message === "Connect to the backend and select one of its enabled languages first.") throw error;
+        throw new Error("Saved backend capabilities are invalid. Connect to the backend again.");
+      } finally {
+        loadingCapabilities = null;
+      }
+    })();
+    return loadingCapabilities;
   }
 
   function validURL(value) {
@@ -147,14 +194,19 @@
       capabilities = null;
       const result = await transport("/api/v1/capabilities", undefined, version);
       requireValue(result.success, `Backend capabilities unavailable (HTTP ${result.status}).`);
-      capabilities = validateCapabilities(result.data);
+      const validated = validateCapabilities(result.data);
+      requireValue(version === generation, "This backend request was cancelled.");
+      await storeCapabilities(validated);
+      requireValue(version === generation, "This backend request was cancelled.");
       return { ok: true, data: capabilities, status: result.status };
     }
     requireValue(message.type === "SS_EPFO_ANALYZE", "Unknown EPFO request.");
     const { text, language, consent } = message.payload || {};
     requireValue(consent === true, "Approve sending the reviewed remark to the backend first.");
     requireValue(typeof text === "string" && text.trim().length > 0 && [...text].length <= 8000, "Enter a nonblank remark of at most 8,000 Unicode characters.");
-    requireValue(capabilities?.languages.some(item => item.code === language), "Connect to the backend and select one of its enabled languages first.");
+    const enabled = await loadCapabilities();
+    requireValue(version === generation, "This backend request was cancelled.");
+    requireValue(enabled.languages.some(item => item.code === language), "Connect to the backend and select one of its enabled languages first.");
     const body = JSON.stringify({ text, language });
     requireValue(new TextEncoder().encode(body).byteLength <= 32768, "The complete request exceeds 32,768 UTF-8 bytes. Shorten the remark; nothing was sent.");
     const result = await transport("/api/v1/analyze", body, version);
@@ -167,5 +219,5 @@
     throw new Error(errors[result.status] || `Backend returned an unexpected response (HTTP ${result.status}).`);
   }
 
-  root.EPFOBridge = { handle, cancel };
+  root.EPFOBridge = { handle, cancel, clearConnection };
 })(globalThis);

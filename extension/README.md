@@ -16,7 +16,7 @@ There are now two separate paths: **EPFO rejection assistance calls the existing
 
 EPFO requests use the worker, `credentials: omit`, rejected redirects, no automatic retries, a 35-second client timeout, 8,000-Unicode-character and 32,768-byte serialized-body limits. The only loopback routes allowed in code are `/api/v1/capabilities` and `/api/v1/analyze` on port 8000. Chrome host permission cannot restrict ports; code and CSP enforce the exact origin. Do not widen backend CORS or put server/provider secrets in the extension.
 
-EPFO text/results are transient popup/request data, not saved to the form profile/session store. Editing the remark or language, cancelling, clearing, or beginning another request clears stale guidance. Closing the popup discards its preview, but an already-sent request may finish server-side; clearing cannot recall provider data.
+EPFO text/results are transient popup/request data, not saved to the form profile/session store. Validated capability metadata and connection status are kept separately in `chrome.storage.session` so analysis can continue after MV3 worker suspension; **Clear session** removes that cache. Editing the remark or language, cancelling, clearing, or beginning another request clears stale guidance. Closing the popup discards its preview, but an already-sent request may finish server-side; clearing cannot recall provider data.
 
 ### Backend startup and observed blocker
 
@@ -71,7 +71,7 @@ For general form suggestions, only `https://api.openai.com/v1/chat/completions` 
 
 No `<all_urls>`, persistent site content scripts, history, cookies, clipboard, downloads or tab-enumeration permission. No analytics, page-title transmission or automatic source fetching. The target URL/document identity is used locally to reject stale actions, not included in the model request. Field labels, names, IDs, selectors, current values and options are page data and can themselves contain private information; review them before sending.
 
-Session state includes your key, profile, file bytes, captured fields and temporary screenshot. It is restricted to trusted extension contexts, not content scripts. It lasts across popup closure and worker suspension, but Chrome clears session storage on browser restart, extension reload/disable/update. **Clear session** deletes the extension's current state and aborts an in-flight model request where possible. Nothing is intentionally persisted to local/sync storage or disk by the extension. OpenAI and the target website have their own data handling policies; local clearing does not clear their copies.
+Session state includes your key, raw profile values, raw file bytes, captured fields and a temporary raw visible-tab screenshot. It is restricted to trusted extension contexts, not content scripts. It lasts across popup closure and worker suspension, but Chrome clears session storage on browser restart, extension reload/disable/update. **Clear session** deletes the extension's current state and EPFO capability cache, invalidates the referenced content-page scan when reachable, and aborts an in-flight model request where possible. Nothing is intentionally persisted to local/sync storage or disk by the extension. This current raw profile/screenshot design is a development implementation and is not privacy-ready for broad production deployment; it has no screenshot redaction or encrypted vault. OpenAI and the target website have their own data handling policies; local clearing does not clear their copies.
 
 ## Supported controls and honest limits
 
