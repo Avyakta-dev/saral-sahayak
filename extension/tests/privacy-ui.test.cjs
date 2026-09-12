@@ -288,7 +288,7 @@ test('host restoration renders hostile values as inert text and offers no unreso
     `applicant name: ${RESTORED_NAME}`, `<b>contact email</b>: ${RESTORED_EMAIL}`, 'address: unresolved (not filled)',
   ]);
   assert.deepEqual(fillChecks(h).map(node => node.parent.textContent), [
-    `applicant name → ${RESTORED_NAME}`, `<b>contact email</b> → ${RESTORED_EMAIL}`,
+    'applicant name', '<b>contact email</b>',
   ]);
   for (const id of ['restore-title-text', 'restored-slots', 'fill-fields']) {
     assert.equal(nodes(h.get(id)).some(node => ['IMG', 'B', 'SCRIPT'].includes(node.tagName)), false);
@@ -363,7 +363,7 @@ test('terminal filled response removes restored text and PNG, clears inputs, and
   const stale = [...h.port.onMessage.listeners][0], load = h.get('preview-image').onload;
   const selection = fillChecks(h)[0], change = [...selection.listeners.get('change')][0];
   h.reply(filled()); restorationScrubbed(h, 0);
-  assert.match(h.document.body.textContent, /field-a: filled — Field updated/);
+    assert.match(h.document.body.textContent, /1 filled, 0 failed, 0 skipped, 0 unknown/);
   assert.match(h.document.body.textContent, /Sites may autosave/);
   assert.match(h.document.body.textContent, /never clicks Submit/);
   const terminal = h.document.body.textContent, commands = plain(h.calls);

@@ -101,6 +101,11 @@ jobs:
       - run: npm ci
       - name: Install version-matched Chromium and system dependencies
         run: npx playwright install --with-deps chromium
+      - name: Test extension privacy UI with synthetic browser messaging
+        env:
+          NODE_PATH: ${{ github.workspace }}/frontend/node_modules
+          BROWSER_EVIDENCE_DIR: ${{ github.workspace }}/extension-browser-results
+        run: node --test ../extension/tests/browser/*.test.cjs
       - name: Test desktop, mobile, accessibility and local-data privacy
         run: npm run test:e2e
       - name: Upload synthetic browser failure evidence
@@ -111,5 +116,6 @@ jobs:
           path: |
             frontend/test-results/
             frontend/playwright-report/
+            extension-browser-results/
           if-no-files-found: ignore
           retention-days: 7
