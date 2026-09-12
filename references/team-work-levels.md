@@ -80,8 +80,6 @@ These levels turn the existing [ownership plan](planning/hackathon-plan.md#7-tea
 
 **Branch:** `feature/sharvya-ui`
 
-**Name note:** Shravya is the confirmed spelling. The existing branch keeps the legacy `sharvya` spelling so teammates' checkouts continue to work. Prathiksha has no separate assignment in the implementation plan.
-
 **Read first:** [PRD](text/saral-sahayak-prd.md), [frontend/API plan](planning/hackathon-plan.md), [presentation](pdfs/setu-inferentia-public.pdf).
 
 ### Level 1 — mock-driven core screens

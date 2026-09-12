@@ -14,10 +14,8 @@ When a user says "I am <name>", map the name to the documented role and branch, 
 
 - Anish: `feature/anish-backend` — backend, orchestration, LLM, integration, deployment.
 - Avyakta: `feature/avyakta-rag` — dataset, research, sources, retrieval.
-- Shravya: `feature/sharvya-ui` — frontend and UX. Shravya is the confirmed name; the existing branch retains its original misspelling for checkout compatibility.
+- Shravya: `feature/sharvya-ui` — frontend and UX.
 - Ajay: `feature/ajay-documents-tests` — image extraction, documents, fixtures, testing.
-
-The presentation lists Prathiksha instead of Avyakta. Do not invent an assignment for an unlisted contributor or silently change the documented roster.
 
 ## Engineering and privacy constraints
 

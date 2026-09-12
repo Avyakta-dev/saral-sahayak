@@ -1,6 +1,6 @@
 # Team work division
 
-Ownership follows the [hackathon implementation plan](references/planning/hackathon-plan.md#7-team-ownership). Shravya's name is corrected as confirmed by Anish. Existing branch names are unchanged, including the legacy `feature/sharvya-ui` spelling. The presentation has a different roster and must not be used to silently change assignments.
+Ownership follows the [hackathon implementation plan](references/planning/hackathon-plan.md#7-team-ownership).
 
 | Owner | Branch | Responsibilities |
 | --- | --- | --- |

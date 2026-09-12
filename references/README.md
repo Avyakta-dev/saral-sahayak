@@ -6,7 +6,7 @@ This folder is the shared reference library for Saral Sahayak. Give your coding 
 
 > I am Anish [replace with your name]. Read AGENTS.md, references/README.md, CONTRIBUTING.md, and my section of references/team-work-levels.md. Then read the linked product plan and relevant source references. Inspect the current code and Git branch. Explain my responsibilities and the first unfinished level, distinguishing implemented code from plans. Only implement work when I ask, and stay within my assigned scope.
 
-Supported team names: **Anish, Avyakta, Shravya, Ajay**. Shravya's spelling has been confirmed and corrected in the guides and plan; her existing `feature/sharvya-ui` branch retains its original misspelling to avoid breaking checkouts. The presentation lists Prathiksha rather than Avyakta; do not infer a new assignment from that older roster. A name in a prompt is not authentication or permission to push.
+Supported team names: **Anish, Avyakta, Shravya, Ajay**. A name in a prompt is not authentication or permission to push.
 
 ## Reading order
 
