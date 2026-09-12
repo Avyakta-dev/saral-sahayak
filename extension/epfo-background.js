@@ -173,6 +173,7 @@
 
   async function detect(version) {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    requireValue(version === generation, "Remark detection was cancelled.");
     requireValue(tab?.id && /^https?:\/\//i.test(tab.url || ""), "Open the EPFO claim-status page in a normal website tab first.");
     const injection = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["epfo-content.js"] });
     requireValue(version === generation, "Remark detection was cancelled.");
