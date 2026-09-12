@@ -1,0 +1,15 @@
+**
+!pyproject.toml
+!uv.lock
+!backend/
+!backend/**
+!references/
+!references/knowledge/
+!references/knowledge/epfo/
+!references/knowledge/epfo/**
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
