@@ -126,6 +126,63 @@ async def test_a_trailing_dot_or_case_variant_host_is_still_recognized_as_the_sa
     assert text == "Name does not match Aadhaar."
 
 
+async def test_explicit_default_https_port_is_equivalent_to_an_omitted_one():
+    """A URL builder that happens to spell out ":443" must not fail a same-origin
+    request just because the configured endpoint's own URL omitted it, or vice versa -
+    both mean "the default HTTPS port"."""
+    explicit_url = URL.replace(f"https://{HOST}", f"https://{HOST}:443")
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        explicit_url,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+        allowed_port=None,
+    )
+    assert text == "Name does not match Aadhaar."
+
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        URL,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+        allowed_port=443,
+    )
+    assert text == "Name does not match Aadhaar."
+
+
+async def test_userinfo_in_the_url_never_confuses_which_host_is_checked():
+    """urlsplit assigns everything before '@' to .username, never .hostname - a
+    credential-shaped prefix on the allowed host must not grant a pass, and a
+    credential-shaped prefix that happens to spell the allowed host's name must not
+    smuggle a different actual host past the check either."""
+    with pytest.raises(AnalysisError) as prefixed_actual_host:
+        await extract_rejection_text(
+            FakeClient(extracted("should never be reached")),
+            URL.replace(f"https://{HOST}", f"https://{HOST}@attacker.example.invalid"),
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert prefixed_actual_host.value.code == "image_input_unavailable"
+
+    # The reverse: attacker-looking userinfo in front of the real, allowed host is not
+    # a bypass - urlsplit still resolves .hostname to the part after "@".
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        URL.replace(f"https://{HOST}", f"https://attacker.example.invalid@{HOST}"),
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+    )
+    assert text == "Name does not match Aadhaar."
+
+
 async def test_one_tool_free_user_message_carries_the_transient_url():
     client = FakeClient(extracted("Name does not match Aadhaar."))
     text = await run(client)

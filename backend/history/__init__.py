@@ -10,7 +10,7 @@ the project's design explicitly rules out. See backend/history/service.py.
 from .models import CaseRecord, CaseStatus
 from .schemas import HistoryCase, HistoryResponse
 from .service import HistoryTrackingService
-from .store import CaseHistoryStore, fingerprint
+from .store import CaseHistoryStore
 
 __all__ = [
     "CaseRecord",
@@ -19,5 +19,4 @@ __all__ = [
     "HistoryTrackingService",
     "HistoryCase",
     "HistoryResponse",
-    "fingerprint",
 ]

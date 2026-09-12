@@ -42,6 +42,17 @@ def _session_id(request: Request) -> str:
     There is no login system yet; this only lets one browser's own repeat questions
     share history/cache with each other. Never trust it as an identity claim.
 
+    This is a deliberately non-confidential convenience cache, not a privacy boundary:
+    a caller who sends `X-Session-Id: <someone else's value>` reads that value's
+    history exactly as its original sender would (see
+    test_a_caller_who_knows_another_sessions_id_can_read_its_history in
+    test_history_api.py, which proves and documents this rather than treating it as an
+    untested gap). Exposed fields are metadata only (status/outcome/reason_id/
+    language/timestamps), never raw text or another caller's submitted details - see
+    HistoryTrackingService's cache-write gating for the latter. Moving to a
+    server-issued, unguessable session token is real future work once accounts exist,
+    not something to fake with obfuscation here.
+
     A missing/blank header must never collapse into one shared bucket - that would let
     every caller who omits the header read each other's case history. Mint a private,
     unguessable id instead, scoped to this one request only.

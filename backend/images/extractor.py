@@ -98,12 +98,17 @@ async def extract_rejection_text(
     the boundary that actually sends a URL to a third-party LLM provider, and it must
     never forward an arbitrary scheme/host/port even if a future caller changes. Both
     sides of the host comparison are normalized (case, trailing dot) so a variant
-    spelling of the same allowed host can never slip past a literal ``!=``.
+    spelling of the same allowed host can never slip past a literal ``!=``, and ports
+    are compared with an explicit ``:443`` treated the same as an omitted one (both
+    mean "the default HTTPS port") so a URL builder that happens to spell it out
+    doesn't fail a same-origin request.
     """
     parsed_url = urlsplit(image_url)
     host = (parsed_url.hostname or "").lower().rstrip(".")
     allowed = allowed_host.lower().rstrip(".")
-    if parsed_url.scheme != "https" or host != allowed or parsed_url.port != allowed_port:
+    port = 443 if parsed_url.port is None else parsed_url.port
+    expected_port = 443 if allowed_port is None else allowed_port
+    if parsed_url.scheme != "https" or host != allowed or port != expected_port:
         raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
     try:
         budget.begin_model_turn()

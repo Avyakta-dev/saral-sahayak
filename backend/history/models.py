@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.languages import LanguageCode
 
@@ -21,11 +21,16 @@ class CaseRecord(BaseModel):
     it safe to keep as a growing dataset rather than a snapshot of one request.
     """
 
+    # store.py mutates fields in place across the started -> processing ->
+    # completed/failed lifecycle (record.status = ..., record.reason_id = ...); without
+    # this, Field bounds below would only ever be checked once, at construction.
+    model_config = ConfigDict(validate_assignment=True)
+
     case_id: str = Field(min_length=1, max_length=64)
     # Matches _MAX_SESSION_ID_LENGTH in backend/main.py, the only place this is set.
-    # min_length=1 so an empty id can never validate here even if a future caller
-    # regresses - a shared "" bucket is exactly the cross-caller collapse this
-    # module's session isolation exists to prevent.
+    # min_length=1 rules out the empty string, not a specific reused literal like
+    # "anonymous" - the actual "never a shared bucket" guarantee is that main.py always
+    # derives a fresh id per request; nothing here can enforce that on its own.
     session_id: str = Field(min_length=1, max_length=128)
     language: LanguageCode
     fingerprint: str = Field(min_length=1, max_length=64)

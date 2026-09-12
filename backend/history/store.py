@@ -14,6 +14,7 @@ except for a freshly rebuilt draft (see HistoryTrackingService).
 
 import hashlib
 import hmac
+import os
 import secrets
 import threading
 import time
@@ -187,5 +188,10 @@ class CaseHistoryStore:
         try:
             with self._persist_path.open("a", encoding="utf-8") as handle:
                 handle.write(entry.model_dump_json() + "\n")
+            # A new file's mode depends on the process umask, which may be more
+            # permissive than intended for a file other local accounts could then read.
+            # Cheap and idempotent to reassert on every write rather than only on
+            # first creation.
+            os.chmod(self._persist_path, 0o600)
         except OSError:
             pass

@@ -25,6 +25,33 @@ def test_fingerprint_is_stable_and_ignores_case_and_whitespace():
     assert a != c
 
 
+def test_fingerprint_with_a_key_is_not_the_bare_hash():
+    import hashlib
+
+    bare = hashlib.sha256("en\nmy claim was rejected".encode()).hexdigest()
+    assert fingerprint("en", "my claim was rejected") == bare  # key=None: the bare path
+    keyed = fingerprint("en", "my claim was rejected", key=b"x" * 32)
+    assert keyed != bare, "a keyed fingerprint must never equal the unkeyed digest"
+
+
+def test_fingerprint_changes_with_the_key():
+    a = fingerprint("en", "my claim was rejected", key=b"a" * 32)
+    b = fingerprint("en", "my claim was rejected", key=b"b" * 32)
+    assert a != b
+
+
+def test_each_store_instance_gets_its_own_fingerprint_key():
+    """CaseHistoryStore.start()/find_cached() always pass their own per-process key
+    (see CaseHistoryStore.__init__) - this is what actually protects a persisted log,
+    not the bare fingerprint() default, which exists only for direct, unkeyed callers."""
+    one = CaseHistoryStore()
+    other = CaseHistoryStore()
+    record = one.start("alice", "en", "my claim was rejected")
+    assert record.fingerprint != fingerprint("en", "my claim was rejected")  # not the bare hash
+    other_record = other.start("alice", "en", "my claim was rejected")
+    assert record.fingerprint != other_record.fingerprint
+
+
 def test_lifecycle_transitions_and_history_order():
     store = CaseHistoryStore()
     first = store.start("alice", "en", "First question")
@@ -232,6 +259,9 @@ def test_persisted_rows_never_contain_raw_text(tmp_path):
 
     contents = log.read_text(encoding="utf-8")
     assert secret_text not in contents
+    assert (log.stat().st_mode & 0o777) == 0o600, (
+        "the persisted log must not be group/world-readable"
+    )
     lines = [json.loads(line) for line in contents.splitlines() if line]
     assert len(lines) == 1
     assert lines[0]["case_id"] == record.case_id

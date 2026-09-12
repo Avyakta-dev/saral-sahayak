@@ -149,6 +149,36 @@ def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call
         asyncio.run(http.aclose())
 
 
+def test_a_caller_who_knows_another_sessions_id_can_read_its_history(complete_corpus, monkeypatch):
+    """X-Session-Id is a deliberately non-confidential convenience-cache partition key,
+    not an authorization boundary (see _session_id's docstring in backend/main.py) -
+    there is no login system for it to authenticate against. This test documents and
+    proves that accepted behavior, rather than leaving it an unproven assumption: a
+    caller who sends someone else's chosen session id reads exactly what that value's
+    original sender would. What must never happen instead (and is covered elsewhere) is
+    a caller's own submitted `details` or raw claim text ever appearing in another
+    session's view - only non-identifying metadata is exposed here.
+    """
+    app, http, calls = _client(complete_corpus, monkeypatch)
+    try:
+        with TestClient(app) as client:
+            victim = client.post(
+                "/api/v1/analyze",
+                json={"text": "Synthetic test only", "language": "en"},
+                headers={"X-Session-Id": "victim-chosen-id"},
+            )
+            assert victim.status_code == 200, victim.json()
+
+            spoofed = client.get("/api/v1/history", headers={"X-Session-Id": "victim-chosen-id"})
+            assert spoofed.status_code == 200
+            assert len(spoofed.json()["cases"]) == 1
+            assert spoofed.json()["cases"][0]["reason_id"] == "epfo-rr-001"
+    finally:
+        import asyncio
+
+        asyncio.run(http.aclose())
+
+
 def test_callers_who_omit_the_session_header_never_share_one_bucket(complete_corpus, monkeypatch):
     """A missing X-Session-Id must never collapse every anonymous caller into one bucket."""
     app, http, calls = _client(complete_corpus, monkeypatch)
