@@ -77,7 +77,7 @@ Use fictional or properly redacted material. The interface never needs Aadhaar, 
 
 The preview validator models the original English/Hindi version 1.0 fixture contract, not the older plan's illustrative JSON. It is not yet aligned with every field and validation rule in the current [`../docs/backend-contract.md`](../docs/backend-contract.md) and [`../backend/api/schemas.py`](../backend/api/schemas.py). Only four synthetic JSON examples are imported from `../docs/examples/`; no knowledge corpus or archived dataset enters the bundle.
 
-- `src/App.tsx`: conversational shell, live analyze vs sample walkthrough, composer, attachment lifecycle, AbortController cancellation and honest unavailable notices.
+- `src/App.tsx`: conversational shell, live analyze vs sample walkthrough, composer, attachment lifecycle, AbortController cancellation, honest unavailable notices and bounded user-initiated retries (max 3 analyze attempts per live turn).
 - `src/components/AnswerCard.tsx`: compact answer tabs with `mode: 'live' | 'sample'`, checklist, draft/copy feedback and guidance-free non-success states.
 - `src/components/Evidence.tsx`: claim-level Markdown path, record ID, exact heading, lines and original URLs; live vs sample evidence notices; unsafe links are not activated.
 - `src/lib/api.ts`: `getApiBaseUrl`, `fetchCapabilities`, `analyzeRemark` (no browser secrets).
@@ -104,6 +104,6 @@ The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull request
 
 ## Integration boundary
 
-This frontend can call the live analyze API when `VITE_API_BASE_URL` (or same-origin) reaches a running backend. That does **not** claim Level 2 acceptance, live provider success, or policy correctness — corpus/model gates may still return unavailable, and fixture warnings remain historical test data.
+This frontend can call the live analyze API when `VITE_API_BASE_URL` (or same-origin) reaches a running backend. Transport, grounded rendering and clarification/unsupported/error states landed in #48/#51/#57; this work adds bounded user-initiated retries toward issue #25. That does **not** alone close Level 2 or claim live provider/policy acceptance. Draft export remains copy-only until a real download capability exists (`downloads_available` is still false). Fixture warnings remain historical test data.
 
 Still follow-ups: capabilities-driven language selectors beyond the current English/Hindi UI choices, richer CORS coordination with Anish, and image extraction/document services with Ajay. Do not weaken CORS, silently substitute fixtures for API errors, put secrets in `VITE_*`, or enable voice/PDF/download controls without an agreed service. Nothing auto-submits a claim.

@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Paperclip,
   PenLine,
+  RefreshCw,
   Plus,
   Square,
   X,
@@ -24,6 +25,7 @@ import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
 import { analyzeRemark, fetchCapabilities } from './lib/api';
+import { canRetryAnalysis, retriesRemaining } from './lib/analysisRetry';
 import {
   probeBackendStatus,
   unavailableFailureMessage,
@@ -43,6 +45,8 @@ type Turn = {
   response: AnalyzeResponse | null;
   /** Transport / availability failure for a live turn (not a schema AnalyzeResponse). */
   failure?: string | null;
+  /** Completed live analyze attempts for this turn (initial + user retries). */
+  analysisAttempts?: number;
 };
 
 function WelcomeVisual() {
@@ -318,6 +322,111 @@ export default function App() {
     requestAnimationFrame(() => textarea.current?.focus());
   }
 
+  function retryLabelFor(attempts: number): string {
+    const left = retriesRemaining(attempts);
+    return left > 0 ? `Try again (${left} left)` : 'Try again';
+  }
+
+  function runLiveAnalysis(
+    id: number,
+    remark: string,
+    selectedLanguage: Language,
+    priorAttempts: number,
+  ) {
+    const controller = new AbortController();
+    request.current = controller;
+    const nextAttempts = priorAttempts + 1;
+    setPending(true);
+    setError('');
+    setNotice('');
+    setTurns((previous) =>
+      previous.map((turn) =>
+        turn.id === id
+          ? {
+              ...turn,
+              response: null,
+              failure: null,
+              analysisAttempts: nextAttempts,
+            }
+          : turn,
+      ),
+    );
+
+    void (async () => {
+      try {
+        try {
+          const capabilities = await fetchCapabilities(controller.signal);
+          if (!capabilities.analysis_available) {
+            if (request.current !== controller || controller.signal.aborted) return;
+            setBackendStatus({
+              kind: 'not_ready',
+              label: 'Backend reachable — analysis not ready',
+              detail: unavailableFailureMessage(capabilities),
+            });
+            setTurns((previous) =>
+              previous.map((turn) =>
+                turn.id === id
+                  ? {
+                      ...turn,
+                      failure: unavailableFailureMessage(capabilities),
+                    }
+                  : turn,
+              ),
+            );
+            return;
+          }
+          setBackendStatus({
+            kind: 'ready',
+            label: 'Analysis available (config + structure only)',
+            detail:
+              'Not a policy, connectivity, or language-quality certificate. Synthetic inputs only.',
+          });
+        } catch (cause) {
+          if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+            return;
+          // Fall through to analyze; a missing capabilities route still allows a direct analyze attempt.
+        }
+
+        const response = await analyzeRemark({
+          text: remark,
+          language: selectedLanguage,
+          signal: controller.signal,
+        });
+        if (request.current !== controller || controller.signal.aborted) return;
+        setTurns((previous) =>
+          previous.map((turn) => (turn.id === id ? { ...turn, response, failure: null } : turn)),
+        );
+      } catch (cause) {
+        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+          return;
+        const message =
+          cause instanceof Error && cause.message
+            ? cause.message
+            : 'The analysis service could not be reached.';
+        setTurns((previous) =>
+          previous.map((turn) => (turn.id === id ? { ...turn, failure: message } : turn)),
+        );
+      } finally {
+        if (request.current === controller) {
+          request.current = null;
+          setPending(false);
+        }
+      }
+    })();
+  }
+
+  function retryLiveTurn(turn: Turn) {
+    if (pending || readingFile || turn.sample) return;
+    const remark = turn.text.trim();
+    if (!remark) return;
+    const attempts = turn.analysisAttempts ?? 0;
+    if (!canRetryAnalysis(attempts)) {
+      setNotice('Retry limit reached for this message. Edit it or start a new chat.');
+      return;
+    }
+    runLiveAnalysis(turn.id, remark, turn.language, attempts);
+  }
+
   function send(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (pending || readingFile) return;
@@ -358,12 +467,7 @@ export default function App() {
       return;
     }
 
-    const controller = new AbortController();
-    request.current = controller;
     const id = ++turnId.current;
-    setPending(true);
-    setError('');
-    setNotice('');
     const next: Turn = {
       id,
       text: trimmed,
@@ -372,73 +476,13 @@ export default function App() {
       response: null,
       failure: null,
       language: selectedLanguage,
+      analysisAttempts: 0,
     };
     setTurns((previous) => trimThread(previous, next));
     updateAttachment(null);
     setText('');
     closeMenu();
-
-    void (async () => {
-      try {
-        try {
-          const capabilities = await fetchCapabilities(controller.signal);
-          if (!capabilities.analysis_available) {
-            if (request.current !== controller || controller.signal.aborted) return;
-            setBackendStatus({
-              kind: 'not_ready',
-              label: 'Backend reachable — analysis not ready',
-              detail: unavailableFailureMessage(capabilities),
-            });
-            setTurns((previous) =>
-              previous.map((turn) =>
-                turn.id === id
-                  ? {
-                      ...turn,
-                      failure: unavailableFailureMessage(capabilities),
-                    }
-                  : turn,
-              ),
-            );
-            return;
-          }
-          setBackendStatus({
-            kind: 'ready',
-            label: 'Analysis available (config + structure only)',
-            detail:
-              'Not a policy, connectivity, or language-quality certificate. Synthetic inputs only.',
-          });
-        } catch (cause) {
-          if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-            return;
-          // Fall through to analyze; a missing capabilities route still allows a direct analyze attempt.
-        }
-
-        const response = await analyzeRemark({
-          text: trimmed,
-          language: selectedLanguage,
-          signal: controller.signal,
-        });
-        if (request.current !== controller || controller.signal.aborted) return;
-        setTurns((previous) =>
-          previous.map((turn) => (turn.id === id ? { ...turn, response, failure: null } : turn)),
-        );
-      } catch (cause) {
-        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-          return;
-        const message =
-          cause instanceof Error && cause.message
-            ? cause.message
-            : 'The analysis service could not be reached.';
-        setTurns((previous) =>
-          previous.map((turn) => (turn.id === id ? { ...turn, failure: message } : turn)),
-        );
-      } finally {
-        if (request.current === controller) {
-          request.current = null;
-          setPending(false);
-        }
-      }
-    })();
+    runLiveAnalysis(id, trimmed, selectedLanguage, 0);
   }
 
   function composerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -859,6 +903,14 @@ export default function App() {
                             mode="live"
                             response={turn.response}
                             onEdit={() => editTurn(turn)}
+                            onRetry={
+                              turn.response.status === 'error' &&
+                              turn.text.trim() &&
+                              canRetryAnalysis(turn.analysisAttempts ?? 0)
+                                ? () => retryLiveTurn(turn)
+                                : undefined
+                            }
+                            retryLabel={retryLabelFor(turn.analysisAttempts ?? 0)}
                           />
                         ) : turn.failure ? (
                           <div className="unavailable-reply" role="status">
@@ -872,6 +924,17 @@ export default function App() {
                             </h2>
                             <p>{turn.failure}</p>
                             <div className="reply-actions">
+                              {turn.text.trim() && canRetryAnalysis(turn.analysisAttempts ?? 0) ? (
+                                <button
+                                  className="light-button"
+                                  type="button"
+                                  disabled={pending || readingFile}
+                                  onClick={() => retryLiveTurn(turn)}
+                                >
+                                  <RefreshCw size={16} aria-hidden="true" />{' '}
+                                  {retryLabelFor(turn.analysisAttempts ?? 0)}
+                                </button>
+                              ) : null}
                               <button
                                 className="light-button"
                                 type="button"
@@ -890,6 +953,11 @@ export default function App() {
                                 {turn.image && !turn.text ? 'Add or edit wording' : 'Edit message'}
                               </button>
                             </div>
+                            {turn.text.trim() && !canRetryAnalysis(turn.analysisAttempts ?? 0) ? (
+                              <p className="retry-exhausted" lang="en">
+                                Retry limit reached for this message. Edit it or start a new chat.
+                              </p>
+                            ) : null}
                             <details className="connection-details">
                               <summary>Why can’t it answer yet?</summary>
                               <p>

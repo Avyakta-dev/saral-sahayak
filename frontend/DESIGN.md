@@ -28,6 +28,7 @@ Shravya requested a simpler, more visual experience after reviewing the initial 
 - Output language affects new replies. Editing removes the old turn and returns its content to the composer; new chat clears state.
 - Cancelled sample responses and removed/replaced file selections cannot reappear. Image URLs are released when no longer needed.
 - Only six latest turns are kept in memory; nothing is persisted or submitted to an analysis service.
+- Live transport/availability failures and live `error` envelopes offer a bounded user-initiated **Try again** (max three analyze attempts per turn). Clarification and unsupported stay edit-first. No automatic retries.
 
 ## Scope and review boundary
 
