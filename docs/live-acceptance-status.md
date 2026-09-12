@@ -49,16 +49,16 @@ Merged deliverables: backend foundation/agent, output-security fixes, corpus gen
 - Image #11–#15: #11 L1 contract closed; #12+ still needs host/name agreement. Privacy #16–#20: #16 L1 approved/closed; #17+ implementation remains. Extension UI #21–#23: planned mocks/integration, not finished.
 - Web UI #24–#26: #24 L1 mock UI closed; #25 API integration is next. Frontend preview merges do not by themselves close higher levels.
 - Knowledge #27–#28: offline artifacts are merged; actual agent trace/outcome review and six authoritative-source verification gaps remain. Offline `not_run`/`not_attempted` markers are not completed live checks.
-- Backend #29–#30: #29 has a post-#52 single-case live success with real citations; Level 2 matrix and semantic/language review remain open. Integration/demo readiness (#30) remains open.
+- Backend #29–#30: post-#52 single-case live success with real citations is recorded; broader matrix/semantic/language review and Level 3 reproducible demo acceptance (#30) remain open. A local [demo runbook](demo-runbook.md) + readiness probe advance #30 without claiming closure.
 
 ## What each person should work on next
 
 | Person | Next issue | Concrete next deliverable |
 | --- | --- | --- |
-| Anish | [#29](https://github.com/iotserver24/saral-sahayak/issues/29) | Expand the **bounded** live matrix (remaining English expected states + separately authorized languages) after the post-#52 single-case success; keep call ceilings explicit; do not close #29 until checklist evidence exists. |
+| Anish | [#30](https://github.com/iotserver24/saral-sahayak/issues/30) / [#29](https://github.com/iotserver24/saral-sahayak/issues/29) | Rehearse the local integrated demo via [demo-runbook.md](demo-runbook.md); expand the **bounded** live matrix when authorized; do not treat packaging or a single-case success as Level 3 done. |
 | Ajay | [#6](https://github.com/iotserver24/saral-sahayak/issues/6) / [#17](https://github.com/iotserver24/saral-sahayak/issues/17) | Attach revised browser evidence for #6–#10 (see issue 6 comment); implement privacy #17+ against approved #16. Image #12+ needs host name before coding. |
 | Avyakta | [#21](https://github.com/iotserver24/saral-sahayak/issues/21) | Extension privacy/settings UI mocks in parallel with Ajay's privacy track, not Shravya's main web UI. Continue evidence/source gaps in #27–#28 as a separate knowledge track. |
-| Shravya | [#25](https://github.com/iotserver24/saral-sahayak/issues/25) | Real API integration for the main web UI (#24 L1 mocks closed). Keep provider keys out of the frontend. |
+| Shravya | [#25](https://github.com/iotserver24/saral-sahayak/issues/25) / [#26](https://github.com/iotserver24/saral-sahayak/issues/26) | Live analyze transport is on `main` (#48); finish remaining #25 evidence and Level 3 a11y/demo polish. Keep provider keys out of the frontend. |
 
 Note: #16 / #11 / #24 are closed as L1 contracts/UI only; dependent higher levels stay open.
 
@@ -66,4 +66,4 @@ Each person should read their issue and the linked reference guide, inspect curr
 
 ## Pitch / differentiation
 
-For hackathon judges asking how this differs from ChatGPT, see [Why not ChatGPT?](why-not-chatgpt.md). That note does not change the live results above—Level 2 live acceptance remains open until the authorized matrix and independent review criteria are met.
+For hackathon judges asking how this differs from ChatGPT, see [Why not ChatGPT?](why-not-chatgpt.md). For running the local UI→API path, see [demo-runbook.md](demo-runbook.md). Those notes do not close issue 29 or 30 by themselves.
