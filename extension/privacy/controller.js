@@ -23,6 +23,8 @@
     previous.inspection = null;
     previous.binding = null;
     previous.restored = null;
+    for (const entry of previous.pendingFillEntries || []) entry.value = "";
+    previous.pendingFillEntries = null;
     if (previous.documentId) chrome.tabs.sendMessage(previous.tabId, { type: "PRIVACY_RESET" }, { documentId: previous.documentId }).catch(() => {});
     if (!silent) notify(previous, { type: "expired", message: reason });
   }
@@ -147,11 +149,14 @@
     const allowed = new Set(s.restored.filter(item => item.filled).map(item => item.slot));
     check(message.slots.every(slot => typeof slot === "string" && allowed.has(slot)), "Only restored filled fields can be selected for Fill.");
     check(new Set(message.slots).size === message.slots.length, "Duplicate Fill selections are not allowed.");
-    const released = s.vault.consumeFill(message.slots, s.binding);
+    let released = s.vault.consumeFill(message.slots, s.binding);
     s.vault = null;
     s.restored = null;
     const entries = released.map(item => ({ id: item.slot, label: item.label, value: item.value }));
+    released = null;
+    s.pendingFillEntries = entries;
     let response;
+    s.filling = true;
     try {
       response = await chrome.tabs.sendMessage(s.tabId, {
         type: "PRIVACY_FILL",
@@ -159,11 +164,14 @@
         entries
       }, { documentId: s.documentId });
     } catch {
-      dispose("The page stopped responding during Fill. Inspect it for partial changes. Nothing was submitted.");
+      if (session === s) dispose("The page stopped responding during Fill. Inspect it for partial changes. The extension did not click Submit.");
       return null;
+    } finally {
+      s.filling = false;
+      for (const entry of entries) entry.value = "";
+      s.pendingFillEntries = null;
     }
-    // Clear private values from this controller after the write attempt.
-    for (const entry of entries) entry.value = "";
+    if (session !== s) return null;
     check(response && !response.error && Array.isArray(response.results), "Fill was rejected by the page adapter.");
     const result = {
       type: "filled",
@@ -227,6 +235,9 @@
   }
   function invalidated(message, sender) {
     if (message?.type === "PRIVACY_INVALIDATED" && session && sender.id === chrome.runtime.id && sender.tab?.id === session.tabId && sender.documentId === session.documentId) {
+      // The page consumes its one-shot session at Fill completion. Keep only the
+      // in-flight outcome channel; page-side validation stops any further writes.
+      if (session.filling) { session.fillInvalidated = true; return; }
       dispose("The source page changed. Privacy state and preview were discarded.");
     }
   }

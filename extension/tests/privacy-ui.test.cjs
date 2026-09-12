@@ -15,6 +15,17 @@ const nodes = root => [root, ...root.children.flatMap(nodes)];
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 const TAG = 'ABCDEF0123456789ABCDEF0123456789';
 const OMIT = 'SYNTHETIC_OMITTED_VALUE';
+const RESTORED_NAME = '<img src=x onerror="alert(\'SYNTHETIC_NAME\')">';
+const RESTORED_EMAIL = 'synthetic-contact@example.invalid';
+const RESTORED_TITLE = '<b>SYNTHETIC_LOCAL_RESTORATION</b>';
+const restoration = () => ({ type: 'restored', title: RESTORED_TITLE, remainingMs: 120000, slots: [
+  { slot: 'field-a', label: 'applicant name', filled: true, value: RESTORED_NAME, unresolved: false },
+  { slot: 'field-b', label: '<b>contact email</b>', filled: true, value: RESTORED_EMAIL, unresolved: false },
+  { slot: 'field-c', label: 'address', filled: false, value: null, unresolved: true },
+] });
+const filled = () => ({ type: 'filled', results: [{ id: 'field-a', status: 'filled', message: 'Field updated.' }],
+  warnings: ['Sites may autosave when fields change.'],
+  message: 'Fill attempt finished. The extension never clicks Submit. Review the page yourself.' });
 const inspection = () => ({ type: 'inspected', cropLimits: { width: 1600, height: 900, dpr: 2 }, candidates: [
   { id: 'field-a', label: 'applicant name', value: OMIT }, { id: 'field-b', label: '<b>contact email</b>', value: OMIT },
 ] });
@@ -117,10 +128,13 @@ function harness(t) {
   return { get, document, window, port, calls, connections, timers, elements,
     get closes() { return closes; }, get disconnects() { return disconnects; },
     advance(ms) { now += ms; }, reply(message) { port.onMessage.emit(message); },
-    fire(id, type = 'click', forced = false) {
-      const node = get(id);
-      if (!forced) for (let parent = node; parent; parent = parent.parent) assert.equal(parent.disabled, false, `${id} is disabled`);
-      assert.ok(node.listeners.get(type)?.length, `Missing production ${type} listener for ${id}`);
+    // Dynamic fill checkboxes have no IDs. Dispatch their real listeners too;
+    // checked changes remain explicit, with no emulated application behavior.
+    fire(target, type = 'click', forced = false) {
+      const node = typeof target === 'string' ? get(target) : target;
+      assert.ok(nodes(document.body).includes(node), 'Event target must be attached');
+      if (!forced) for (let parent = node; parent; parent = parent.parent) assert.equal(parent.disabled, false, `${node.id || node.tagName} is disabled`);
+      assert.ok(node.listeners.get(type)?.length, `Missing production ${type} listener for ${node.id || node.tagName}`);
       return node.dispatchEvent({ type });
     },
   };
@@ -131,6 +145,36 @@ function capture(h) { assert.equal(h.fire('crop-form', 'submit').defaultPrevente
 function captured(h) { inspected(h); capture(h); }
 function shown(h) { captured(h); h.reply(preview()); }
 function checks(h) { return nodes(h.get('fields')).filter(node => node.type === 'checkbox'); }
+function fillChecks(h) { return nodes(h.get('fill-fields')).filter(node => node.type === 'checkbox'); }
+function changeCheck(h, target, checked) {
+  const checkbox = typeof target === 'string' ? h.get(target) : target;
+  checkbox.checked = checked; h.fire(checkbox, 'change');
+}
+function reviewed(h) {
+  inspect(h);
+  h.reply({ ...inspection(), candidates: restoration().slots.map(slot => ({ id: slot.slot, label: slot.label })) });
+  for (const checkbox of checks(h)) checkbox.checked = true;
+  capture(h);
+  h.reply({ ...preview(), slots: restoration().slots.map(({ label, filled }) => ({ label, filled })) });
+  h.get('preview-image').onload(); changeCheck(h, 'review-check', true); h.fire('confirm');
+  h.reply({ type: 'reviewed' });
+}
+function restored(h) { reviewed(h); h.fire('restore'); h.reply(restoration()); }
+function noRestoredOutbound(h) {
+  const outbound = JSON.stringify(h.calls);
+  for (const value of [RESTORED_NAME, RESTORED_EMAIL, RESTORED_TITLE, PNG]) assert.equal(outbound.includes(JSON.stringify(value).slice(1, -1)), false);
+  noRaw(h);
+}
+function restorationScrubbed(h, cancels) {
+  scrubbed(h, cancels);
+  const dom = JSON.stringify(nodes(h.document.body).map(node => [node._text, node.attributes, node.value]));
+  for (const value of [RESTORED_NAME, RESTORED_EMAIL, RESTORED_TITLE, PNG]) assert.equal(dom.includes(JSON.stringify(value).slice(1, -1)), false);
+  // Retain old checkbox references to verify their input state was cleared too.
+  for (const checkbox of fillChecks(h)) {
+    assert.equal(checkbox.value, ''); assert.equal(checkbox.checked, false); assert.equal(checkbox.disabled, true);
+  }
+  noRestoredOutbound(h);
+}
 function noRaw(h) {
   const visible = nodes(h.document.body).map(node => [node._text, node.attributes, node.value]);
   assert.equal(JSON.stringify([visible, h.calls]).includes(OMIT), false, 'Excluded synthetic metadata must never enter DOM or commands');
@@ -211,6 +255,137 @@ test('PNG load and checked consent jointly gate review with the exact approval t
   for (const button of unavailable) { assert.equal(button.disabled, true); assert.equal(button.listeners.size, 0); }
   assert.deepEqual(h.calls.map(call => call.type), ['inspect', 'capture', 'review']); noRaw(h);
   assert.match(html, /connect-src 'none'/); assert.match(html, /form-action 'none'/);
+});
+test('Restore requires loaded preview, explicit review and host acknowledgement; review alone never restores', t => {
+  const h = harness(t);
+  const blocked = () => {
+    const before = h.calls.length;
+    assert.equal(h.get('restore').disabled, true);
+    h.fire('restore', 'click', true);
+    assert.equal(h.calls.length, before);
+    assert.equal(h.get('restored-slots').children.length, 0);
+  };
+  blocked(); inspect(h); blocked(); h.reply(inspection()); blocked(); capture(h); blocked();
+  h.reply(preview()); blocked(); h.get('preview-image').onload(); blocked();
+  changeCheck(h, 'review-check', true); blocked(); h.fire('confirm'); blocked();
+  assert.deepEqual(h.calls.map(call => call.type), ['inspect', 'capture', 'review']);
+  h.reply({ type: 'reviewed' });
+  assert.equal(h.get('restore').disabled, false);
+  assert.equal(h.get('restore-section').hidden, false);
+  assert.equal(h.get('fill-section').hidden, true);
+  assert.equal(h.calls.length, 3);
+  h.fire('restore'); assert.deepEqual(h.calls.at(-1), { type: 'restore' });
+  assert.equal(h.get('crop-form').getAttribute('aria-busy'), 'true');
+  blocked(); noRestoredOutbound(h);
+});
+test('host restoration renders hostile values as inert text and offers no unresolved or empty fill choice', t => {
+  const h = harness(t); restored(h);
+  assert.equal(h.get('restore-title-text').hidden, false);
+  assert.equal(h.get('restore-title-text').textContent, RESTORED_TITLE);
+  assert.deepEqual(h.get('restored-slots').children.map(node => node.textContent), [
+    `applicant name: ${RESTORED_NAME}`, `<b>contact email</b>: ${RESTORED_EMAIL}`, 'address: unresolved (not filled)',
+  ]);
+  assert.deepEqual(fillChecks(h).map(node => node.parent.textContent), [
+    `applicant name → ${RESTORED_NAME}`, `<b>contact email</b> → ${RESTORED_EMAIL}`,
+  ]);
+  for (const id of ['restore-title-text', 'restored-slots', 'fill-fields']) {
+    assert.equal(nodes(h.get(id)).some(node => ['IMG', 'B', 'SCRIPT'].includes(node.tagName)), false);
+    const attributes = JSON.stringify(nodes(h.get(id)).map(node => [node.attributes, node.value]));
+    for (const value of [RESTORED_NAME, RESTORED_EMAIL, RESTORED_TITLE]) assert.equal(attributes.includes(JSON.stringify(value).slice(1, -1)), false);
+  }
+  assert.equal(h.get('restore').disabled, true);
+  assert.equal(h.get('fill-section').hidden, false);
+  assert.equal(h.get('fill-fields').disabled, false);
+  assert.ok(fillChecks(h).every(node => !node.checked));
+  assert.equal(h.get('fill-confirmation').checked, false); assert.equal(h.get('fill').disabled, true);
+  assert.match(h.get('status').textContent, /Select fields and approve Fill separately/);
+  noRestoredOutbound(h);
+
+  const empty = harness(t); reviewed(empty); empty.fire('restore');
+  empty.reply({ ...restoration(), slots: [restoration().slots[2],
+    { slot: 'field-a', label: 'applicant name', filled: true, value: '', unresolved: false }] });
+  assert.equal(fillChecks(empty).length, 0);
+  assert.match(empty.get('fill-fields').textContent, /Unresolved fields stay manual/);
+  for (const id of ['select-filled', 'clear-filled', 'fill-confirmation', 'fill']) assert.equal(empty.get(id).disabled, true);
+  empty.get('fill-confirmation').checked = true; empty.fire('fill', 'click', true);
+  assert.deepEqual(empty.calls.map(call => call.type), ['inspect', 'capture', 'review', 'restore']);
+});
+test('Fill needs explicit selection plus consent and sends only selected slot IDs once, never raw values', t => {
+  const h = harness(t); restored(h);
+  const blocked = () => {
+    assert.equal(h.get('fill').disabled, true);
+    h.fire('fill', 'click', true);
+    assert.equal(h.calls.filter(call => call.type === 'fill').length, 0);
+  };
+  blocked();
+  changeCheck(h, 'fill-confirmation', true); blocked(); // Consent without selection.
+  changeCheck(h, 'fill-confirmation', false);
+  changeCheck(h, fillChecks(h)[1], true); blocked(); // Selection without consent.
+  changeCheck(h, 'fill-confirmation', true);
+  assert.equal(h.get('fill').disabled, false);
+  assert.equal(h.calls.filter(call => call.type === 'fill').length, 0); // Consent is not Fill.
+  changeCheck(h, 'fill-confirmation', false); blocked();
+  changeCheck(h, 'fill-confirmation', true); h.fire('fill');
+  assert.deepEqual(h.calls.at(-1), { type: 'fill', confirmed: true, slots: ['field-b'] });
+  assert.deepEqual(h.calls.map(call => call.type), ['inspect', 'capture', 'review', 'restore', 'fill']);
+  for (const id of ['fill', 'fill-fields', 'select-filled', 'clear-filled', 'fill-confirmation', 'restore']) assert.equal(h.get(id).disabled, true);
+  assert.equal(h.get('crop-form').getAttribute('aria-busy'), 'true');
+  h.fire('fill', 'click', true); h.fire('restore', 'click', true);
+  assert.equal(h.calls.length, 5); noRestoredOutbound(h);
+});
+test('individual checkbox changes, Select all and Clear selection invalidate previous Fill consent', t => {
+  const h = harness(t); restored(h);
+  const [first, second] = fillChecks(h);
+  changeCheck(h, first, true);
+  const approve = () => {
+    changeCheck(h, 'fill-confirmation', true); assert.equal(h.get('fill').disabled, false);
+  };
+  const revoked = () => {
+    assert.equal(h.get('fill-confirmation').checked, false); assert.equal(h.get('fill').disabled, true);
+    h.fire('fill', 'click', true); assert.equal(h.calls.filter(call => call.type === 'fill').length, 0);
+  };
+  approve(); changeCheck(h, second, true); revoked();
+  approve(); changeCheck(h, first, false); revoked(); // Another field remains selected.
+  approve(); h.fire('select-filled'); revoked();
+  assert.ok(fillChecks(h).every(node => node.checked));
+  approve(); h.fire('select-filled'); revoked(); // Even when everything was selected already.
+  approve(); h.fire('clear-filled'); revoked();
+  assert.ok(fillChecks(h).every(node => !node.checked));
+  h.fire('select-filled'); revoked(); approve();
+  assert.equal(h.calls.length, 4); noRestoredOutbound(h);
+});
+test('terminal filled response removes restored text and PNG, clears inputs, and ignores queued replies without persistence', t => {
+  const h = harness(t); restored(h);
+  h.fire('select-filled'); changeCheck(h, 'fill-confirmation', true); h.fire('fill');
+  assert.deepEqual(h.calls.at(-1), { type: 'fill', confirmed: true, slots: ['field-a', 'field-b'] });
+  const stale = [...h.port.onMessage.listeners][0], load = h.get('preview-image').onload;
+  const selection = fillChecks(h)[0], change = [...selection.listeners.get('change')][0];
+  h.reply(filled()); restorationScrubbed(h, 0);
+  assert.match(h.document.body.textContent, /field-a: filled — Field updated/);
+  assert.match(h.document.body.textContent, /Sites may autosave/);
+  assert.match(h.document.body.textContent, /never clicks Submit/);
+  const terminal = h.document.body.textContent, commands = plain(h.calls);
+  stale(restoration()); stale(filled()); load(); change(); h.window.dispatchEvent({ type: 'pagehide' });
+  assert.equal(h.document.body.textContent, terminal); assert.deepEqual(h.calls, commands);
+  assert.equal(h.connections.length, 1); restorationScrubbed(h, 0);
+});
+test('cancel during restoration, restored selection or pending Fill clears local data and rejects late results', t => {
+  for (const phase of ['restoring', 'restored', 'filling']) {
+    const h = harness(t); reviewed(h); h.fire('restore');
+    if (phase !== 'restoring') {
+      h.reply(restoration()); h.fire('select-filled'); changeCheck(h, 'fill-confirmation', true);
+      if (phase === 'filling') h.fire('fill');
+    }
+    const stale = [...h.port.onMessage.listeners][0], load = h.get('preview-image').onload;
+    h.fire('cancel'); restorationScrubbed(h, 1);
+    assert.match(h.document.body.textContent, /Cancelled/);
+    assert.deepEqual(h.calls.at(-1), { type: 'cancel' });
+    const terminal = h.document.body.textContent, commands = plain(h.calls);
+    stale(restoration()); stale(filled()); load();
+    assert.equal(h.document.body.textContent, terminal); assert.deepEqual(h.calls, commands);
+    assert.equal(h.calls.filter(call => call.type === 'fill').length, phase === 'filling' ? 1 : 0);
+    restorationScrubbed(h, 1);
+  }
 });
 const invalidPreviews = [
   ['non-PNG MIME', { preview: 'data:image/jpeg;base64,U1RVQg==' }], ['remote URL', { preview: 'https://example.invalid/preview.png' }],
