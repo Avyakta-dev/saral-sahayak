@@ -164,6 +164,8 @@ def test_index_is_compact_and_surfaces_grounding_flags():
     assert "Form 19 PF Final Settlement" not in index  # full names live in reason files
     assert "Form 19" in index
     assert "UMANG/portal" in index
+    # Host analysis bootstraps README.md with max_bytes=2048; keep early KYC ids visible.
+    assert "epfo-rr-001" in index.encode("utf-8")[:2048].decode("utf-8")
     # every reason still linked
     links = set(re.findall(r"\]\((reasons/epfo-rr-\d{3}\.md)\)", index))
     assert links == {f"reasons/epfo-rr-{i:03d}.md" for i in range(1, 182)}
