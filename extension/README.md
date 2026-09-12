@@ -18,6 +18,10 @@ EPFO requests use the worker, `credentials: omit`, rejected redirects, no automa
 
 EPFO text/results are transient popup/request data, not saved to the form profile/session store. Validated capability metadata and connection status are kept separately in `chrome.storage.session` so analysis can continue after MV3 worker suspension; **Clear session** removes that cache. Editing the remark or language, cancelling, clearing, or beginning another request clears stale guidance. Closing the popup discards its preview, but an already-sent request may finish server-side; clearing cannot recall provider data.
 
+### Protected-backend errors
+
+Protected analysis requires a separately authenticated gateway; do not put its shared server-to-server token in extension settings. The EPFO worker now explains HTTP 401/403 access failures, 429 capacity limits and 504 server timeouts without echoing arbitrary server message bodies. A valid integer Retry-After (1–3,600 seconds) is displayed as advice only; no automatic retry is scheduled. Full validated analysis envelopes still show their actual dependency/analysis errors. This does not implement the missing authenticated gateway or alter CORS, permissions, credentials or the fixed backend destination. See [protected analysis](../docs/protected-analysis.md).
+
 ### Backend startup and observed blocker
 
 From the repository root in a supported, provisioned environment:
@@ -27,7 +31,7 @@ uv sync --frozen
 uv run uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-**Native Windows startup was attempted and failed** at `backend/tools/knowledge_files.py` with `AttributeError: module 'os' has no attribute 'O_DIRECTORY'`. No service was listening on port 8000. `pydantic-settings` and `uv` are also unavailable in the checked runtime, and `references/knowledge/epfo/` is absent. Use a compatible Linux/WSL environment with the declared dependencies or coordinate a reviewed Windows file-tool implementation with Anish; do not bypass containment controls. This change installs nothing, edits no backend code/CORS, and makes no live provider requests. Successful production analysis remains blocked on runtime/corpus/model readiness.
+**Native Windows startup was attempted and failed** at `backend/tools/knowledge_files.py` with `AttributeError: module 'os' has no attribute 'O_DIRECTORY'`. No service was listening on port 8000. `pydantic-settings` and `uv` were also unavailable in the checked runtime. The corpus was absent at that earlier check but is now merged under `references/knowledge/epfo/`; its presence alone does not establish live analysis readiness. Use a compatible Linux/WSL environment with the declared dependencies or coordinate a reviewed Windows file-tool implementation with Anish; do not bypass containment controls. This change installs nothing, edits no backend code/CORS, and makes no live provider requests. Successful production analysis remains blocked on runtime/corpus/model readiness.
 
 ## Load unpacked
 
