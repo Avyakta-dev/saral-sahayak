@@ -94,4 +94,4 @@ Expected: files exist; all anchors match; non-claim phrases present. Observed: s
 
 ## Next checkpoint
 
-Stop here. After review, a **separate explicit request** may start Extension UI Level 2 (integrate approved controls with Ajay’s contracts; keep mocks labelled until replaced by integrated UI).
+Level 1 mocks stay labelled here. A **partial** Extension UI Level 2 slice (issue 22) wires disclosure/renderer controls into `extension/privacy/privacy.html` without removing these mocks — see [`../../evidence/ui-level-2-controls-preview.md`](../../evidence/ui-level-2-controls-preview.md). Full Level 2 acceptance remains open.

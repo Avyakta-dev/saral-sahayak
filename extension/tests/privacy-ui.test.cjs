@@ -197,8 +197,10 @@ function scrubbed(h, cancels = 1) {
 test('actual HTML starts disabled; ready is inert until the explicit Inspect click', t => {
   const h = harness(t);
   assert.deepEqual(h.connections, [{ name: 'privacy-local' }]); assert.deepEqual(h.calls, []);
-  for (const id of ['inspect', 'fields', 'crop-controls', 'capture', 'review-check', 'confirm', 'restore', 'fill', 'cancel']) assert.equal(h.get(id).disabled, true);
-  assert.equal(h.get('preview-section').hidden, true); assert.equal(h.get('restore-section').hidden, true); assert.equal(h.get('fill-section').hidden, true); assert.equal(h.get('preview-image').src, '');
+  for (const id of ['inspect', 'fields', 'crop-controls', 'capture', 'review-check', 'confirm', 'restore', 'fill', 'cancel', 'first-last', 'provider-mode', 'analyze-consent']) assert.equal(h.get(id).disabled, true);
+  assert.equal(h.get('preview-section').hidden, true); assert.equal(h.get('outbound-section').hidden, true);
+  assert.equal(h.get('restore-section').hidden, true); assert.equal(h.get('fill-section').hidden, true); assert.equal(h.get('preview-image').src, '');
+  assert.equal(h.get('first-last').checked, false); assert.equal(h.get('analyze-consent').checked, false);
   assert.equal(h.timers.size, 0); h.reply({ type: 'ready' });
   assert.equal(h.get('inspect').disabled, false); assert.equal(h.get('cancel').disabled, false);
   assert.deepEqual(h.calls, []); h.fire('inspect'); assert.deepEqual(h.calls, [{ type: 'inspect' }]);
@@ -441,4 +443,90 @@ for (const action of ['pagehide', 'close', 'expired']) test(`${action} destroys 
   if (action === 'pagehide') h.window.dispatchEvent({ type: 'pagehide' });
   else if (action === 'close') h.fire('close'); else h.reply({ type: 'expired' });
   scrubbed(h, action === 'expired' ? 0 : 1); assert.equal(h.closes, action === 'close' ? 1 : 0);
+});
+
+// --- Extension UI Level 2 (issue 22): disclosure / renderer integration checks ---
+// Does not enable Analyze/upload/provider transport. Does not edit vault/controller modules.
+test('Level 2: preview shows outbound envelope without tokens/values; first-last and Analyze stay disabled', t => {
+  const h = harness(t); shown(h); noRaw(h);
+  assert.equal(h.get('outbound-section').hidden, false);
+  assert.match(h.get('outbound-meta').textContent, /privacy-slots-1/);
+  assert.match(h.get('outbound-meta').textContent, /transport: disabled/);
+  assert.deepEqual(h.get('outbound-slots').children.map(node => node.textContent), [
+    'applicant name — Filled: yes — Mask: *** — token: [vault-held, not shown]',
+    '<b>contact email</b> — Filled: no — Mask: *** — token: [vault-held, not shown]',
+  ]);
+  assert.equal(h.get('first-last').disabled, true);
+  assert.equal(h.get('first-last').checked, false);
+  assert.equal(h.get('provider-mode').disabled, true);
+  assert.equal(h.get('analyze-consent').disabled, true);
+  assert.equal(h.get('analyze-consent').checked, false);
+  const unavailable = nodes(h.document.body).filter(node => node.tagName === 'BUTTON' && ['Analyze', 'Upload image', 'Submit'].includes(node.textContent));
+  assert.equal(unavailable.length, 3);
+  for (const button of unavailable) { assert.equal(button.disabled, true); assert.equal(button.listeners.size, 0); }
+  assert.match(html, /not labelled inherently private|still be a recipient/i);
+  assert.match(html, /mocks\/privacy-ux-level-1/);
+  noRaw(h);
+});
+
+test('Level 2: synthetic capture → preview → restore → Fill keeps Analyze off and local banner plain-text only', t => {
+  const h = harness(t); restored(h); noRestoredOutbound(h);
+  assert.equal(h.get('outbound-section').hidden, false);
+  assert.equal(h.get('local-restore-banner').hidden, false);
+  assert.match(h.get('local-restore-banner').textContent, /Local only/);
+  assert.match(h.get('restore-help').textContent, /never.*innerHTML/i);
+  assert.deepEqual(h.get('restored-slots').children.map(node => node.textContent), [
+    `applicant name: ${RESTORED_NAME}`, `<b>contact email</b>: ${RESTORED_EMAIL}`, 'address: unresolved (not filled)',
+  ]);
+  // Hostile markup stays text; no element children under restored list.
+  assert.equal(nodes(h.get('restored-slots')).some(node => ['IMG', 'B', 'SCRIPT'].includes(node.tagName)), false);
+  for (const id of ['first-last', 'provider-mode', 'analyze-consent']) assert.equal(h.get(id).disabled, true);
+  const unavailable = nodes(h.document.body).filter(node => node.tagName === 'BUTTON' && node.textContent === 'Analyze');
+  assert.equal(unavailable.length, 1); assert.equal(unavailable[0].disabled, true);
+  h.fire('select-filled'); changeCheck(h, 'fill-confirmation', true); h.fire('fill');
+  assert.deepEqual(h.calls.at(-1), { type: 'fill', confirmed: true, slots: ['field-a', 'field-b'] });
+  assert.equal(h.calls.some(call => ['analyze', 'upload', 'submit'].includes(call.type)), false);
+  h.reply(filled()); restorationScrubbed(h, 0);
+});
+
+test('Level 2: provider-mode or first-last change events clear local approvals without enabling transport', t => {
+  const h = harness(t); shown(h);
+  h.get('preview-image').onload();
+  changeCheck(h, 'review-check', true);
+  assert.equal(h.get('confirm').disabled, false);
+  // Force-fire disabled control contracts: approvals must clear; controls stay disabled.
+  h.get('provider-mode').value = 'direct-remote';
+  h.fire('provider-mode', 'change', true);
+  assert.equal(h.get('provider-mode').value, '');
+  assert.equal(h.get('provider-mode').disabled, true);
+  assert.equal(h.get('review-check').checked, false);
+  assert.equal(h.get('confirm').disabled, true);
+  assert.match(h.get('status').textContent, /Provider\/mode/);
+  changeCheck(h, 'review-check', true);
+  h.get('first-last').checked = true;
+  h.fire('first-last', 'change', true);
+  assert.equal(h.get('first-last').checked, false);
+  assert.equal(h.get('first-last').disabled, true);
+  assert.equal(h.get('review-check').checked, false);
+  assert.equal(h.calls.map(call => call.type).includes('analyze'), false);
+  noRaw(h);
+});
+
+test('Level 2: analyze-consent cannot stick while Analyze remains unavailable', t => {
+  const h = harness(t); reviewed(h);
+  h.get('analyze-consent').checked = true;
+  h.fire('analyze-consent', 'change', true);
+  assert.equal(h.get('analyze-consent').checked, false);
+  assert.equal(h.get('analyze-consent').disabled, true);
+  assert.equal(h.calls.some(call => call.type === 'analyze'), false);
+  noRestoredOutbound(h);
+});
+
+test('Level 2: cancel after outbound disclosure scrubs envelope and restored banner state', t => {
+  const h = harness(t); restored(h);
+  assert.equal(h.get('outbound-section').hidden, false);
+  assert.equal(h.get('local-restore-banner').hidden, false);
+  h.fire('cancel');
+  restorationScrubbed(h, 1);
+  assert.match(h.document.body.textContent, /Cancelled/);
 });

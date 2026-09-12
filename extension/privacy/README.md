@@ -48,3 +48,8 @@ Chrome/Brave interactive Fill on a real EPFO portal, selective pixel redaction, 
 ## Related UI mocks
 
 Avyakta’s Extension UI Level 1 annotated mocks (issue 21) are at [`../mocks/privacy-ux-level-1/`](../mocks/privacy-ux-level-1/). Those files do not replace this developer UI or certify redaction.
+
+## Related UI Level 2 (issue 22)
+
+A partial Extension UI Level 2 slice wires outbound-vs-local disclosure, disabled provider/first-last/Analyze controls, and plain-text renderer checks into this window. Evidence: [`../evidence/ui-level-2-controls-preview.md`](../evidence/ui-level-2-controls-preview.md). Vault/transport modules above remain Ajay-owned and unchanged by that UI slice. Level 1 mocks stay labelled at [`../mocks/privacy-ux-level-1/`](../mocks/privacy-ux-level-1/).
+
