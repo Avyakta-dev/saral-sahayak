@@ -102,6 +102,13 @@ async def extract_rejection_text(
     are compared with an explicit ``:443`` treated the same as an omitted one (both
     mean "the default HTTPS port") so a URL builder that happens to spell it out
     doesn't fail a same-origin request.
+
+    This backend never dereferences ``image_url`` itself - it is only ever embedded as
+    a JSON field in the request handed to the LLM provider's API (see
+    backend/llm/responses.py, chat_completions.py), and the provider's own
+    infrastructure performs the fetch. There is no HTTP client or redirect-following
+    code on our side for this URL to guard; this check only prevents an unexpected
+    scheme/host/port from ever being forwarded to the provider in the first place.
     """
     parsed_url = urlsplit(image_url)
     host = (parsed_url.hostname or "").lower().rstrip(".")

@@ -51,6 +51,15 @@ def fingerprint(language: str, text: str, *, key: bytes | None = None) -> str:
 
 
 class CaseHistoryStore:
+    """The live cache and history live only in this instance's memory.
+
+    ``persist_path``, if set, is inspection/audit-only: nothing on startup reads it
+    back into the live cache or `_by_session`, and it never could - `_fingerprint_key`
+    is a fresh random secret per instance (see below), so a fingerprint written by a
+    previous process can never be recomputed or matched again. A restart always starts
+    with an empty, cold cache regardless of what a persisted log contains.
+    """
+
     def __init__(
         self,
         *,
