@@ -412,7 +412,12 @@ export function AnswerCard({
             response.warnings.length > 0 && (
               <ul className="answer-state-warnings">
                 {response.warnings.map((warning, index) => (
-                  <li key={index} lang={/[ऀ-ॿ]/u.test(warning) ? 'hi' : 'en'}>
+                  <li
+                    key={index}
+                    lang={
+                      mode === 'live' ? response.language : /[ऀ-ॿ]/u.test(warning) ? 'hi' : 'en'
+                    }
+                  >
                     {warning}
                   </li>
                 ))}
@@ -446,7 +451,16 @@ export function AnswerCard({
           <ul>
             {response.warnings.map((warning, index) => (
               // Demo warnings mix preserved English notes with prewritten Hindi translations.
-              <li key={index} lang={/[\u0900-\u097f]/u.test(warning) ? 'hi' : 'en'}>
+              <li
+                key={index}
+                lang={
+                  mode === 'live'
+                    ? response.language
+                    : /[\u0900-\u097f]/u.test(warning)
+                      ? 'hi'
+                      : 'en'
+                }
+              >
                 {warning}
               </li>
             ))}

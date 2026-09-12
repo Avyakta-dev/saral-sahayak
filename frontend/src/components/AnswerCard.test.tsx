@@ -1,7 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { responseSchema, type AnalyzeResponse, type Language } from '../lib/contracts';
+import { responseSchema, type AnalyzeResponse, type DemoLanguage } from '../lib/contracts';
 import { getDemoResponse } from '../lib/demo';
 import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
 import AnswerCard, { AnswerCard as NamedAnswerCard } from './AnswerCard';
@@ -45,7 +45,7 @@ async function expectEvidence(container: HTMLElement, response: AnalyzeResponse,
 }
 
 describe('illustrative walkthrough', () => {
-  it.each<Language>(['en', 'hi'])(
+  it.each<DemoLanguage>(['en', 'hi'])(
     'validates %s without changing original metadata or warnings',
     (language) => {
       const original = getDemoResponse('success', language);

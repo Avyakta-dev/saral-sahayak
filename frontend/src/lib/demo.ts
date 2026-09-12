@@ -2,7 +2,12 @@ import successExample from '../../../docs/examples/success.json';
 import clarificationExample from '../../../docs/examples/needs_clarification.json';
 import unsupportedExample from '../../../docs/examples/unsupported.json';
 import errorExample from '../../../docs/examples/error.json';
-import { responseSchema, type AnalyzeResponse, type Language } from './contracts';
+import {
+  demoLanguageSchema,
+  responseSchema,
+  type AnalyzeResponse,
+  type DemoLanguage,
+} from './contracts';
 
 export type DemoScenario = 'success' | 'needs_clarification' | 'unsupported' | 'error';
 
@@ -59,9 +64,9 @@ const hindiWarnings: Record<DemoScenario, string[]> = {
   ],
 };
 
-export function getDemoResponse(scenario: DemoScenario, language: Language): AnalyzeResponse {
+export function getDemoResponse(scenario: DemoScenario, language: DemoLanguage): AnalyzeResponse {
   const response = responseSchema.parse(examples[scenario]);
-  response.language = language;
+  response.language = demoLanguageSchema.parse(language);
 
   if (scenario === 'needs_clarification' && language === 'en') {
     response.questions = [
@@ -113,7 +118,7 @@ export function getDemoResponse(scenario: DemoScenario, language: Language): Ana
 
 export async function loadDemoResponse(
   scenario: DemoScenario,
-  language: Language,
+  language: DemoLanguage,
   signal: AbortSignal,
 ): Promise<AnalyzeResponse> {
   const abortError = () => new DOMException('Demo preview was cancelled.', 'AbortError');
