@@ -194,6 +194,72 @@ test('connect, candidate choice, edit and consent never analyze; explicit Analyz
   assert.equal(h.get('analyze').disabled, true);
 });
 
+test('detection preserves an existing preview until an explicit candidate replaces it', async t => {
+  const h = harness(t);
+  await connect(h);
+  const preview = '  SYNTHETIC manually reviewed remark\nKeep exact spacing.  ';
+  await review(h, preview);
+  const pending = deferred();
+  h.reply('SS_EPFO_DETECT', pending.promise);
+  const detection = h.fire('detect');
+  await tick();
+  assert.equal(h.get('remark').value, preview);
+  assert.equal(h.get('consent').checked, false);
+  pending.resolve(response({ candidates: [{ text: 'SYNTHETIC detected replacement', source: 'selection' }], warnings: [] }));
+  await detection;
+  assert.equal(h.get('remark').value, preview);
+  assert.equal(h.get('candidates').value, '');
+  assert.match(h.get('status').textContent, /existing remark was kept/i);
+  await h.fire('candidates', 'change', '0');
+  assert.equal(h.get('remark').value, 'SYNTHETIC detected replacement');
+  await h.fire('candidates', 'change', '');
+  assert.equal(h.get('remark').value, 'SYNTHETIC detected replacement');
+  assert.equal(analyses(h).length, 0);
+});
+
+test('empty, multiple and failed detections do not erase the reviewed preview', async t => {
+  const h = harness(t);
+  const preview = 'SYNTHETIC existing remark';
+  await h.fire('remark', 'input', preview);
+  for (const result of [
+    response({ candidates: [], warnings: ['No safe candidate'] }),
+    response({ candidates: [{ text: 'SYNTHETIC first', source: 'table' }, { text: 'SYNTHETIC second', source: 'table' }], warnings: [] }),
+    { ok: false, error: 'Restricted page' }
+  ]) {
+    h.reply('SS_EPFO_DETECT', result);
+    await h.fire('detect');
+    assert.equal(h.get('remark').value, preview);
+    assert.equal(h.get('consent').checked, false);
+    assert.equal(h.get('analyze').disabled, true);
+  }
+  assert.equal(analyses(h).length, 0);
+});
+
+test('one detected candidate still populates an empty preview', async t => {
+  const h = harness(t);
+  h.reply('SS_EPFO_DETECT', response({ candidates: [{ text: 'SYNTHETIC only candidate', source: 'selection' }], warnings: [] }));
+  await h.fire('detect');
+  assert.equal(h.get('remark').value, 'SYNTHETIC only candidate');
+  assert.equal(h.get('candidates').value, '0');
+  assert.equal(h.get('consent').checked, false);
+  assert.equal(analyses(h).length, 0);
+});
+
+test('editing during detection invalidates a late candidate without losing the new text', async t => {
+  const h = harness(t);
+  const pending = deferred();
+  h.reply('SS_EPFO_DETECT', pending.promise);
+  const detection = h.fire('detect');
+  await tick();
+  h.reply('SS_EPFO_CANCEL', response({ cancelled: true }));
+  await h.fire('remark', 'input', 'SYNTHETIC new edit while detecting');
+  pending.resolve(response({ candidates: [{ text: 'SYNTHETIC stale candidate', source: 'selection' }], warnings: [] }));
+  await detection;
+  assert.equal(h.get('remark').value, 'SYNTHETIC new edit while detecting');
+  assert.equal(h.get('candidates').disabled, true);
+  assert.equal(h.get('consent').checked, false);
+});
+
 test('capabilities populate actual names/native names and reduced enabled sets without quality claims', async t => {
   const h = harness(t);
   await connect(h);
