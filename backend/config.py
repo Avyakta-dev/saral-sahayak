@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.languages import LANGUAGES, LanguageCode
 from backend.llm import LLMConfig
+from backend.tools.budget import BudgetLimits
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_KNOWLEDGE_ROOT = PROJECT_ROOT / "references" / "knowledge" / "epfo"
@@ -20,7 +21,8 @@ class Settings(BaseSettings):
     llm_base_url: str = ""
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = ""
-    llm_timeout_seconds: float = Field(default=25, gt=0, le=30)
+    llm_timeout_seconds: float = Field(default=25, gt=0, le=120)
+    analysis_request_seconds: float = Field(default=30, gt=0, le=120)
     llm_connect_timeout_seconds: float = Field(default=5, gt=0, le=30)
     llm_max_output_tokens: int = Field(default=2000, gt=0, le=16000)
     llm_extra_headers: dict[str, SecretStr] = Field(default_factory=dict)
@@ -58,6 +60,9 @@ class Settings(BaseSettings):
             ):
                 raise ValueError("CORS requires explicit HTTP(S) origins without paths")
         return value
+
+    def analysis_budget_limits(self) -> BudgetLimits:
+        return BudgetLimits(request_seconds=self.analysis_request_seconds)
 
     def llm_config(self) -> LLMConfig | None:
         if not all(

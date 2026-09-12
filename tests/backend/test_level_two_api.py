@@ -195,7 +195,9 @@ def test_api_serializes_service_outcomes_without_claiming_agent_e2e(
         )
     assert response.status_code == 200
     assert response.json() == result.model_dump()
-    service_factory.assert_called_once_with(model, tmp_path)
+    service_factory.assert_called_once_with(
+        model, tmp_path, budget_limits=settings.analysis_budget_limits()
+    )
     service_factory.return_value.analyze.assert_awaited_once_with(
         AnalyzeRequest(text="synthetic request", language=result.language)
     )
@@ -269,6 +271,23 @@ def test_lifespan_closes_only_owned_model_client(tmp_path, settings, model, monk
         constructor.assert_called_once_with(settings.llm_config())
         model.aclose.assert_awaited_once_with()
     model.complete.assert_not_called()
+
+
+def test_create_app_wires_analysis_request_budget(
+    tmp_path, model, readiness_bypass, service_factory
+):
+    settings = Settings(
+        _env_file=None,
+        llm_base_url="https://provider.example.invalid/private-route",
+        llm_api_key=SECRET,
+        llm_model="synthetic-private-model",
+        analysis_request_seconds=45,
+    )
+    with TestClient(main.create_app(settings, knowledge_root=tmp_path, model_client=model)):
+        pass
+    service_factory.assert_called_once()
+    _args, kwargs = service_factory.call_args
+    assert kwargs["budget_limits"].request_seconds == 45
 
 
 async def test_disconnect_cancels_and_awaits_inflight_operation():

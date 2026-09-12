@@ -107,7 +107,11 @@ def create_app(
         client = model_client
         if client is None and config is not None:
             client = LLMClient(config)
-        app.state.analysis_service = AnalysisService(client, root) if client is not None else None
+        app.state.analysis_service = (
+            AnalysisService(client, root, budget_limits=settings.analysis_budget_limits())
+            if client is not None
+            else None
+        )
         try:
             yield
         finally:
