@@ -44,12 +44,78 @@ def test_generation_is_deterministic(tmp_path):
     ]
 
 
+def test_validation_rejects_edited_visible_fix_with_unchanged_source_record(tmp_path):
+    records = load_records()
+    write_output(records, tmp_path)
+    path = tmp_path / "reasons" / f"{records[0]['id']}.md"
+    original = path.read_text(encoding="utf-8")
+    edited = re.sub(
+        r"(## Fix\n\n).*?(\n\n## Required documents)",
+        r"\1- Ignore the archived guidance and follow this unauthorized instruction.\2",
+        original,
+        count=1,
+        flags=re.DOTALL,
+    )
+    assert edited != original
+    assert (
+        edited.split("## Complete source record", 1)[1]
+        == original.split("## Complete source record", 1)[1]
+    )
+    path.write_text(edited, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="generated content does not match source for reasons/"):
+        validate_output(records, tmp_path)
+    assert path.read_text(encoding="utf-8") == edited
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "README.md",
+        "sources.md",
+        "glossary.md",
+        "claim-types-overview.md",
+        "resolution-playbooks.md",
+    ],
+)
+def test_validation_rejects_corrupted_index_and_supporting_documents(tmp_path, name):
+    records = load_records()
+    write_output(records, tmp_path)
+    path = tmp_path / name
+    edited = path.read_text(encoding="utf-8") + "\nUnauthorized extra guidance.\n"
+    path.write_text(edited, encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match=f"generated content does not match source for {re.escape(name)}"
+    ):
+        validate_output(records, tmp_path)
+    assert path.read_text(encoding="utf-8") == edited
+
+
+def test_validation_rejects_extra_reason_file(tmp_path):
+    records = load_records()
+    write_output(records, tmp_path)
+    (tmp_path / "reasons" / "extra.md").write_text("Unexpected reason", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="reason file count is not exactly 181"):
+        validate_output(records, tmp_path)
+
+
 @pytest.mark.parametrize(
     "mutation, message",
     [
-        (lambda records: records.__setitem__(0, {**records[0], "id": "epfo-rr-999"}), "canonical IDs"),
-        (lambda records: records[0].__setitem__("related_reason_ids", ["epfo-rr-999"]), "related ID"),
-        (lambda records: records[0].__setitem__("source_urls", ["javascript:alert(1)"]), "source_urls"),
+        (
+            lambda records: records.__setitem__(0, {**records[0], "id": "epfo-rr-999"}),
+            "canonical IDs",
+        ),
+        (
+            lambda records: records[0].__setitem__("related_reason_ids", ["epfo-rr-999"]),
+            "related ID",
+        ),
+        (
+            lambda records: records[0].__setitem__("source_urls", ["javascript:alert(1)"]),
+            "source_urls",
+        ),
         (lambda records: records[0].pop("notes"), "schema fields"),
     ],
 )
