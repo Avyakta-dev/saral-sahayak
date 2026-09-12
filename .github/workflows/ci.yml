@@ -108,6 +108,8 @@ jobs:
         run: node --test ../extension/tests/browser/*.test.cjs
       - name: Test desktop, mobile, accessibility and local-data privacy
         run: npm run test:e2e
+      - name: Test streaming, image consent and interface languages with synthetic transports
+        run: npm run test:e2e:live
       - name: Upload synthetic browser failure evidence
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
