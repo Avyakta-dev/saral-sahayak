@@ -185,6 +185,8 @@ test('inspection is metadata-only; capture reads selected references and emits o
   const h = harness(t); const p = await h.start();
   assert.deepEqual(h.injections, [{ target: { tabId: 7 }, files: ['privacy/page.js'] }]);
   assert.deepEqual(h.reads('PRIVACY_INSPECT'), [{ id: 7, message: { type: 'PRIVACY_INSPECT' }, options: { documentId: 'doc-1' } }]);
+  assert.deepEqual(h.reads('PRIVACY_CHECK'), [{ id: 7, message: { type: 'PRIVACY_CHECK', generation: 'generation-1' }, options: { documentId: 'doc-1' } }],
+    'inspection verifies the returned generation before exposing metadata without reading values');
   assert.equal(h.reads('PRIVACY_READ').length, 0); assert.equal(h.vaults.length, 0); assert.equal(h.rasters.length, 0);
   assert.deepEqual(Object.keys(p.output.at(-1)).sort(), ['candidates', 'cropLimits', 'type']);
   await h.capture(p); const preview = p.output.at(-1); assert.equal(preview.type, 'preview');
@@ -314,7 +316,7 @@ test('REGRESSION: own page invalidation during Fill defers teardown, reports res
       warnings: ['Sites may autosave when fields change. The extension never clicks Submit or requestSubmit.']
     };
     // The page adapter owns write stopping; this controller test only mocks its outcome.
-    h.api.invalidated({ type: 'PRIVACY_INVALIDATED' }, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' });
+    h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: 'generation-1' }, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' });
     await flush();
     assert.deepEqual(p.output, output, 'invalidation must not expire the pending outcome channel');
     assert.equal(h.reads('PRIVACY_RESET').length, 0, 'do not tear down before page results arrive');
@@ -406,7 +408,7 @@ const endings = {
   windowRemoved: h => h.chrome.windows.onRemoved.emit(9),
   navigation: h => h.chrome.tabs.onUpdated.emit(7, { status: 'loading' }),
   removed: h => h.chrome.tabs.onRemoved.emit(7), switched: h => h.chrome.tabs.onActivated.emit({ windowId: 3, tabId: 8 }),
-  invalidated: h => h.api.invalidated({ type: 'PRIVACY_INVALIDATED' }, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' }),
+  invalidated: h => h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: 'generation-1' }, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' }),
   ttl: h => h.advance(120000)
 };
 for (const [name, end] of Object.entries(endings)) test(`${name} clears captured vault and ignores late messages`, async t => {
@@ -420,7 +422,7 @@ for (const [name, end] of Object.entries(endings)) test(`${name} clears captured
 test('invalidation is bound to exact extension, source tab and document', async t => {
   const h = harness(t); const p = await h.start(); await h.capture(p);
   const valid = { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' };
-  for (const sender of [{ ...valid, id: 'other' }, { ...valid, tab: { id: 8 } }, { ...valid, documentId: 'doc-2' }]) h.api.invalidated({ type: 'PRIVACY_INVALIDATED' }, sender);
+  for (const sender of [{ ...valid, id: 'other' }, { ...valid, tab: { id: 8 } }, { ...valid, documentId: 'doc-2' }]) h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: 'generation-1' }, sender);
   h.chrome.tabs.onUpdated.emit(8, { status: 'loading' }); h.chrome.windows.onRemoved.emit(10);
   await p.send({ type: 'review', approvalTag: p.output.at(-1).approvalTag }); assert.equal(p.output.at(-1).type, 'reviewed');
 });
@@ -456,6 +458,73 @@ test('REGRESSION: closing pending inspection resets its document before document
   p.disconnect(); h.holds.PRIVACY_INSPECT.resolve(); await flush();
   assert.deepEqual(h.reads('PRIVACY_RESET'), [{ id: 7, message: { type: 'PRIVACY_RESET' }, options: { documentId: 'doc-1' } }], 'pending page inspection must not retain observers/references until its own TTL');
   assert.equal(p.output.some(message => message.type === 'inspected'), false);
+});
+
+// A fresh harness models a restarted worker with no old session to RESET. The
+// surviving page adapter can still retire an old inspection on PRIVACY_INSPECT.
+// These are synthetic transport schedules, not browser worker-lifecycle proof.
+for (const versioned of [false, true]) test(`REGRESSION: retired page notification during new inspection cannot expire it (${versioned ? 'generation-bound' : 'legacy type-only'})`, async t => {
+  const h = harness(t); const p = await h.start(false);
+  const hold = deferred(); h.holds.PRIVACY_INSPECT = hold;
+  await p.send({ type: 'inspect' });
+  assert.equal(h.reads('PRIVACY_INSPECT').length, 1, 'new worker has bound the surviving document and requested inspection');
+  const message = { type: 'PRIVACY_INVALIDATED' };
+  if (versioned) message.generation = 'generation-retired';
+  h.api.invalidated(message, { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' });
+  hold.resolve(); await flush();
+  assert.equal(p.output.some(item => item.type === 'expired'), false, 'retiring the previous page inspection must not destroy the new worker session');
+  assert.equal(p.output.at(-1).type, 'inspected');
+  assert.equal(h.reads('PRIVACY_RESET').length, 0, 'a stale notification must not reset the new page generation');
+  assert.equal(h.timers.size, 1);
+  await h.capture(p);
+  assert.equal(p.output.at(-1).type, 'preview', 'the replacement inspection remains usable');
+});
+
+test('REGRESSION: delayed retired-generation notification cannot destroy a new captured request', async t => {
+  const h = harness(t); const p = await h.start(); await h.capture(p);
+  const output = plain(p.output), snapshot = plain(h.vaults[0].snapshot(h.bindings[0]));
+  // Same document, different inspection: sender binding alone cannot distinguish it.
+  await flush();
+  const sender = { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' };
+  h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: 'generation-retired' }, sender);
+  await flush();
+  assert.deepEqual(p.output, output, 'late old-generation delivery must not expire the current preview');
+  assert.deepEqual(plain(h.vaults[0].snapshot(h.bindings[0])), snapshot);
+  assert.equal(h.reads('PRIVACY_RESET').length, 0);
+  assert.equal(h.timers.size, 1);
+  // Generation matching must still revoke the actual active request.
+  h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: 'generation-1' }, sender);
+  await flush();
+  assert.equal(p.output.at(-1).type, 'expired'); h.deadVaults();
+  assert.equal(h.reads('PRIVACY_RESET').length, 1);
+});
+
+test('REGRESSION: CHECK returned inspection generation before exposing metadata when mutation races its reply', async t => {
+  const h = harness(t); const p = await h.start(false);
+  const hold = deferred(); h.holds.PRIVACY_CHECK = hold;
+  const sendMessage = h.chrome.tabs.sendMessage;
+  h.chrome.tabs.sendMessage = async (...args) => {
+    const response = await sendMessage(...args);
+    if (args[1].type === 'PRIVACY_INSPECT') {
+      // The page produced the reply, then invalidated that generation before
+      // the worker accepted it. Ignoring notifications while inspection=null
+      // is safe only if a subsequent CHECK rejects this stale reply.
+      h.api.invalidated({ type: 'PRIVACY_INVALIDATED', generation: response.generation },
+        { id: h.chrome.runtime.id, tab: { id: 7 }, documentId: 'doc-1' });
+    }
+    if (args[1].type === 'PRIVACY_CHECK') return { valid: false, generation: 'generation-after-mutation' };
+    return response;
+  };
+  await p.send({ type: 'inspect' });
+  assert.deepEqual(h.reads('PRIVACY_CHECK'), [{ id: 7, message: { type: 'PRIVACY_CHECK', generation: 'generation-1' }, options: { documentId: 'doc-1' } }],
+    'the returned generation must be checked against the same bound document');
+  assert.deepEqual(p.output, [{ type: 'ready' }], 'do not expose inspection metadata while CHECK is pending');
+  hold.resolve(); await flush();
+  assert.equal(p.output.some(item => item.type === 'inspected'), false);
+  assert.equal(p.output.at(-1).type, 'expired', 'mutation during reply must still fail closed');
+  assert.equal(h.reads('PRIVACY_READ').length, 0);
+  assert.equal(h.reads('PRIVACY_RESET').length, 1);
+  assert.equal(h.vaults.length, 0);
 });
 
 test('real cropPolicy accepts UI default dimensions and enforces viewport/DPR bounds', () => {

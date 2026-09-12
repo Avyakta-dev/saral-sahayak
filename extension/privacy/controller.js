@@ -65,6 +65,8 @@
     s.documentId = documentId;
     s.inspection = data;
     s.binding = { origin: new URL(s.url).origin, tabId: s.tabId, frameId: 0, documentId, pageVersion: data.generation };
+    // A mutation can invalidate the returned snapshot before its message arrives.
+    await verify(s);
     return { type: "inspected", candidates: data.candidates, cropLimits: data.cropLimits };
   }
 
@@ -234,7 +236,9 @@
     notify(s, { type: "ready" });
   }
   function invalidated(message, sender) {
-    if (message?.type === "PRIVACY_INVALIDATED" && session && sender.id === chrome.runtime.id && sender.tab?.id === session.tabId && sender.documentId === session.documentId) {
+    if (message?.type === "PRIVACY_INVALIDATED" && session?.inspection &&
+        typeof message.generation === "string" && message.generation === session.inspection.generation &&
+        sender.id === chrome.runtime.id && sender.tab?.id === session.tabId && sender.documentId === session.documentId) {
       // The page consumes its one-shot session at Fill completion. Keep only the
       // in-flight outcome channel; page-side validation stops any further writes.
       if (session.filling) { session.fillInvalidated = true; return; }
