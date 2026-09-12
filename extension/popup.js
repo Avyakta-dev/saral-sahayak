@@ -307,6 +307,11 @@
       status("Page captured. Review the snapshot before sharing with OpenAI.");
     });
   }
+  byId("privacy-local").addEventListener("click", () => run("Opening a local-only privacy window…", async () => {
+    const response = await runtime.sendMessage({ type: "PRIVACY_OPEN" });
+    if (!response?.ok) throw new Error(response?.error || "Privacy capture could not open.");
+    window.close();
+  }));
   byId("scan").addEventListener("click", () => saveAndMaybeScan(true));
   byId("save-settings").addEventListener("click", () => saveAndMaybeScan(false));
   byId("profile-file").addEventListener("change", () => {

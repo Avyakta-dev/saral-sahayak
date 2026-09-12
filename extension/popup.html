@@ -16,6 +16,12 @@
       <span class="session-badge"><span aria-hidden="true"></span>Session only</span>
     </header>
     <main id="workspace" aria-busy="false">
+      <section class="view" aria-labelledby="privacy-local-title">
+        <h2 id="privacy-local-title">Local privacy capture</h2>
+        <p class="hint">Issue 17 preview: selected values stay in expiring memory. The entire chosen crop is masked; no original screenshot, model request, restoration or Fill.</p>
+        <button id="privacy-local" type="button" class="button secondary" disabled>Open local-only privacy capture</button>
+        <p class="notice warning">The existing form/EPFO features below are separate legacy flows, not this privacy mode.</p>
+      </section>
       <section id="epfo-panel" class="view" aria-labelledby="epfo-title" aria-busy="false">
         <h2 id="epfo-title">EPFO rejection assistance</h2>
         <p class="section-intro">Detect locally or paste a remark, review it, then separately approve analysis. Detection does not take a screenshot or send text to the backend.</p>
