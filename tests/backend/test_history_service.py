@@ -123,9 +123,7 @@ async def test_cross_session_cache_hit_on_a_details_free_seed_is_still_shared():
     await alice.analyze(AnalyzeRequest(text="My claim was rejected", language="en"))
     assert len(inner.calls) == 1
 
-    bob_response = await bob.analyze(
-        AnalyzeRequest(text="my   claim WAS rejected", language="en")
-    )
+    bob_response = await bob.analyze(AnalyzeRequest(text="my   claim WAS rejected", language="en"))
     assert len(inner.calls) == 1, "the identical text must still hit the shared cache"
     assert bob_response.classification.reason_id == "epfo-rr-001"
 

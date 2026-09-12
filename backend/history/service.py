@@ -65,7 +65,5 @@ class HistoryTrackingService:
         # into classification/explanation/actions text, only prompt instructions do.
         # A details-free request is unaffected and still seeds the shared cache.
         has_details = any(value is not None for value in request.details.model_dump().values())
-        self._store.complete(
-            record.case_id, response, from_cache=False, cacheable=not has_details
-        )
+        self._store.complete(record.case_id, response, from_cache=False, cacheable=not has_details)
         return response

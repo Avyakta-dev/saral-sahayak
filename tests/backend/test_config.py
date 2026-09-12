@@ -79,9 +79,7 @@ def test_image_environment_mapping(monkeypatch):
     assert config.content_types == ("image/png",)
 
 
-def test_history_persist_path_expands_home_so_it_resolves_the_same_way_twice(
-    monkeypatch, tmp_path
-):
+def test_history_persist_path_expands_home_so_it_resolves_the_same_way_twice(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     settings = Settings(_env_file=None, history_persist_path="~/history.jsonl")
     # history_store() does a bare Path(...) on the validated value with no further
