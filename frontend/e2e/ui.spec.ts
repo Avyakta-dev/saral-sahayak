@@ -2,8 +2,26 @@ import AxeBuilder from '@axe-core/playwright';
 import { Buffer } from 'node:buffer';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
-// Only fictional browser-generated material is used. The sample is reachable only
-// through its real UI entry point; non-success AnswerCard states belong in unit tests.
+import { mockContent } from '../src/lib/mockContent';
+
+// Only fictional browser-generated material is used. All four samples must be
+// reachable through the real gallery UI; own messages never trigger mock analysis.
+const gallery = [
+  { scenario: 'success', label: 'A detail needs review', heading: 'Your sample answer' },
+  { scenario: 'needs_clarification', label: 'More context needed', heading: 'One more detail' },
+  { scenario: 'unsupported', label: 'Insufficient evidence', heading: 'Not enough evidence' },
+  { scenario: 'error', label: 'Service unavailable', heading: 'Could not prepare an answer' },
+] as const;
+const localeOptions = [
+  ['en', 'English'],
+  ['hi', 'हिन्दी'],
+  ['kn', 'ಕನ್ನಡ'],
+  ['ta', 'தமிழ்'],
+  ['te', 'తెలుగు'],
+  ['ml', 'മലയാളം'],
+] as const;
+const reasonPath = 'references/knowledge/epfo/reasons/epfo-rr-001.md';
+const reasonHeading = 'SYNTHETIC SAMPLE ONLY — imaginary reason excerpt (not read)';
 const remark = 'SYNTHETIC UI TEST: imaginary claim remark; no personal information.';
 const sampleRemark = 'SAMPLE NOTICE: A detail in this imaginary claim needs review.';
 const explanation =
@@ -42,6 +60,17 @@ async function openSample(page: Page) {
       .first()
       .click();
   await expect(page.getByRole('tablist')).toBeVisible();
+}
+
+async function openGallerySample(page: Page, sample: (typeof gallery)[number]) {
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Explore sample replies' })).toBeVisible();
+  await dialog.getByRole('button', { name: sample.label, exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByRole('region', { name: sample.heading, exact: true }).last(),
+  ).toBeVisible();
 }
 
 async function sendRemark(page: Page, value = remark) {
@@ -293,7 +322,19 @@ test('details modal is named, keyboard trapped, Escape/close dismiss it and pres
   ).toBeFocused();
   await input(page).evaluate((element) => (element as HTMLElement).focus());
   await expect(input(page)).not.toBeFocused();
-  for (let i = 0; i < 4; i += 1) {
+  await expect(dialog.getByRole('button', { name: 'Use API', exact: true })).toBeDisabled();
+  const dialogStops = [
+    dialog.getByRole('button', { name: 'Use examples', exact: true }),
+    ...gallery.map((sample) => dialog.getByRole('button', { name: sample.label, exact: true })),
+    dialog.locator('summary').filter({ hasText: 'Example language capabilities' }),
+  ];
+  for (const target of dialogStops) {
+    await page.keyboard.press('Tab');
+    await expect(target).toBeFocused();
+  }
+  // Narrow screens add the scrollable dialog itself as a native focus stop,
+  // after the optional browser-chrome hop and before its first button.
+  for (let i = 0; i < 3; i += 1) {
     await page.keyboard.press('Tab');
     const focus = await dialog.evaluate((element) => ({
       modal: element.matches(':modal'),
@@ -303,11 +344,12 @@ test('details modal is named, keyboard trapped, Escape/close dismiss it and pres
         element.contains(document.activeElement) || document.activeElement === document.body,
     }));
     expect(focus).toEqual({ modal: true, contained: true });
-    if (i % 2 === 1)
-      await expect(
-        page.getByRole('button', { name: 'Close preview details', exact: true }),
-      ).toBeFocused();
+    const close = dialog.getByRole('button', { name: 'Close preview details', exact: true });
+    if (await close.evaluate((element) => element === document.activeElement)) break;
   }
+  await expect(
+    dialog.getByRole('button', { name: 'Close preview details', exact: true }),
+  ).toBeFocused();
   await screenshot(page, info, 'info-modal');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -443,6 +485,13 @@ test('explicit sample takes 700ms, preserves unsent text, and shows only the com
     'true',
   );
   await expect(page.getByText(explanation, { exact: true })).toBeVisible();
+  const uncertainty = page.getByRole('complementary', { name: 'Classification uncertainty' });
+  await expect(uncertainty).toContainText('Classification confidence: low');
+  await expect(uncertainty.getByText(mockContent.en.rationale, { exact: true })).toBeVisible();
+  await expect(uncertainty.getByText(/not policy certainty or source verification/)).toBeVisible();
+  await expect(
+    page.getByText('Sample language quality has not been independently reviewed.', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Copy sample', exact: true })).toHaveCount(0);
   await screenshot(page, info, 'sample-overview');
@@ -511,12 +560,20 @@ test('citations preserve synthetic path, heading, lines and non-clickable origin
     sourcePath,
     'Supporting document (no record ID)',
     'SYNTHETIC EXAMPLE ONLY',
-    '1–1',
+    reasonPath,
+    'epfo-rr-001',
+    reasonHeading,
+    'Line 1, column 0 → line 1, column 0',
     'Synthetic evidence only. These locations have not been read or verified.',
-    'Illustrative URL — not a live source',
   ]) {
     await expect(evidence.getByText(value, { exact: true })).toBeVisible();
   }
+  await expect(evidence.locator('.citation')).toHaveCount(2);
+  await expect(evidence.getByText('1–1', { exact: true })).toHaveCount(2);
+  await expect(
+    evidence.getByText('Illustrative URL — not a live source', { exact: true }),
+  ).toHaveCount(2);
+  await expect(sources(page).first().locator('.source-count')).toHaveText('2');
   await expect(evidence.getByText(sourceUrl, { exact: false })).toBeVisible();
   await expect(page.locator(`a[href="${sourceUrl}"]`)).toHaveCount(0);
   await page.locator('summary').filter({ hasText: 'About this sample' }).click();
@@ -554,6 +611,18 @@ test('draft highlights unfilled placeholders, keeps disclosures and copies actua
     '[detail from the sample notice]',
     'Fictional preview, not a live analysis.',
     'No evidence was read or verified.',
+    'Source ev-synthetic-example (synthetic, unverified)',
+    'Source ev-synthetic-reason (synthetic, unverified)',
+    sourcePath,
+    sourceUrl,
+    reasonPath,
+    reasonHeading,
+    'Record ID: epfo-rr-001',
+    'Record ID: supporting document',
+    'Heading: SYNTHETIC EXAMPLE ONLY',
+    'Lines: 1–1; zero-based columns: 0–0',
+    'https://example.invalid/synthetic-reason-evidence',
+    mockContent.en.factual,
   ])
     expect(copied).toContain(value);
   expect(copied).not.toContain(remark);
@@ -1071,6 +1140,9 @@ test('local interactions transmit no input/files/API requests and persist no cha
   await expandSources(page);
   await page.getByRole('tab', { name: 'Draft', exact: true }).click();
   await page.locator('summary').filter({ hasText: 'About this sample' }).click();
+  for (const [code] of localeOptions) await language(page).selectOption(code);
+  for (const sample of gallery.filter((item) => item.scenario !== 'success'))
+    await openGallerySample(page, sample);
   await page.waitForLoadState('networkidle');
   expect(
     requests.filter((request) => new URL(request.url).origin !== origin),
@@ -1172,6 +1244,240 @@ for (const width of [390, 320]) {
     await noOverflow(page);
   });
 }
+
+test('six native language options and quality flags are offline examples, not live capability checks', async ({
+  page,
+}) => {
+  await expect(language(page).locator('option')).toHaveText(
+    localeOptions.map(([, native]) => native),
+  );
+  expect(
+    await language(page)
+      .locator('option')
+      .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value)),
+  ).toEqual(localeOptions.map(([code]) => code));
+  await expect(
+    page.getByText('6 example languages · quality unreviewed', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('summary').filter({ hasText: 'Example language capabilities' }).click();
+  await expect(dialog.getByText('Quality not verified', { exact: true })).toHaveCount(6);
+  for (const [code, native] of localeOptions) {
+    await expect(dialog.locator(`.capabilities-details span[lang="${code}"]`)).toHaveText(native);
+  }
+  await expect(
+    dialog.getByText(/validated offline response, not a live service check/),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText(/not verified connectivity, accurate guidance or fluent output/),
+  ).toBeVisible();
+  await noOverflow(page);
+});
+
+for (const [code] of localeOptions) {
+  test(`${code} sample preserves English controls, localized output and narrow-viewport evidence`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 320, height: 844 });
+    await language(page).selectOption(code);
+    await openGallerySample(page, gallery[0]);
+    const sample = mockContent[code];
+    await expect(card(page)).toHaveAttribute('lang', code);
+    await expect(card(page).getByText(sample.explanation, { exact: true })).toBeVisible();
+    await expect(card(page).getByText(sample.rationale, { exact: true })).toBeVisible();
+    await expect(card(page).getByRole('tablist')).toHaveAttribute('lang', 'en');
+    await expect(card(page).getByRole('tab')).toHaveText(['Overview', 'Next steps', 'Draft']);
+    for (const tab of ['Overview', 'Next steps', 'Draft']) {
+      await card(page).getByRole('tab', { name: tab, exact: true }).click();
+      if (tab === 'Next steps') {
+        for (const action of sample.actions)
+          await expect(
+            card(page).getByRole('checkbox', { name: action, exact: true }),
+          ).toBeVisible();
+      }
+      if (tab === 'Draft') {
+        await expect(
+          card(page).getByRole('heading', { name: sample.title, exact: true }),
+        ).toBeVisible();
+        await expect(card(page).getByText(sample.factual, { exact: true })).toBeVisible();
+        await expect(
+          card(page).getByRole('button', { name: 'Copy sample', exact: true }),
+        ).toBeVisible();
+      }
+      await expandSources(page);
+      await noOverflow(page);
+      expect(
+        await page
+          .locator('.conversation')
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+    }
+    await card(page).locator('summary').filter({ hasText: 'About this sample' }).click();
+    await expect(card(page).getByText(sample.quality, { exact: true })).toHaveAttribute(
+      'lang',
+      code,
+    );
+    if (code === 'ta' || code === 'ml') {
+      await screenshot(page, info, `${code}-320-draft`);
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
+      await info.attach(`axe-${code}`, {
+        body: JSON.stringify(results, null, 2),
+        contentType: 'application/json',
+      });
+      expect(results.violations).toEqual([]);
+    }
+  });
+}
+
+for (const code of ['en', 'ta', 'ml'] as const) {
+  for (const sample of gallery.filter((item) => item.scenario !== 'success')) {
+    test(`${code} gallery ${sample.scenario} is visible without guidance and passes axe`, async ({
+      page,
+    }, info) => {
+      await language(page).selectOption(code);
+      await sendRemark(page, `${sample.scenario}: ${sample.label} — synthetic own wording`);
+      await noSample(page);
+      await input(page).fill('Unsent fictional wording');
+      await openGallerySample(page, sample);
+      const reply = page.getByRole('region', { name: sample.heading, exact: true });
+      await expect(reply).toHaveAttribute('lang', code);
+      await expect(input(page)).toHaveValue('Unsent fictional wording');
+      const content = mockContent[code];
+      const expected =
+        sample.scenario === 'needs_clarification'
+          ? content.question
+          : sample.scenario === 'unsupported'
+            ? content.unsupported
+            : content.error;
+      const visibleText = reply.locator(
+        sample.scenario === 'needs_clarification' ? '.answer-questions' : '.answer-message > p',
+      );
+      await expect(visibleText).toHaveText(expected);
+      await expect(visibleText).toBeVisible();
+      await expect(
+        reply.getByText('Sample language quality has not been independently reviewed.', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await noSample(page);
+      await expect(
+        reply.locator('.draft-paper, .answer-documents, .answer-uncertainty'),
+      ).toHaveCount(0);
+      await expect(reply.locator('.answer-disclosure')).not.toHaveAttribute('open', '');
+      if (sample.scenario === 'error')
+        await expect(visibleText).not.toContainText(/not implemented|agent_not_implemented/i);
+      await reply.locator('summary').filter({ hasText: 'About this sample' }).click();
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
+      await info.attach(`axe-${code}-${sample.scenario}`, {
+        body: JSON.stringify(results, null, 2),
+        contentType: 'application/json',
+      });
+      expect(results.violations).toEqual([]);
+      await screenshot(page, info, `${code}-${sample.scenario}`);
+      const edit = reply.getByRole('button', { name: 'Edit remark', exact: true });
+      await tabTo(page, edit);
+      await visibleFocus(edit);
+      await page.keyboard.press('Enter');
+      await expect(input(page)).toBeFocused();
+      await expect(input(page)).toHaveValue(content.remarks[sample.scenario]);
+      await input(page).press('Enter');
+      await expect(unavailable(page)).toHaveCount(2);
+      await noSample(page);
+    });
+  }
+}
+
+test('keyboard cancellation restores an editable composer and never reveals a stale gallery reply', async ({
+  page,
+}) => {
+  await freezeClock(page);
+  await input(page).fill('Unsent synthetic text');
+  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  const choice = page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Insufficient evidence', exact: true });
+  await tabTo(page, choice);
+  await visibleFocus(choice);
+  await page.keyboard.press('Enter');
+  await page.clock.runFor(300);
+  const stop = page.getByRole('button', { name: 'Stop opening sample', exact: true });
+  await tabTo(page, stop);
+  await visibleFocus(stop);
+  await page.keyboard.press('Enter');
+  await page.clock.runFor(1500);
+  await noSample(page);
+  await expect(page.getByRole('heading', { name: 'Not enough evidence', exact: true })).toHaveCount(
+    0,
+  );
+  await tabTo(page, input(page));
+  await expect(input(page)).toBeEditable();
+  await expect(input(page)).toHaveValue('Unsent synthetic text');
+  await page.keyboard.press('Enter');
+  await expect(unavailable(page)).toBeVisible();
+});
+
+test('long unbroken and multiline API prose preserves whitespace and wraps in its targeted containers', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await openSample(page);
+  const stress = `Synthetic first line\n\n  Indented second line\n${'UNBROKEN'.repeat(150)}`;
+  // CSS stress only: replace text nodes in real rendered components, not application
+  // state or network responses. Unit tests separately assert exact response text.
+  async function stressText(selector: string) {
+    const target = page.locator(selector).last();
+    await expect(target).toBeVisible();
+    const result = await target.evaluate((element, text) => {
+      element.textContent = text;
+      const style = getComputedStyle(element);
+      return {
+        text: element.textContent,
+        whitespace: style.whiteSpace,
+        wrap: style.overflowWrap,
+        width: element.clientWidth,
+        scroll: element.scrollWidth,
+      };
+    }, stress);
+    expect(result.text).toBe(stress);
+    expect(result.whitespace).toBe('pre-wrap');
+    expect(result.wrap).toBe('anywhere');
+    expect(result.scroll).toBeLessThanOrEqual(result.width);
+    await noOverflow(page);
+    expect(
+      await page
+        .locator('.conversation')
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
+  }
+  for (const selector of ['.answer-claim > p', '.document-tile > div > p', '.answer-uncertainty p'])
+    await stressText(selector);
+  await page.getByRole('tab', { name: 'Next steps', exact: true }).click();
+  await stressText('.step-content label');
+  await page.getByRole('tab', { name: 'Draft', exact: true }).click();
+  for (const selector of ['.draft-paper h3', '.draft-block > p', '.draft-missing'])
+    await stressText(selector);
+  await expandSources(page);
+  await stressText('.citation dd');
+  await page.locator('summary').filter({ hasText: 'About this sample' }).click();
+  await stressText('.answer-disclosure li');
+  // Whitespace preservation must not leak into control layout.
+  await expect(page.getByRole('tab', { name: 'Draft', exact: true })).toHaveCSS(
+    'white-space',
+    'normal',
+  );
+  for (const sample of gallery.filter((item) => item.scenario !== 'success')) {
+    await page.getByRole('button', { name: 'New chat', exact: true }).click();
+    await openGallerySample(page, sample);
+    await stressText(
+      sample.scenario === 'needs_clarification' ? '.answer-questions li' : '.answer-message > p',
+    );
+  }
+});
 
 for (const state of [
   'landing',
