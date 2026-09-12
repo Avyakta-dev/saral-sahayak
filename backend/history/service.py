@@ -41,7 +41,9 @@ class HistoryTrackingService:
             cached = self._store.find_cached(request.language, request.text)
             if cached is not None:
                 if cached.status == "success":
-                    cached = cached.model_copy(update={"draft": build_draft(request, cached.actions)})
+                    cached = cached.model_copy(
+                        update={"draft": build_draft(request, cached.actions)}
+                    )
                 self._store.complete(record.case_id, cached, from_cache=True)
                 return cached
 

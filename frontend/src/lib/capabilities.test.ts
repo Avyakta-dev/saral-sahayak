@@ -118,6 +118,7 @@ describe('capabilitiesSchema', () => {
     { inputs: 'text' },
     { analysis_available: 'false' },
     { downloads_available: 0 },
+    { history_available: 0 },
   ])('rejects malformed endpoint fields %#', (patch) => {
     expect(capabilitiesSchema.safeParse({ ...fresh(), ...patch }).success).toBe(false);
   });
