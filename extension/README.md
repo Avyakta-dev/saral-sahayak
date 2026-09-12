@@ -98,6 +98,10 @@ Session state includes your key, raw profile values, raw file bytes, captured fi
 - `privacy/`: local vault (#53) plus host-template restore and explicit per-field/batch Fill (never Submit). Analyze/upload remain disabled in privacy mode.
 - `tests/`: dependency-free automated tests and synthetic browser fixtures.
 
+## Extension UI Level 1 mocks (issue 21)
+
+Synthetic annotated privacy-flow mocks and a state checklist live under [`mocks/privacy-ux-level-1/`](mocks/privacy-ux-level-1/). They are static HTML/SVG/docs only: no network, no vault changes, and **no claim that redaction is implemented**. Open [`mocks/privacy-ux-level-1/privacy-flow-mocks.html`](mocks/privacy-ux-level-1/privacy-flow-mocks.html) locally. Ajay’s `privacy/` runtime modules remain the fail-closed source of truth.
+
 ## Checks
 
 Run from the repository root with Node.js 22:
