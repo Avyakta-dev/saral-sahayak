@@ -49,7 +49,7 @@ Merged deliverables: backend foundation/agent, output-security fixes, corpus gen
 - Image #11–#15: #11 L1 contract closed; #12+ still needs host/name agreement. Privacy #16–#20: #16 L1 approved/closed; #17+ implementation remains. Extension UI #21–#23: #21 Level 1 synthetic mocks are on `main` under `extension/mocks/privacy-ux-level-1/` (issue stays open until acceptance is evidenced). #22 has a partial controls/preview/renderer UI slice (outbound-vs-local disclosure; Analyze/provider/first-last remain disabled); issue stays open. #23 a11y not started.
 - Web UI #24–#26: #24 L1 mock UI closed; #48/#51/#57 landed live analyze + status UX toward #25; bounded user-initiated retries are in this frontend change. Remaining #25 honesty: draft-download-when-available (no false ready draft). Preview merges do not by themselves close higher levels.
 - Knowledge #27–#28: offline artifacts are merged; actual agent trace/outcome review and six authoritative-source verification gaps remain. Offline `not_run`/`not_attempted` markers are not completed live checks.
-- Backend #29–#30: post-#52 single-case live success with real citations is recorded; broader matrix/semantic/language review and Level 3 reproducible demo acceptance (#30) remain open. A local [demo runbook](demo-runbook.md) + readiness probe advance #30 without claiming closure.
+- Backend #29–#30: post-#52 single-case live success with real citations is recorded; broader matrix/semantic/language review and Level 3 reproducible demo acceptance (#30) remain open. A local [demo runbook](demo-runbook.md) (including rehearsal checklist with `not_run` rows) + readiness probe with `failure_mode`/`operator_hints` advance #30 without claiming closure.
 
 ## What each person should work on next
 

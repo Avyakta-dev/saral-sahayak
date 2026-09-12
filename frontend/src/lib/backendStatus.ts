@@ -72,3 +72,29 @@ export function unavailableFailureMessage(capabilities?: Capabilities | null): s
   }
   return 'Analysis is not available on this server right now (model configuration or knowledge gates). Your message was not turned into guidance.';
 }
+
+/** Judge-facing clarification for analyze/capabilities transport failures (no secrets). */
+export function liveTransportFailureMessage(raw: string): string {
+  const message = raw.trim();
+  if (!message) {
+    return 'The analysis service could not be reached.';
+  }
+  const lower = message.toLowerCase();
+  if (lower.includes('cors_origins') || lower.includes('could not reach the analysis service')) {
+    return message;
+  }
+  if (lower.includes('access denied') || lower.includes('access_denied')) {
+    return 'Analysis access was denied by the server (protected mode). Browser demos must not send ANALYSIS_ACCESS_TOKEN; use local mode or a gateway.';
+  }
+  if (
+    lower.includes('capacity is limited') ||
+    lower.includes('analysis_capacity') ||
+    /\b429\b/.test(lower)
+  ) {
+    return 'Analysis capacity is limited right now (HTTP 429). Wait briefly, then retry once; do not spam Send.';
+  }
+  if (lower.includes('timed out') || lower.includes('timeout') || /\b504\b/.test(lower)) {
+    return 'Analysis timed out before a complete answer. Raise reviewed budgets only when authorized; do not invent success.';
+  }
+  return message;
+}
