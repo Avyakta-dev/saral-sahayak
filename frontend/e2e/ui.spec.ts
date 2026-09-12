@@ -240,9 +240,7 @@ test('landing is a single empty composer with no outcome selector, stepper or sa
   await expect(page.getByRole('combobox')).toHaveCount(1);
   await expect(page.getByRole('combobox', { name: /outcome|success/i })).toHaveCount(0);
   await expect(page.getByRole('navigation')).toHaveCount(0);
-  await expect(
-    page.getByText(/OCR isn’t connected\./),
-  ).toBeVisible();
+  await expect(page.getByText(/OCR isn’t connected\./)).toBeVisible();
   await expect(page.getByRole('button', { name: /Show me an example/ })).toBeVisible();
   await noSample(page);
   await noOverflow(page);
