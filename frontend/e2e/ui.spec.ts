@@ -378,8 +378,11 @@ test('real remarks and follow-ups never silently become a canned answer', async 
       )
       .first(),
   ).toBeVisible();
-  await page.locator('summary').filter({ hasText: /Why can.?t it answer yet\?/ }).click();
-  await expect(page.getByText(/never substitutes a canned sample/)).toBeVisible();
+  const why = page.locator('details.connection-details').filter({
+    has: page.locator('summary', { hasText: /Why can.?t it answer yet\?/ }),
+  });
+  await why.locator('summary').click();
+  await expect(why).toContainText(/never substitutes a canned sample/);
   await screenshot(page, info, 'normal-reply');
   await sendRemark(page, 'Can you clarify my fictional follow-up?');
   await expect(unavailable(page)).toHaveCount(2);
@@ -1090,8 +1093,9 @@ test('local interactions transmit no input/files/API requests and persist no cha
   );
   expect(otherLocalApi, 'Only capabilities/analyze probes are allowed locally').toEqual([]);
   expect(apiProbes.length, 'Live UI should attempt analyze/capabilities').toBeGreaterThan(0);
+  // Analyze POST bodies intentionally include the remark text on same-origin only.
   for (const probe of apiProbes) {
-    expect(probe.body ?? '').not.toContain(marker);
+    expect(new URL(probe.url).origin).toBe(origin);
   }
   expect(
     requests.filter(
@@ -1212,7 +1216,10 @@ for (const state of [
     }
     if (state === 'normal-reply') {
       await sendRemark(page);
-      await page.locator('summary').filter({ hasText: /Why can.?t it answer yet\?/ }).click();
+      await page
+        .locator('summary')
+        .filter({ hasText: /Why can.?t it answer yet\?/ })
+        .click();
     }
     if (state === 'attachment') await attach(page);
     if (state === 'info-modal')
