@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Saral Sahayak — Form assistant</title>
+    <link rel="stylesheet" href="popup.css">
+    <script src="popup.js" defer></script>
+    <script src="epfo-popup.js" defer></script>
+  </head>
+  <body>
+    <header class="brand">
+      <span class="brand-mark" aria-hidden="true">स</span>
+      <div class="brand-copy"><p class="brand-name">saral sahayak<span class="brand-dot">.</span></p><p class="brand-caption">YOUR FORM COMPANION</p></div>
+      <span class="session-badge"><span aria-hidden="true"></span>Session only</span>
+    </header>
+    <main id="workspace" aria-busy="false">
+      <section id="epfo-panel" class="view" aria-labelledby="epfo-title" aria-busy="false">
+        <h2 id="epfo-title">EPFO rejection assistance</h2>
+        <p class="section-intro">Detect locally or paste a remark, review it, then separately approve analysis. Detection does not take a screenshot or send text to the backend.</p>
+        <button id="epfo-detect" type="button" class="button secondary" disabled>Detect EPFO rejection</button>
+        <div class="field"><label for="epfo-candidates">Detected candidates</label><select id="epfo-candidates" disabled><option value="">No candidates detected</option></select></div>
+        <div class="field"><label for="epfo-remark">Rejection remark</label><textarea id="epfo-remark" rows="5" autocomplete="off" spellcheck="false" aria-describedby="epfo-privacy" disabled></textarea></div>
+        <p id="epfo-privacy" class="hint">Review and remove unnecessary personal details. Only this remark and your chosen language go to FastAPI; no profile, attachment, screenshot or API key is included.</p>
+        <p class="hint">Backend: http://127.0.0.1:8000 (fixed by the worker). No frontend API key is required; the server owns model configuration.</p>
+        <button id="epfo-connect" type="button" class="button secondary" disabled>Connect backend</button>
+        <div class="field"><label for="epfo-language">Backend language</label><select id="epfo-language" aria-describedby="epfo-readiness" disabled></select></div>
+        <p id="epfo-readiness" class="notice warning" hidden></p>
+        <label class="check-row consent"><input id="epfo-consent" type="checkbox" disabled><span>Send this reviewed remark to Saral Sahayak backend for analysis<small>The backend may share it with its configured model provider. Provider data policies apply.</small></span></label>
+        <button id="epfo-analyze" type="button" class="button primary" disabled>Analyze rejection</button>
+        <button id="epfo-cancel" type="button" class="button secondary" disabled>Cancel</button>
+        <p id="epfo-status" class="status" role="status" aria-live="polite" aria-atomic="true">Detect or paste a remark. Connect backend explicitly to load languages.</p>
+        <p id="epfo-error" class="notice error" role="alert" hidden></p>
+        <aside id="epfo-detection-warnings" class="notice warning" hidden></aside>
+        <section id="epfo-results" class="field-list" aria-label="EPFO analysis results" hidden></section>
+      </section>
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">A LITTLE HELP. A LOT LESS EFFORT.</p>
+        <h1 id="hero-title">Less typing.<br><span>More doing.</span></h1>
+        <p>Your details. Your review. Your call.</p>
+        <svg class="hero-art" width="106" height="108" viewBox="0 0 106 108" fill="none" aria-hidden="true">
+          <circle cx="60" cy="54" r="43" fill="#d9edac"/>
+          <rect x="22" y="13" width="63" height="81" rx="12" fill="#fffdf5" stroke="#183f38" stroke-width="1.5" transform="rotate(8 22 13)"/>
+          <path d="M35 35L66 39M33 46L61 50M31 57L46 59" stroke="#739082" stroke-width="3" stroke-linecap="round"/>
+          <rect x="50" y="62" width="38" height="32" rx="11" fill="#183f38"/>
+          <path d="M60 77L66 83L78 71" stroke="#d9edac" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M88 14V24M83 19H93M13 72V80M9 76H17" stroke="#183f38" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </section>
+      <ol class="steps" aria-label="Your progress">
+        <li id="step-profile" aria-current="step"><span>1</span>Profile</li>
+        <li id="step-review"><span>2</span>Review</li>
+        <li id="step-fill"><span>3</span>Fill</li>
+      </ol>
+      <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Connecting to your extension session…</p>
+      <p id="error" class="notice error" role="alert" hidden></p>
+      <section id="profile-view" class="view" aria-labelledby="profile-title">
+        <div class="section-heading"><h2 id="profile-title" tabindex="-1">Make it personal</h2><span class="muted small">All fields optional</span></div>
+        <p class="section-intro">Add only what you want help filling.</p>
+        <div class="profile-grid">
+          <div class="field"><label for="profile-name">Full name</label><input id="profile-name" type="text" maxlength="200" placeholder="Your full name" autocomplete="off" disabled></div>
+          <div class="field"><label for="profile-email">Email address</label><input id="profile-email" type="email" maxlength="254" placeholder="you@example.com" autocomplete="off" disabled></div>
+          <div class="field full"><label for="profile-phone">Phone number</label><input id="profile-phone" type="tel" maxlength="60" placeholder="Include country code, if needed" autocomplete="off" disabled></div>
+          <div class="field full"><label for="profile-address">Address</label><textarea id="profile-address" rows="2" maxlength="1000" placeholder="Street, city, state, postal code" autocomplete="off" disabled></textarea></div>
+        </div>
+        <div class="attachment">
+          <div class="section-heading"><label for="profile-file">One less thing to upload <span class="optional">Optional</span></label><button id="remove-file" type="button" class="text-button" disabled hidden>Remove</button></div>
+          <input id="profile-file" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" aria-describedby="file-hint file-summary" disabled>
+          <p id="file-summary" class="file-summary">No attachment selected</p>
+          <p id="file-hint" class="hint">PDF, DOC/DOCX, TXT, PNG or JPG · up to 2 MiB.<br>File bytes stay in session, never go to AI. Attach only after review.</p>
+        </div>
+        <details id="setup" class="setup">
+          <summary><span>AI setup</span><span id="key-state" class="setup-state">Your OpenAI key</span></summary>
+          <div class="setup-body">
+            <div class="field"><label for="api-key">OpenAI API key</label><input id="api-key" type="password" placeholder="Enter your API key" maxlength="512" autocomplete="off" spellcheck="false" aria-describedby="key-hint" disabled><p id="key-hint" class="hint">Kept in extension session only. Leave blank to keep a saved key.</p></div>
+            <div class="field"><label for="model">Model</label><input id="model" type="text" value="gpt-4o-mini" required maxlength="100" pattern="\S+" autocomplete="off" spellcheck="false" disabled></div>
+            <p class="hint">Analysis sends your approved profile and page fields directly to OpenAI. Provider usage charges and data policies apply.</p>
+            <button id="save-settings" type="button" class="button secondary" disabled>Save profile &amp; settings</button>
+          </div>
+        </details>
+        <button id="scan" type="button" class="button primary wide" disabled><span>Save &amp; scan page</span><span aria-hidden="true">↗</span></button>
+        <p class="action-note">Captures fields + a page preview. Nothing goes to AI yet.</p>
+      </section>
+      <section id="captured-view" class="view" aria-labelledby="captured-title" hidden>
+        <div class="section-heading"><h2 id="captured-title" tabindex="-1">Before you share</h2><button id="edit-captured" type="button" class="text-button" disabled>Edit profile</button></div>
+        <p class="section-intro">Review exactly what was captured before asking AI for suggestions.</p>
+        <p id="capture-site" class="site-label"></p>
+        <div class="disclosure"><h3>Profile shared with OpenAI</h3><dl id="profile-disclosure" class="key-values"></dl><p id="attachment-disclosure" class="hint"></p></div>
+        <h3 class="list-heading">Captured fields <span id="captured-count" class="count"></span></h3>
+        <p class="hint">Labels, current values, field metadata and available choices are shared. Check for private information below.</p>
+        <div id="captured-fields" class="field-list"></div>
+        <details id="screenshot-preview" class="screenshot-preview" hidden><summary>View captured screenshot</summary><img id="screenshot" alt="Captured visible page. Review for private information before sharing."><p class="hint">A screenshot may contain information beyond the form.</p></details>
+        <p id="screenshot-unavailable" class="hint" hidden>No screenshot preview is available.</p>
+        <label class="check-row"><input id="include-screenshot" type="checkbox" disabled><span>Also send this screenshot to OpenAI <small>Optional and off by default. The visible page may expose unrelated private information, messages or account details. Inspect the preview before sharing.</small></span></label>
+        <label class="check-row consent"><input id="analysis-consent" type="checkbox" disabled><span>I agree to send my profile and the captured fields, including current values, to OpenAI for suggestions.</span></label>
+        <button id="analyze" type="button" class="button primary wide" disabled><span>Suggest field values</span><span aria-hidden="true">→</span></button>
+        <p class="action-note">Suggestions only. Your page will not be changed.</p>
+      </section>
+      <section id="review-view" class="view" aria-labelledby="review-title" hidden>
+        <div class="section-heading"><h2 id="review-title" tabindex="-1">A final look. Your call.</h2><button id="edit-review" type="button" class="text-button" disabled>Edit profile</button></div>
+        <p id="review-intro" class="section-intro">Check every suggestion. Edit values and choose which fields to fill.</p>
+        <p id="review-site" class="site-label"></p>
+        <p id="selection-rule" class="notice subtle">Only high-confidence suggestions for empty fields may start selected. Existing values, uncertain suggestions and attachments need your choice.</p>
+        <div id="suggested-fields" class="field-list"></div>
+        <div id="fill-actions">
+          <p id="selection-count" class="selection-count"></p>
+          <label class="check-row consent"><input id="fill-confirmation" type="checkbox" disabled><span>I approve these selected values. I understand the site may autosave changes or immediately upload an attached file.<small>The assistant never clicks Submit. Review the website yourself before submitting.</small></span></label>
+          <button id="fill" type="button" class="button primary wide" disabled><span>Fill selected fields</span><span aria-hidden="true">→</span></button>
+        </div>
+        <section id="outcomes" class="outcomes" aria-labelledby="outcomes-title" hidden><h3 id="outcomes-title">Individual outcomes</h3><p class="hint">Check the page. Changes may have triggered autosave or uploads; nothing was submitted by the assistant.</p><div id="results" class="field-list"></div><button id="start-again" type="button" class="button secondary wide" disabled>Back to profile</button></section>
+      </section>
+      <aside id="warnings-box" class="notice warning" hidden><h3>Please note</h3><ul id="warnings"></ul></aside>
+      <aside class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><div><strong>Helpful, not hands-off.</strong><p>You decide what to share and fill. Session data lasts until cleared or the browser session ends. Ordinary web forms only; some sites may not support filling.</p></div></aside>
+    </main>
+    <footer><span>LESS FRICTION. MORE CONTROL.</span><button id="clear-session" type="button" class="text-button" disabled>Clear session</button></footer>
+    <noscript><p class="notice error">JavaScript is unavailable. Load this folder as an unpacked Chrome extension to use the assistant.</p></noscript>
+  </body>
+</html>
