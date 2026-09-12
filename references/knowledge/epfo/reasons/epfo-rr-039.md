@@ -60,19 +60,28 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
-- **Notes/caveats:** Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes.
+- **Notes/caveats:** Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes. Offline review flag: withhold definitive 12-month/purpose-code entitlement until an authoritative current instrument is reviewed.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://cleartax.in/c/pf-withdrawal-online
-- https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
-- https://www.shriramlife.com/blog/advice/form-31-in-epfo
-- https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
-- https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
-- https://www.pensionbazaar.com/epf/epf-withdrawal-rules/
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary (news / blog / forum)
+
+- [blog] https://cleartax.in/c/pf-withdrawal-online
+- [blog] https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
+- [blog] https://www.shriramlife.com/blog/advice/form-31-in-epfo
+- [blog] https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
+- [blog] https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
+- [blog] https://www.pensionbazaar.com/epf/epf-withdrawal-rules/
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 
@@ -143,7 +152,7 @@ The following immutable JSON preserves every archived field exactly for conversi
     "news"
   ],
   "confidence": "medium",
-  "notes": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes.",
+  "notes": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes. Offline review flag: withhold definitive 12-month/purpose-code entitlement until an authoritative current instrument is reviewed.",
   "last_verified": "2026-09-12"
 }
 ```

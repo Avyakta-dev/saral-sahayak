@@ -57,15 +57,21 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog
+- **Source types (record-level summary; not a positional zip with URLs):** blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://cleartax.in/s/epf-form-31
-- https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
-- https://www.indiafilings.com/learn/epf-form-31
-- https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary (news / blog / forum)
+
+- [blog] https://cleartax.in/s/epf-form-31
+- [blog] https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
+- [blog] https://www.indiafilings.com/learn/epf-form-31
+- [blog] https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

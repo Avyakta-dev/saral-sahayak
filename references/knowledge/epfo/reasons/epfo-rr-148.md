@@ -58,16 +58,25 @@ EPFO_office
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Operational jurisdiction remapping pattern; no single circular number invented.
 
-- https://www.epfindia.gov.in
-- https://epfigms.gov.in/
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in
+- [official] https://epfigms.gov.in/
+- [official] https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- [official] https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary (news / blog / forum)
+
+- [blog] https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

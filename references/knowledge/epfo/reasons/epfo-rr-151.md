@@ -59,16 +59,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news, official
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Official FAT PDF on epfindia 2025-26 circulars folder.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
-- https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
-- https://uidai.gov.in
-- https://web.umang.gov.in
-- https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
+- [official] https://uidai.gov.in
+- [official] https://web.umang.gov.in
+
+### Secondary (news / blog / forum)
+
+- [news] https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
+- [news] https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

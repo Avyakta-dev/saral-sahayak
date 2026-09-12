@@ -58,16 +58,22 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** news, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** 2026 three-head framework from secondary reporting; portal wins.
 
-- https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
-- https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://cleartax.in/s/epf-form-31
-- https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary (news / blog / forum)
+
+- [news] https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
+- [blog] https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+- [news] https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- [blog] https://cleartax.in/s/epf-form-31
+- [blog] https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 
