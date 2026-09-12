@@ -183,6 +183,46 @@ def test_invalid_bounds_rejected():
         CaseHistoryStore(max_per_session=0)
 
 
+def test_empty_session_case_or_fingerprint_id_never_validates():
+    """An empty id is exactly the shared-bucket collapse this module's per-session
+    isolation exists to prevent - it must be rejected at the model/schema level, not
+    only avoided by callers (backend.main never emits one today, but that must not be
+    the sole guarantee)."""
+    from pydantic import ValidationError
+
+    from backend.history.models import CaseRecord
+    from backend.history.schemas import HistoryCase, HistoryResponse
+
+    base = dict(
+        case_id="c1",
+        session_id="alice",
+        language="en",
+        fingerprint="f" * 64,
+        status="completed",
+        created_at=1.0,
+        updated_at=1.0,
+    )
+    CaseRecord.model_validate(base)  # sanity: the valid case passes
+    for field in ("case_id", "session_id", "fingerprint"):
+        with pytest.raises(ValidationError):
+            CaseRecord.model_validate({**base, field: ""})
+
+    case = dict(
+        case_id="c1",
+        status="completed",
+        language="en",
+        from_cache=False,
+        created_at=1.0,
+        updated_at=1.0,
+    )
+    HistoryCase.model_validate(case)
+    with pytest.raises(ValidationError):
+        HistoryCase.model_validate({**case, "case_id": ""})
+    HistoryResponse.model_validate({"session_id": "alice", "cases": []})
+    with pytest.raises(ValidationError):
+        HistoryResponse.model_validate({"session_id": "", "cases": []})
+
+
 def test_persisted_rows_never_contain_raw_text(tmp_path):
     log = tmp_path / "history.jsonl"
     store = CaseHistoryStore(persist_path=log)

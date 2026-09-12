@@ -11,7 +11,7 @@ from .models import CaseOutcome, CaseStatus
 
 
 class HistoryCase(ContractModel):
-    case_id: str = Field(max_length=64)
+    case_id: str = Field(min_length=1, max_length=64)
     status: CaseStatus
     outcome: CaseOutcome | None = None
     reason_id: str | None = Field(default=None, pattern=r"^epfo-rr-\d{3}$")
@@ -22,5 +22,5 @@ class HistoryCase(ContractModel):
 
 
 class HistoryResponse(ContractModel):
-    session_id: str = Field(max_length=128)
+    session_id: str = Field(min_length=1, max_length=128)
     cases: list[HistoryCase] = Field(default_factory=list, max_length=100)

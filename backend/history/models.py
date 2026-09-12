@@ -21,11 +21,14 @@ class CaseRecord(BaseModel):
     it safe to keep as a growing dataset rather than a snapshot of one request.
     """
 
-    case_id: str = Field(max_length=64)
+    case_id: str = Field(min_length=1, max_length=64)
     # Matches _MAX_SESSION_ID_LENGTH in backend/main.py, the only place this is set.
-    session_id: str = Field(max_length=128)
+    # min_length=1 so an empty id can never validate here even if a future caller
+    # regresses - a shared "" bucket is exactly the cross-caller collapse this
+    # module's session isolation exists to prevent.
+    session_id: str = Field(min_length=1, max_length=128)
     language: LanguageCode
-    fingerprint: str = Field(max_length=64)
+    fingerprint: str = Field(min_length=1, max_length=64)
     status: CaseStatus
     reason_id: str | None = None
     outcome: CaseOutcome | None = None
