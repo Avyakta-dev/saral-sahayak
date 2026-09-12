@@ -12,10 +12,12 @@
 
 When a user says "I am <name>", map the name to the documented role, explain their levels and identify the first unfinished milestone based on the code. An identity statement alone is not a request to implement, switch branches, commit or push. When implementation is requested, work within the contributor's scope and coordinate shared contracts with Anish.
 
-- Anish: backend, Markdown list/read tools, safe budgets, agent orchestration, LLM, citation validation, integration and deployment.
+- Anish: backend, Markdown list/read tools, safe budgets, agent orchestration, LLM, citation validation, integration, deployment and future multilingual APIs. Level 2 implementation is paused until he explicitly resumes it.
 - Avyakta: research, Markdown knowledge authoring/curation, index quality, source and evidence verification.
-- Shravya: frontend, citations, clarification/error states and UX.
-- Ajay: image extraction, documents, fixtures, tests, run/demo documentation and support.
+- Shravya: web frontend, citations, clarification/error states and UX; coordinate shared presentation with Ajay.
+- Ajay: Chrome/Brave MV3 extension assistance first, using the same backend. Follow the [five-level extension guide](references/ajay-extension-guide.md), one level per request, then stop and report. OCR/image extraction and document downloads remain his deferred responsibilities, not reassigned work. Preserve existing tests.
+
+The FastAPI foundation, model adapters, bounded file tools and offline tests exist; the real analysis agent does not. Valid analysis requests currently return 503. Current languages are only `en`/`hi`; additional languages depend on Anish's separate API work. Extension capture must be click-only with editable preview and explicit Analyze before transmission; no backend changes to bypass readiness or CORS.
 
 `main` is the shared integration baseline. Each task starts on a local temporary descriptive branch from up-to-date `main`; push only when the PR is ready, merge the PR into `main`, then delete the local and remote task branch. A PR still requires a pushed source branch. This documents the desired workflow, not remote configuration or completed cleanup. Follow the user's authorization and preserve existing work.
 

@@ -1,6 +1,8 @@
 # Start here: team and agent references
 
-This folder is the shared reference library for Saral Sahayak. Give your coding agent your name and ask it to read this file before planning or implementing your work. The application and runtime file-reading tools are not implemented yet.
+This folder is the shared reference library for Saral Sahayak. Give your coding agent your name and ask it to read this file before planning or implementing your work. The FastAPI foundation, model adapters, bounded file tools and offline tests exist; the real agent is not implemented and valid analysis requests return 503. Current languages are `en`/`hi` only; Anish owns separate future multilingual API work.
+
+**Current priority:** Anish's Level 2 implementation is paused until explicitly resumed. Ajay starts the [extension guide](ajay-extension-guide.md) at Level 1 only, stopping and reporting after each requested level. His OCR/document downloads are deferred, not reassigned. Shravya retains web UI ownership and shared UI consistency; preserve existing tests.
 
 ## Copy-paste prompt
 
@@ -23,6 +25,7 @@ Supported team names: **Anish, Avyakta, Shravya, Ajay**. A name maps to a role, 
 references/
 ├── README.md
 ├── team-work-levels.md
+├── ajay-extension-guide.md         # five small levels and stop/report prompt
 ├── planning/
 │   ├── markdown-agent-design.md
 │   └── hackathon-plan.md
@@ -54,7 +57,7 @@ The knowledge subtree is the agreed conversion target, not proof of completed ge
 - **Anish:** current design tools/safety/citations, plan architecture/API/orchestration, source schema and generated headings, integration boundaries.
 - **Avyakta:** source records/catalog, glossary, claim-type overview and playbooks; review Markdown authoring/curation, index coverage, provenance, source authority/currency and uncertain evidence. No retriever implementation.
 - **Shravya:** plan screens/API examples, design citation and response contract, historical PRD/presentation for visual context. Build against agreed mocks before API integration.
-- **Ajay:** design acceptance/security cases, extraction/draft/testing plan, claim types and playbooks for synthetic fixtures; OCR, downloads, Hindi checks and supporting documentation.
+- **Ajay:** [five-level extension guide and copy-paste prompt](ajay-extension-guide.md), [implemented backend contract](../docs/backend-contract.md), four synthetic response fixtures and design security/citation cases. Extension first; OCR and downloads remain deferred. Stop and report after each requested level.
 
 ## Resolving conflicting documents
 

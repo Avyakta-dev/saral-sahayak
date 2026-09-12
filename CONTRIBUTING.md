@@ -4,10 +4,12 @@ Ownership follows the [current Markdown agent design](references/planning/markdo
 
 | Owner | Responsibilities |
 | --- | --- |
-| Anish | Architecture, backend API and schemas, read-only Markdown file tools, safe tool budgets, agent orchestration, LLM integration, citation validation, configuration, final integration and deployment |
+| Anish | Architecture, backend API and schemas, read-only Markdown tools, safe budgets, agent/LLM integration, citations, deployment and future multilingual APIs; Level 2 implementation paused until explicitly resumed |
 | Avyakta | EPFO research, Markdown knowledge authoring/curation, aliases as reference content, remedies, index clarity, source authority/currency and evidence verification |
-| Shravya | Frontend, paste/upload input, language toggle, processing/results/draft screens, source citations, clarification/abstention/error states and download UI |
-| Ajay | OCR/image handling, document templates and generation, fixtures, regression/security tests, Hindi checks, run/demo documentation and support |
+| Shravya | Web frontend, input/language/result states, citations and accessibility; shared presentation consistency with Ajay |
+| Ajay | Chrome/Brave MV3 extension first, synthetic fixtures, browser/security regression and handoff; OCR/image handling and document downloads deferred, not reassigned |
+
+Ajay follows the [five-level extension guide](references/ajay-extension-guide.md), starting with Level 1 only and stopping/reporting at each checkpoint. The existing FastAPI/adapters/file-tools/tests foundation stays; the real agent is not implemented and valid analysis requests return 503. Current language codes are only `en`/`hi`. Do not change backend contracts or resume Anish's paused Level 2 to unblock the extension.
 
 ## Branch workflow
 
@@ -41,7 +43,7 @@ These paths describe the intended implementation; inspect the repository before 
 - **Anish:** `backend/main.py`, `backend/api/`, `backend/orchestrator/`, most of `backend/agents/`, proposed `backend/tools/knowledge_files.py`, `backend/services/llm.py`, `backend/config.py`, environment examples and deployment configuration.
 - **Avyakta:** knowledge content and evidence review for `references/knowledge/epfo/`; source record/catalog curation in `references/epfo-claim-rejection-rag-dataset/`, coordinated with the separate Markdown generator to avoid drift. This is not retriever ownership.
 - **Shravya:** future `frontend/`.
-- **Ajay:** future `documents/`, application `tests/`, synthetic demo fixtures, `backend/services/documents.py`, and image extraction coordinated with Anish on `backend/agents/extractor.py`; supporting test/run documentation.
+- **Ajay:** proposed `extension/` popup, fixtures and extension tests per the [extension guide](references/ajay-extension-guide.md). Existing `tests/backend/` stays intact. Future `documents/`, `backend/services/documents.py` and coordinated OCR/extractor work remain deferred responsibilities, not authorization to edit backend code for this extension task.
 
 All 181 source reasons retain their canonical `epfo-rr-NNN` IDs in `references/knowledge/epfo/reasons/<epfo-rr-NNN>.md`, with index `references/knowledge/epfo/README.md` and supporting `sources.md`, `glossary.md`, `claim-types-overview.md` and `resolution-playbooks.md`. Maintain source data/catalog and regenerate Markdown rather than making untracked edits to generated content. The archived dataset, including its historical chunks, is not runtime input.
 
@@ -51,10 +53,10 @@ Ask your coding agent to read [AGENTS.md](AGENTS.md), [references/README.md](ref
 
 ## First deliverables
 
-- **Anish:** agree API and citation schemas, implement bounded public Markdown list/read tools, and connect one supported text-analysis flow with honest clarification/abstention behavior.
+- **Anish:** preserve the existing API/adapters/file-tools/tests foundation; Level 2 agent integration remains paused until he explicitly resumes it. Shared contracts and future multilingual APIs remain his ownership.
 - **Avyakta:** review the 181-record Markdown conversion, navigation, source mappings and caveats; prepare evidence-backed supported, ambiguous and unknown cases.
 - **Shravya:** build the input and result flow using agreed synthetic mock responses before connecting the API; include path/section and original-URL citations.
-- **Ajay:** provide synthetic rejection fixtures and baseline tests, including tool containment, prompt injection and budget exhaustion; add extraction and document generation after the text flow is stable.
+- **Ajay:** start only Level 1 of the [extension guide](references/ajay-extension-guide.md): a minimal offline Chrome/Brave MV3 paste popup with no permissions or network. Report checks and stop before the next level; keep existing backend tests.
 
 ## Privacy and grounding
 
