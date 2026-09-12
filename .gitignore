@@ -1,6 +1,8 @@
 # Local agent/tool metadata
 .v2c/
 .video_agent/
+.commandcode/
+.zcode/
 
 # Private originals stay local; reviewed public copies live in references/pdfs/
 /private-reference-originals/

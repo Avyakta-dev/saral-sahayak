@@ -29,6 +29,7 @@ _UNSAFE_SCHEME = ("data:", "javascript:", "blob:", "file:")
 _UNREADABLE = (
     "The image wording could not be read. Try a clearer image, or paste the reviewed text."
 )
+_UNAVAILABLE = "Image input is unavailable."
 
 
 class _Extraction(BaseModel):
@@ -86,8 +87,44 @@ async def extract_rejection_text(
     *,
     max_chars: int,
     max_output_tokens: int,
+    allowed_host: str,
+    allowed_port: int | None = None,
 ) -> str:
-    """Charge one tool-free model turn to the caller's budget and return transcribed text."""
+    """Charge one tool-free model turn to the caller's budget and return transcribed text.
+
+    ``image_url`` is always server-generated (see backend/images/pipeline.py: a fresh
+    presigned GET URL to this deployment's own configured bucket, never client input),
+    so this check should never fail in practice. It exists as defense in depth: this is
+    the boundary that actually sends a URL to a third-party LLM provider, and it must
+    never forward an arbitrary scheme/host/port even if a future caller changes. Both
+    sides of the host comparison are normalized (case, trailing dot) so a variant
+    spelling of the same allowed host can never slip past a literal ``!=``, and ports
+    are compared with an explicit ``:443`` treated the same as an omitted one (both
+    mean "the default HTTPS port") so a URL builder that happens to spell it out
+    doesn't fail a same-origin request.
+
+    This backend never dereferences ``image_url`` itself - it is only ever embedded as
+    a JSON field in the request handed to the LLM provider's API (see
+    backend/llm/responses.py, chat_completions.py), and the provider's own
+    infrastructure performs the fetch. There is no HTTP client or redirect-following
+    code on our side for this URL to guard; this check only prevents an unexpected
+    scheme/host/port from ever being forwarded to the provider in the first place.
+    """
+    parsed_url = urlsplit(image_url)
+    host = (parsed_url.hostname or "").lower().rstrip(".")
+    allowed = allowed_host.lower().rstrip(".")
+    try:
+        # .port raises ValueError for an out-of-range/non-numeric port instead of
+        # returning None; image_url is always server-generated so this should never
+        # happen, but it must resolve to this function's own sanitized error rather
+        # than escape as an unhandled exception.
+        url_port = parsed_url.port
+    except ValueError:
+        raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503) from None
+    port = 443 if url_port is None else url_port
+    expected_port = 443 if allowed_port is None else allowed_port
+    if parsed_url.scheme != "https" or host != allowed or port != expected_port:
+        raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
     try:
         budget.begin_model_turn()
         tokens = min(

@@ -925,6 +925,7 @@ const capabilities = {
   },
   inputs: ['text'],
   downloads_available: false,
+  history_available: true,
 };
 const response = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -941,10 +942,12 @@ describe('live contracts', () => {
       { languages: [] },
       { languages: [capabilities.languages[1]] },
       { languages: [capabilities.languages[0], capabilities.languages[0]] },
-      { extra: true },
     ]) {
       expect(capabilitiesSchema.safeParse({ ...capabilities, ...patch }).success).toBe(false);
     }
+    // An unknown top-level field must be tolerated, not fail the whole app closed -
+    // this is the exact class of regression this PR already hit once and fixed.
+    expect(capabilitiesSchema.safeParse({ ...capabilities, extra: true }).success).toBe(true);
   });
   it('accepts all six response languages and nullable paired zero-based columns', () => {
     for (const language of ['en', 'hi', 'kn', 'ta', 'te', 'ml']) {

@@ -44,14 +44,159 @@ def unreadable():
     return reply(json.dumps({"status": "unreadable", "text": ""}))
 
 
-def run(client, budget=None, *, max_chars=MAX_CHARS, max_output_tokens=1000):
+def run(
+    client,
+    budget=None,
+    *,
+    max_chars=MAX_CHARS,
+    max_output_tokens=1000,
+    allowed_host=HOST,
+    allowed_port=None,
+):
     return extract_rejection_text(
         client,
         URL,
         budget if budget is not None else Budget(BudgetLimits()),
         max_chars=max_chars,
         max_output_tokens=max_output_tokens,
+        allowed_host=allowed_host,
+        allowed_port=allowed_port,
     )
+
+
+async def test_rejects_a_url_scheme_or_host_other_than_the_configured_endpoint():
+    """Defense in depth: image_url is always server-generated in production (see
+    ImagePipeline.extract), but this is the boundary that actually sends a URL to a
+    third-party LLM provider, so it must never forward an unexpected scheme or host."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as wrong_host:
+        await run(client, allowed_host="attacker.example.invalid")
+    assert wrong_host.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+    with pytest.raises(AnalysisError) as wrong_scheme:
+        await extract_rejection_text(
+            client,
+            URL.replace("https://", "http://"),
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert wrong_scheme.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+
+@pytest.mark.parametrize(
+    "hostile_host",
+    [f"not{HOST}", f"{HOST}.attacker.example.invalid", f"attacker-{HOST}"],
+)
+async def test_a_prefix_or_suffix_containing_the_allowed_host_is_still_rejected(
+    hostile_host,
+):
+    """The comparison is exact equality, never a substring/suffix/endswith check - a
+    hostname that merely contains the allowed host as a prefix or suffix must not pass."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as error:
+        await run(client, allowed_host=hostile_host)
+    assert error.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+
+async def test_rejects_a_port_other_than_the_configured_endpoints():
+    """A URL on an unexpected port must never pass just because the hostname matches -
+    port is part of the origin the guard is meant to pin."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as wrong_port:
+        await run(client, allowed_port=8443)
+    assert wrong_port.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+    ported_url = URL.replace(f"https://{HOST}", f"https://{HOST}:8443")
+    with pytest.raises(AnalysisError) as unexpected_port:
+        await extract_rejection_text(
+            client,
+            ported_url,
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert unexpected_port.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+
+async def test_a_trailing_dot_or_case_variant_host_is_still_recognized_as_the_same_host():
+    """DNS treats "host" and "host." as the same name; normalizing both sides of the
+    comparison means a caller can't dodge the allowlist with an equivalent spelling,
+    and a differently-cased configured host still matches the URL's lowercase one."""
+    dotted_url = URL.replace(f"https://{HOST}", f"https://{HOST}.")
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        dotted_url,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST.upper(),
+    )
+    assert text == "Name does not match Aadhaar."
+
+
+async def test_explicit_default_https_port_is_equivalent_to_an_omitted_one():
+    """A URL builder that happens to spell out ":443" must not fail a same-origin
+    request just because the configured endpoint's own URL omitted it, or vice versa -
+    both mean "the default HTTPS port"."""
+    explicit_url = URL.replace(f"https://{HOST}", f"https://{HOST}:443")
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        explicit_url,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+        allowed_port=None,
+    )
+    assert text == "Name does not match Aadhaar."
+
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        URL,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+        allowed_port=443,
+    )
+    assert text == "Name does not match Aadhaar."
+
+
+async def test_userinfo_in_the_url_never_confuses_which_host_is_checked():
+    """urlsplit assigns everything before '@' to .username, never .hostname - a
+    credential-shaped prefix on the allowed host must not grant a pass, and a
+    credential-shaped prefix that happens to spell the allowed host's name must not
+    smuggle a different actual host past the check either."""
+    with pytest.raises(AnalysisError) as prefixed_actual_host:
+        await extract_rejection_text(
+            FakeClient(extracted("should never be reached")),
+            URL.replace(f"https://{HOST}", f"https://{HOST}@attacker.example.invalid"),
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert prefixed_actual_host.value.code == "image_input_unavailable"
+
+    # The reverse: attacker-looking userinfo in front of the real, allowed host is not
+    # a bypass - urlsplit still resolves .hostname to the part after "@".
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        URL.replace(f"https://{HOST}", f"https://attacker.example.invalid@{HOST}"),
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST,
+    )
+    assert text == "Name does not match Aadhaar."
 
 
 async def test_one_tool_free_user_message_carries_the_transient_url():
@@ -274,6 +419,7 @@ async def test_isolated_signed_url_secrets_never_leave_extraction(text):
             Budget(),
             max_chars=8000,
             max_output_tokens=1000,
+            allowed_host=HOST,
         )
     assert error.value.code == "invalid_image_output" and text not in str(error.value)
 

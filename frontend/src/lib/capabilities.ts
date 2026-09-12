@@ -40,8 +40,16 @@ export const capabilitiesSchema = z
         'Inputs require text and may include image once.',
       ),
     downloads_available: z.boolean(),
+    history_available: z.boolean(),
   })
-  .strict()
+  // Deliberately neither .strict() nor .passthrough() at the top level: an older
+  // frontend build talking to a newer backend must tolerate an additive capability
+  // flag it doesn't know about yet, rather than fail closed and disable the whole app
+  // (exactly the failure this PR already hit once, from a new history_available
+  // field breaking .strict()). Zod's plain default already does this by silently
+  // stripping unrecognized keys, which gets the same forward-compat without also
+  // retaining a backend-controlled key nothing here validated. Nested objects stay
+  // .strict() - those are not meant to gain fields independently.
   .superRefine((capabilities, context) => {
     const codes = capabilities.languages.map(({ code }) => code);
     if (new Set(codes).size !== codes.length) {
@@ -86,6 +94,7 @@ export const previewCapabilities: Capabilities = capabilitiesSchema.parse({
   },
   inputs: ['text'],
   downloads_available: false,
+  history_available: false,
 });
 
 // Call with schema-validated capabilities; never fall back to a disabled code.

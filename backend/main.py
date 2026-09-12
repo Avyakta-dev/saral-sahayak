@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections import deque
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -23,6 +24,7 @@ from backend.api.schemas import (
     UploadTicketRequest,
 )
 from backend.config import PUBLIC_KNOWLEDGE_ROOT, Settings
+from backend.history import HistoryCase, HistoryResponse, HistoryTrackingService
 from backend.images.pipeline import ImagePipeline
 from backend.images.storage import StorageError
 from backend.knowledge_readiness import check_corpus
@@ -30,6 +32,33 @@ from backend.languages import LANGUAGES
 from backend.llm import LLMClient
 from backend.tools.budget import Budget, BudgetLimits
 from backend.tools.knowledge_files import KnowledgeError, check_knowledge_root
+
+_MAX_SESSION_ID_LENGTH = 128
+
+
+def _session_id(request: Request) -> str:
+    """A client-supplied opaque partition key, not authentication.
+
+    There is no login system yet; this only lets one browser's own repeat questions
+    share history/cache with each other. Never trust it as an identity claim.
+
+    This is a deliberately non-confidential convenience cache, not a privacy boundary:
+    a caller who sends `X-Session-Id: <someone else's value>` reads that value's
+    history exactly as its original sender would (see
+    test_a_caller_who_knows_another_sessions_id_can_read_its_history in
+    test_history_api.py, which proves and documents this rather than treating it as an
+    untested gap). Exposed fields are metadata only (status/outcome/reason_id/
+    language/timestamps), never raw text or another caller's submitted details - see
+    HistoryTrackingService's cache-write gating for the latter. Moving to a
+    server-issued, unguessable session token is real future work once accounts exist,
+    not something to fake with obfuscation here.
+
+    A missing/blank header must never collapse into one shared bucket - that would let
+    every caller who omits the header read each other's case history. Mint a private,
+    unguessable id instead, scoped to this one request only.
+    """
+    raw = request.headers.get("X-Session-Id", "").strip()
+    return raw[:_MAX_SESSION_ID_LENGTH] if raw else uuid.uuid4().hex
 
 
 class BodyLimitMiddleware:
@@ -277,6 +306,7 @@ def create_app(
                 # Missing credentials/dependencies never take down text analysis.
                 # No raw exception, bucket, key or provider detail is logged.
                 pass
+        app.state.history_store = settings.history_store()
         try:
             yield
         finally:
@@ -370,6 +400,7 @@ def create_app(
                 else ["text"]
             ),
             "downloads_available": False,
+            "history_available": getattr(app.state, "history_store", None) is not None,
         }
 
     def shared_service(payload: AnalyzeRequest) -> AnalysisService | _SharedBudgetService:
@@ -382,6 +413,14 @@ def create_app(
             settings.analysis_budget_limits(),
             getattr(app.state, "image_pipeline", None),
         )
+
+    def tracked_service(payload: AnalyzeRequest, request: Request):
+        """Adds lifecycle/history/cache around shared_service when the store is enabled."""
+        inner = shared_service(payload)
+        store = getattr(app.state, "history_store", None)
+        if store is None:
+            return inner
+        return HistoryTrackingService(inner, store, _session_id(request))
 
     async def analysis_gate(payload: AnalyzeRequest) -> JSONResponse | None:
         if payload.language not in settings.supported_languages:
@@ -464,8 +503,9 @@ def create_app(
         if error is not None:
             return error
         try:
+            service = tracked_service(payload, request)
             result = _validated_result(
-                await _run_until_disconnect(request, shared_service(payload).analyze(payload)),
+                await _run_until_disconnect(request, service.analyze(payload)),
                 payload,
             )
         except AnalysisError as exc:
@@ -487,14 +527,39 @@ def create_app(
             503: {"model": AnalyzeResponse, "description": "Analysis dependency unavailable"},
         },
     )
-    async def analyze_stream(payload: AnalyzeRequest):
+    async def analyze_stream(payload: AnalyzeRequest, request: Request):
         error = await analysis_gate(payload)
         if error is not None:
             return error
         return AnalysisStreamingResponse(
-            _analysis_events(shared_service(payload), payload),
+            _analysis_events(tracked_service(payload, request), payload),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )
+
+    @app.get("/api/v1/history", response_model=HistoryResponse)
+    async def history(request: Request, response: Response, limit: int = 20):
+        # Session-scoped, session-varying data must never be cached by a shared proxy
+        # or the browser's back/forward cache.
+        response.headers["Cache-Control"] = "no-store"
+        session_id = _session_id(request)
+        store = getattr(app.state, "history_store", None)
+        if store is None:
+            return HistoryResponse(session_id=session_id, cases=[])
+        bounded_limit = min(max(limit, 1), 100)
+        cases = [
+            HistoryCase(
+                case_id=record.case_id,
+                status=record.status,
+                outcome=record.outcome,
+                reason_id=record.reason_id,
+                language=record.language,
+                from_cache=record.from_cache,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            for record in store.history(session_id, limit=bounded_limit)
+        ]
+        return HistoryResponse(session_id=session_id, cases=cases)
 
     return app

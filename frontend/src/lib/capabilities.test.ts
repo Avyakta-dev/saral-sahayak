@@ -40,6 +40,7 @@ describe('capabilitiesSchema', () => {
       },
       inputs: ['text'],
       downloads_available: false,
+      history_available: false,
     });
   });
 
@@ -95,15 +96,23 @@ describe('capabilitiesSchema', () => {
     }
   });
 
-  it('rejects unknown fields at every object level', () => {
+  it('rejects unknown fields in nested objects, but tolerates an unknown top-level field', () => {
     const value = fresh();
     for (const patch of [
-      { unexpected: true },
       { checks: { ...value.checks, unexpected: true } },
       { languages: [{ ...value.languages[0], unexpected: true }] },
     ]) {
       expect(capabilitiesSchema.safeParse({ ...value, ...patch }).success).toBe(false);
     }
+    // An older frontend build must not fail closed on a new additive capability flag
+    // it doesn't know about yet - this is the exact class of bug this PR already fixed
+    // once (history_available breaking a fully-.strict() schema).
+    const result = capabilitiesSchema.safeParse({ ...value, unexpected: true });
+    expect(result.success).toBe(true);
+    // Stripped, not retained: an unrecognized top-level key must not survive into the
+    // parsed object, so a backend-controlled key nothing here validated can never ride
+    // along into app code that spreads/iterates the parsed capabilities.
+    expect(result.success && 'unexpected' in result.data).toBe(false);
   });
 
   it.each([
@@ -117,6 +126,7 @@ describe('capabilitiesSchema', () => {
     { inputs: 'text' },
     { analysis_available: 'false' },
     { downloads_available: 0 },
+    { history_available: 0 },
   ])('rejects malformed endpoint fields %#', (patch) => {
     expect(capabilitiesSchema.safeParse({ ...fresh(), ...patch }).success).toBe(false);
   });

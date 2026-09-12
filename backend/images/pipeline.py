@@ -6,6 +6,7 @@ import secrets
 import time
 import warnings
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -107,6 +108,21 @@ class ImagePipeline:
         self.config = config
         self.client = client
         self.storage = storage if storage is not None else R2Storage(config)
+        _endpoint = urlsplit(config.endpoint)
+        self._image_host = _endpoint.hostname
+        try:
+            # .port raises ValueError for an out-of-range/non-numeric port instead of
+            # returning None; ImageConfig.https_origin doesn't validate port syntax, so
+            # this must not escape as an unhandled ValueError past this typed error.
+            self._image_port = _endpoint.port
+        except ValueError:
+            raise StorageError(_UNAVAILABLE) from None
+        if not self._image_host:
+            # ImageConfig.https_origin already guarantees a truthy hostname, so this
+            # should never fire; it exists so a broken invariant fails loud here rather
+            # than silently turning extract_rejection_text's host guard into a no-op
+            # (a falsy allowed_host would compare equal to a URL with no host too).
+            raise StorageError(_UNAVAILABLE)
         self._clock = clock
         # Deliberately process-local: restarts/other workers reject rather than guess
         # authorization from a filename. Deploy one worker or use sticky routing.
@@ -175,6 +191,8 @@ class ImagePipeline:
                     budget,
                     max_chars=self.config.ocr_max_chars,
                     max_output_tokens=self.config.ocr_max_output_tokens,
+                    allowed_host=self._image_host,
+                    allowed_port=self._image_port,
                 )
         except InvalidImage:
             raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422) from None

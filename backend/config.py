@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=list)
     supported_languages: list[LanguageCode] = Field(default_factory=lambda: list(LANGUAGES))
 
+    # Lifecycle/history/cache. In-memory only by default: no path means nothing touches
+    # disk. Persisted rows never contain raw text or user-supplied details (see
+    # backend/history/models.py) - only a one-way fingerprint and the outcome fields the
+    # response already exposes.
+    history_enabled: bool = True
+    history_max_records: int = Field(default=5000, gt=0, le=200_000)
+    history_max_per_session: int = Field(default=200, gt=0, le=10_000)
+    history_persist_path: str = ""
+
     # Private image input. Disabled by default and never inferred from the model name.
     # Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY),
     # so only the destination is configured here.
@@ -65,10 +74,41 @@ class Settings(BaseSettings):
             raise ValueError("Supported languages must be unique and include default English")
         return value
 
-    @field_validator("llm_base_url", "llm_model", "image_r2_endpoint", "image_r2_bucket")
+    @field_validator("image_content_types")
+    @classmethod
+    def image_content_type_set(cls, value: list[str]) -> list[str]:
+        if (
+            not value
+            or len(value) != len(set(value))
+            or any(item not in SUPPORTED_IMAGE_TYPES for item in value)
+        ):
+            raise ValueError("Image content types must be unique and one of the supported types")
+        return value
+
+    @field_validator(
+        "llm_base_url", "llm_model", "image_r2_endpoint", "image_r2_bucket", "history_persist_path"
+    )
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("history_persist_path")
+    @classmethod
+    def history_persist_path_is_a_plausible_file(cls, value: str) -> str:
+        if not value:
+            return value
+        # resolve(), not just expanduser(): this is an operator-configured deployment
+        # setting (env var at process startup), never client input, but resolving
+        # symlinks means the path validated here and the path history_store() later
+        # opens for append are always the exact same canonical location.
+        path = Path(value).expanduser().resolve()
+        if path.exists() and path.is_dir():
+            raise ValueError("history_persist_path must be a file path, not a directory")
+        if not path.parent.is_dir():
+            raise ValueError(
+                f"history_persist_path's parent directory does not exist: {path.parent}"
+            )
+        return str(path)
 
     @field_validator("cors_origins")
     @classmethod
@@ -91,6 +131,18 @@ class Settings(BaseSettings):
 
     def analysis_budget_limits(self) -> BudgetLimits:
         return BudgetLimits(request_seconds=self.analysis_request_seconds)
+
+    def history_store(self):
+        """Build the lifecycle/cache store this instance describes, or None when disabled."""
+        if not self.history_enabled:
+            return None
+        from backend.history import CaseHistoryStore
+
+        return CaseHistoryStore(
+            max_records=self.history_max_records,
+            max_per_session=self.history_max_per_session,
+            persist_path=Path(self.history_persist_path) if self.history_persist_path else None,
+        )
 
     def image_config(self) -> ImageConfig | None:
         """Fail closed: image input needs an explicit opt-in and an explicit destination."""
