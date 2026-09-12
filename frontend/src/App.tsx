@@ -21,23 +21,54 @@ import {
   X,
 } from 'lucide-react';
 import { AnswerCard } from './components/AnswerCard';
-import type { AnalyzeResponse, Language } from './lib/contracts';
-import { validateInput } from './lib/contracts';
-import { analyzeRemark, fetchCapabilities } from './lib/api';
+import { useLocale, locales, nativeNames, type UiLocale, type Message } from './lib/i18n';
+import type { AnalyzeResponse, Language, AnalysisActivity } from './lib/contracts';
+import { ActivityPanel } from './components/ActivityPanel';
+import {
+  imageInputAvailable,
+  validateInput,
+  type Capabilities,
+  type OutputLanguage,
+} from './lib/contracts';
+import {
+  analyzeImageStream,
+  analyzeTextStream,
+  createImageUpload,
+  getCapabilities,
+  uploadImage,
+  ApiError,
+} from './lib/api';
+
+const live = import.meta.env.VITE_ENABLE_ANALYSIS === 'true';
 import { loadDemoResponse } from './lib/demo';
 import { getWalkthrough, walkthroughRemark } from './lib/walkthrough';
 import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib/attachments';
 import type { ImageAttachment } from './lib/attachments';
 
+/**
+ * Upload one reviewed image to private storage, then analyze by opaque key.
+ * The image is never an addition to text: the backend takes exactly one input.
+ */
+async function analyzeReviewedImage(
+  image: ImageAttachment,
+  language: OutputLanguage,
+  signal: AbortSignal,
+  onActivity: (activity: AnalysisActivity) => void,
+): Promise<AnalyzeResponse> {
+  const ticket = await createImageUpload(language, image.file.type, signal);
+  await uploadImage(ticket, image.file, signal);
+  return analyzeImageStream(ticket.object_key, language, signal, onActivity);
+}
+
 type Turn = {
   id: number;
   text: string;
   image: ImageAttachment | null;
-  language: Language;
+  language: OutputLanguage;
   sample: boolean;
+  failure?: string;
+  activity?: AnalysisActivity[];
   response: AnalyzeResponse | null;
-  /** Transport / availability failure for a live turn (not a schema AnalyzeResponse). */
-  failure?: string | null;
 };
 
 function WelcomeVisual() {
@@ -97,12 +128,23 @@ function WelcomeVisual() {
 }
 
 export default function App() {
+  const { locale, setLocale, t, message } = useLocale();
   const [text, setText] = useState('');
   const [language, setLanguage] = useState<Language>('en');
+  const [outputLanguage, setOutputLanguage] = useState<OutputLanguage>('en');
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const [capabilityError, setCapabilityError] = useState('');
+  const consentDialog = useRef<HTMLDialogElement>(null);
+  const pendingLiveId = useRef<number | null>(null);
+  const [consent, setConsent] = useState<{
+    text: string;
+    language: OutputLanguage;
+    image: ImageAttachment | null;
+  } | null>(null);
   const [attachment, setAttachment] = useState<ImageAttachment | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<string | Message>('');
   const [readingFile, setReadingFile] = useState(false);
   const [pending, setPending] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -133,6 +175,27 @@ export default function App() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!live) return;
+    const controller = new AbortController();
+    void getCapabilities(controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) setCapabilities(value);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setCapabilityError(
+            cause instanceof ApiError ? cause.message : 'Backend capabilities are unavailable.',
+          );
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (consent) consentDialog.current?.showModal();
+    else consentDialog.current?.close();
+  }, [consent]);
 
   useEffect(() => {
     if (!textarea.current) return;
@@ -169,6 +232,7 @@ export default function App() {
   function removeAttachment() {
     fileVersion.current += 1;
     setReadingFile(false);
+    setConsent(null);
     if (currentAttachment.current) forgetImage(currentAttachment.current);
     updateAttachment(null);
     setNotice('Image removed.');
@@ -181,6 +245,7 @@ export default function App() {
 
   async function addFile(file: File) {
     closeMenu();
+    setConsent(null);
     const version = ++fileVersion.current;
     setError('');
     setNotice('');
@@ -193,7 +258,7 @@ export default function App() {
         const validation = validateInput(combined, language);
         if (validation) throw new Error(validation);
         setText(combined);
-        setNotice(`Text added from ${file.name}.`);
+        setNotice({ key: 'textAdded', params: { name: file.name } });
       } else {
         const image = await readImage(file);
         if (version !== fileVersion.current) {
@@ -203,7 +268,11 @@ export default function App() {
         if (currentAttachment.current) forgetImage(currentAttachment.current);
         retainedImages.current.add(image);
         updateAttachment(image);
-        setNotice('Image added locally. Text extraction is not connected yet.');
+        setNotice(
+          imageInputAvailable(capabilities)
+            ? 'Image added locally. It is uploaded only if you approve analysis.'
+            : 'Image added locally. Image analysis is not enabled on this backend.',
+        );
       }
       textarea.current?.focus();
     } catch (cause) {
@@ -250,18 +319,33 @@ export default function App() {
     return all.slice(-6);
   }
 
-  function cancelRequest(notice = 'Request cancelled.') {
+  function cancelSample() {
     request.current?.abort();
     request.current = null;
+    const id = pendingLiveId.current;
+    pendingLiveId.current = null;
+    setConsent(null);
     setPending(false);
     setTurns((previous) =>
-      previous.filter((turn) => turn.response !== null || Boolean(turn.failure)),
+      previous
+        .filter((turn) => turn.response !== null || !turn.sample)
+        .map((turn) =>
+          turn.id === id
+            ? {
+                ...turn,
+                failure:
+                  'Analysis cancelled. No result will be displayed. The backend may already have received this text.',
+              }
+            : turn,
+        ),
     );
-    if (notice) setNotice(notice);
+    setNotice(
+      id === null ? 'Sample cancelled.' : 'Analysis cancelled. Edit the message to try again.',
+    );
   }
 
   function newChat() {
-    cancelRequest('');
+    cancelSample();
     fileVersion.current += 1;
     setReadingFile(false);
     retainedImages.current.forEach(releaseImage);
@@ -277,8 +361,9 @@ export default function App() {
   }
 
   function editTurn(turn: Turn) {
-    cancelRequest('');
+    cancelSample();
     setText(turn.text);
+    if (live && !turn.sample) setOutputLanguage(turn.language);
     if (currentAttachment.current && currentAttachment.current !== turn.image)
       forgetImage(currentAttachment.current);
     updateAttachment(turn.image);
@@ -288,9 +373,115 @@ export default function App() {
     requestAnimationFrame(() => textarea.current?.focus());
   }
 
+  async function confirmAnalysis() {
+    if (
+      !consent ||
+      pending ||
+      readingFile ||
+      attachment !== consent.image ||
+      request.current ||
+      consent.text !== text.trim() ||
+      consent.language !== outputLanguage ||
+      !capabilities?.analysis_available ||
+      !capabilities.languages.some((entry) => entry.code === outputLanguage)
+    )
+      return;
+    const reviewed = consent;
+    setConsent(null);
+    const controller = new AbortController();
+    request.current = controller;
+    const id = ++turnId.current;
+    pendingLiveId.current = id;
+    setPending(true);
+    setError('');
+    setNotice('');
+    setTurns((previous) =>
+      trimThread(previous, {
+        id,
+        text: reviewed.text,
+        language: reviewed.language,
+        image: reviewed.image,
+        sample: false,
+        response: null,
+      }),
+    );
+    setText('');
+    try {
+      const onActivity = (activity: AnalysisActivity) => {
+        if (request.current !== controller || controller.signal.aborted) return;
+        setTurns((previous) =>
+          previous.map((turn) =>
+            turn.id === id
+              ? { ...turn, activity: [...(turn.activity ?? []), activity].slice(-128) }
+              : turn,
+          ),
+        );
+      };
+      const response = reviewed.image
+        ? await analyzeReviewedImage(
+            reviewed.image,
+            reviewed.language,
+            controller.signal,
+            onActivity,
+          )
+        : await analyzeTextStream(
+            reviewed.text,
+            reviewed.language,
+            controller.signal,
+            onActivity,
+          );
+      if (request.current !== controller || controller.signal.aborted) return;
+      setTurns((previous) =>
+        previous.map((turn) => (turn.id === id ? { ...turn, response } : turn)),
+      );
+    } catch (cause) {
+      if (request.current !== controller || controller.signal.aborted) return;
+      const failure =
+        cause instanceof ApiError ? cause.message : 'Analysis could not be completed safely.';
+      setTurns((previous) =>
+        previous.map((turn) => (turn.id === id ? { ...turn, failure } : turn)),
+      );
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        pendingLiveId.current = null;
+        setPending(false);
+      }
+    }
+  }
+
   function send(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (pending || readingFile) return;
+    if (live) {
+      setConsent(null);
+      const validation = attachment
+        ? !imageInputAvailable(capabilities)
+          ? 'Image analysis is not enabled on this backend. Remove the image and paste only reviewed, redacted text.'
+          : text.trim()
+            ? 'Send either the image or your text, not both. Clear the text box to analyze the image, or remove the image.'
+            : null
+        : validateInput(text, outputLanguage);
+      if (validation) {
+        setError(validation);
+        textarea.current?.focus();
+        return;
+      }
+      if (
+        !capabilities?.analysis_available ||
+        !capabilities.languages.some((entry) => entry.code === outputLanguage)
+      ) {
+        setError(
+          capabilityError ||
+            'Analysis is unavailable. Check backend configuration and knowledge readiness, then reload.',
+        );
+        return;
+      }
+      setError('');
+      closeMenu();
+      setConsent({ text: text.trim(), language: outputLanguage, image: attachment });
+      return;
+    }
     const validation =
       text.trim() || count > 8000
         ? validateInput(text, language)
@@ -302,103 +493,20 @@ export default function App() {
       textarea.current?.focus();
       return;
     }
-
-    const trimmed = text.trim();
-    const image = attachment;
-    const selectedLanguage = language;
-
-    // Image-only: OCR is not connected; do not auto-call analyze or invent text.
-    if (!trimmed && image) {
-      const next: Turn = {
-        id: ++turnId.current,
-        text: '',
-        image,
-        sample: false,
-        response: null,
-        failure:
-          'Got the image. Reading it is the next piece. OCR and claim analysis from images are not available yet; nothing was uploaded or extracted.',
-        language: selectedLanguage,
-      };
-      setTurns((previous) => trimThread(previous, next));
-      updateAttachment(null);
-      setText('');
-      setError('');
-      setNotice('');
-      closeMenu();
-      return;
-    }
-
-    const controller = new AbortController();
-    request.current = controller;
-    const id = ++turnId.current;
-    setPending(true);
-    setError('');
-    setNotice('');
     const next: Turn = {
-      id,
-      text: trimmed,
-      image,
+      id: ++turnId.current,
+      text: text.trim(),
+      image: attachment,
       sample: false,
       response: null,
-      failure: null,
-      language: selectedLanguage,
+      language,
     };
     setTurns((previous) => trimThread(previous, next));
     updateAttachment(null);
     setText('');
+    setError('');
+    setNotice('');
     closeMenu();
-
-    void (async () => {
-      try {
-        try {
-          const capabilities = await fetchCapabilities(controller.signal);
-          if (!capabilities.analysis_available) {
-            if (request.current !== controller || controller.signal.aborted) return;
-            setTurns((previous) =>
-              previous.map((turn) =>
-                turn.id === id
-                  ? {
-                      ...turn,
-                      failure:
-                        'Analysis is not available on this server right now (model configuration or knowledge gates). Your message was not turned into guidance.',
-                    }
-                  : turn,
-              ),
-            );
-            return;
-          }
-        } catch (cause) {
-          if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-            return;
-          // Fall through to analyze; a missing capabilities route still allows a direct analyze attempt.
-        }
-
-        const response = await analyzeRemark({
-          text: trimmed,
-          language: selectedLanguage,
-          signal: controller.signal,
-        });
-        if (request.current !== controller || controller.signal.aborted) return;
-        setTurns((previous) =>
-          previous.map((turn) => (turn.id === id ? { ...turn, response, failure: null } : turn)),
-        );
-      } catch (cause) {
-        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-          return;
-        const message =
-          cause instanceof Error && cause.message
-            ? cause.message
-            : 'The analysis service could not be reached.';
-        setTurns((previous) =>
-          previous.map((turn) => (turn.id === id ? { ...turn, failure: message } : turn)),
-        );
-      } finally {
-        if (request.current === controller) {
-          request.current = null;
-          setPending(false);
-        }
-      }
-    })();
   }
 
   function composerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -447,13 +555,48 @@ export default function App() {
   }
 
   function changeLanguage(value: Language) {
-    if (pending) cancelRequest('Request cancelled.');
+    setConsent(null);
+    if (pending) cancelSample();
     setLanguage(value);
     setNotice(hasConversation ? 'Language updated for new replies.' : '');
   }
 
   const composer = (
     <div className="composer-dock">
+      {live && (
+        <div className="live-controls">
+          <label htmlFor="output-language">{t('analysisLanguage')}</label>
+          <select
+            id="output-language"
+            value={outputLanguage}
+            disabled={!capabilities}
+            onChange={(event) => {
+              cancelSample();
+              setOutputLanguage(event.target.value as OutputLanguage);
+              setNotice({ key: 'outputUpdated' });
+            }}
+          >
+            {!capabilities && <option value="en">{t('loadingLanguages')}</option>}
+            {capabilities?.languages.map((entry) => (
+              <option key={entry.code} value={entry.code} lang={entry.code}>
+                {entry.native_name}
+              </option>
+            ))}
+          </select>
+          <details className="live-privacy-details" open={!hasConversation}>
+            <summary>{t('privacyDetails')}</summary>
+            <p role="status">
+              {(capabilityError ? message(capabilityError) : '') ||
+                (!capabilities
+                  ? t('checkingCapabilities')
+                  : capabilities.analysis_available
+                    ? t('available')
+                    : t('unavailable'))}
+            </p>
+            <p>{t('privacyReminder')}</p>
+          </details>
+        </div>
+      )}
       <form
         className={`composer${dragging ? ' drag-active' : ''}`}
         onSubmit={send}
@@ -470,13 +613,13 @@ export default function App() {
           if (dragDepth.current <= 0) setDragging(false);
         }}
         onDrop={drop}
-        aria-label="Message composer"
+        aria-label={t('composer')}
       >
         {dragging && (
           <div className="drop-overlay">
             <ImagePlus size={28} aria-hidden="true" />
-            <strong>Drop your screenshot here</strong>
-            <span>PNG, JPG or WebP · up to 10 MB</span>
+            <strong>{t('dropImage')}</strong>
+            <span>{t('imageFormats')}</span>
           </div>
         )}
         {attachment && (
@@ -484,44 +627,48 @@ export default function App() {
             <button
               type="button"
               className="attachment-thumb"
-              aria-label={`Enlarge ${attachment.name}`}
+              aria-label={t('enlarge', { name: attachment.name })}
               onClick={() => setZoomImage(attachment)}
             >
-              <img src={attachment.url} alt="Attached screenshot preview" />
+              <img src={attachment.url} alt={t('attachedPreview')} />
             </button>
             <div>
               <strong>{attachment.name}</strong>
-              <span>{(attachment.file.size / 1024).toFixed(0)} KB · local preview</span>
-              <small>OCR isn’t connected yet</small>
+              <span>
+                {t('imageSize', {
+                  size: new Intl.NumberFormat(locale).format(
+                    Math.round(attachment.file.size / 1024),
+                  ),
+                })}
+              </span>
+              <small>{t('ocrUnavailable')}</small>
             </div>
             <button
               className="icon-button"
               type="button"
               onClick={removeAttachment}
-              aria-label="Remove attached image"
+              aria-label={t('removeImage')}
             >
               <X size={17} aria-hidden="true" />
             </button>
           </div>
         )}
         <label className="sr-only" htmlFor="message-input">
-          Your message
+          {t('yourMessage')}
         </label>
         <textarea
           ref={textarea}
           id="message-input"
+          lang=""
           value={text}
           onChange={(event) => {
+            setConsent(null);
             setText(event.target.value);
             setError('');
           }}
           onPaste={paste}
           onKeyDown={composerKey}
-          placeholder={
-            attachment
-              ? 'Add the rejection wording or a note about this image…'
-              : 'Paste your rejection remark, or add a screenshot…'
-          }
+          placeholder={attachment ? t('imagePlaceholder') : t('textPlaceholder')}
           rows={2}
           spellCheck={false}
           autoComplete="off"
@@ -539,9 +686,9 @@ export default function App() {
                 if (event.key === 'Escape') closeMenu();
               }}
             >
-              <summary aria-label="Add a file">
+              <summary aria-label={t('addFile')}>
                 <Paperclip size={20} aria-hidden="true" />
-                <span>Attach</span>
+                <span>{t('attach')}</span>
                 <ChevronDown size={12} aria-hidden="true" />
               </summary>
               <div className="attachment-options">
@@ -555,7 +702,8 @@ export default function App() {
                 >
                   <ImagePlus size={19} aria-hidden="true" />
                   <span>
-                    Upload an image<small>PNG, JPG, WebP · 10 MB</small>
+                    {t('uploadImage')}
+                    <small>{t('imageFormatsShort')}</small>
                   </span>
                 </button>
                 <button
@@ -568,7 +716,8 @@ export default function App() {
                 >
                   <Camera size={19} aria-hidden="true" />
                   <span>
-                    Take a photo<small>Camera on supported devices</small>
+                    {t('photo')}
+                    <small>{t('cameraDevices')}</small>
                   </span>
                 </button>
                 <button
@@ -581,7 +730,8 @@ export default function App() {
                 >
                   <FileText size={19} aria-hidden="true" />
                   <span>
-                    Add a text file<small>Plain text .txt · 8,000 characters</small>
+                    {t('textFile')}
+                    <small>{t('textFileFormats')}</small>
                   </span>
                 </button>
               </div>
@@ -591,42 +741,45 @@ export default function App() {
               type="button"
               disabled={pending || readingFile}
               onClick={() => cameraInput.current?.click()}
-              aria-label="Take a photo"
-              title="Camera on supported phones; file picker on desktop"
+              aria-label={t('photo')}
+              title={t('cameraTitle')}
             >
               <Camera size={19} aria-hidden="true" />
             </button>
-            <span className="composer-formats">Text & images</span>
+            <span className="composer-formats">{t('textImages')}</span>
           </div>
           <div className="send-tools">
             {readingFile ? (
               <span className="file-loading" role="status">
-                <LoaderCircle className="spin" size={15} aria-hidden="true" /> Opening file
+                <LoaderCircle className="spin" size={15} aria-hidden="true" />
+                {t('openingFile')}
               </span>
             ) : count > 7000 ? (
               <span className={count > 8000 ? 'count invalid' : 'count'}>
-                {count.toLocaleString('en-IN')} / 8,000
+                {t('charCount', {
+                  count: count.toLocaleString(locale === 'en' ? 'en-IN' : locale),
+                })}
               </span>
             ) : (
-              <span className="keyboard-hint">Shift + Enter for a new line</span>
+              <span className="keyboard-hint">{t('newline')}</span>
             )}
             {pending ? (
               <button
                 className="send-button stop-button"
                 type="button"
-                onClick={() => cancelRequest('Request cancelled.')}
-                aria-label="Stop request"
+                onClick={cancelSample}
+                aria-label={pendingLiveId.current !== null ? t('stopAnalysis') : t('stopSample')}
               >
                 <Square size={17} aria-hidden="true" />
               </button>
             ) : (
               <button
-                className="send-button"
+                className={live ? 'send-button analyze-button' : 'send-button'}
                 type="submit"
                 disabled={readingFile || (!text.trim() && !attachment)}
-                aria-label="Send message"
+                aria-label={live ? t('reviewAnalysis') : t('send')}
               >
-                <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />
+                {live ? t('review') : <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />}
               </button>
             )}
           </div>
@@ -635,53 +788,77 @@ export default function App() {
       {error && (
         <p className="composer-error" id="composer-error" role="alert">
           <CircleAlert size={15} aria-hidden="true" />
-          {error}
+          {message(error)}
         </p>
       )}
       <p className="composer-notice" role="status">
-        {notice}
+        {message(notice)}
       </p>
       <p className="preview-limit" id="preview-limit">
-        <LockKeyhole size={12} aria-hidden="true" /> Local UI. Live analyze needs a running backend;
-        OCR isn’t connected.{' '}
+        <LockKeyhole size={12} aria-hidden="true" /> {live ? t('liveLimit') : t('previewLimit')}{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
-          Details
+          {t('details')}
         </button>
       </p>
     </div>
   );
 
   return (
-    <div className="chat-app">
+    <div className="chat-app" lang={locale}>
       <a className="skip-link" href="#main">
-        Skip to content
+        {t('skip')}
       </a>
       <header className={hasConversation ? 'app-header has-conversation' : 'app-header'}>
-        <a className="wordmark" href="#main">
+        <a className="wordmark" href="#main" lang="en">
           Saral<span> Sahayak</span>
           <i aria-hidden="true">.</i>
         </a>
-        <span className="header-context">Your EPFO companion</span>
+        <span className="header-context">{t('companion')}</span>
         <div className="header-actions">
+          <div className="language-select ui-language-select">
+            <Globe2 size={16} aria-hidden="true" />
+            <label className="sr-only" htmlFor="ui-language">
+              {t('uiLanguage')}
+            </label>
+            <select
+              id="ui-language"
+              value={locale}
+              title={t('uiLanguage')}
+              onChange={(event) => {
+                setConsent(null);
+                setLocale(event.target.value as UiLocale);
+              }}
+            >
+              {locales.map((code) => (
+                <option key={code} value={code} lang={code}>
+                  {nativeNames[code]}
+                </option>
+              ))}
+            </select>
+          </div>
           {hasConversation && (
-            <button type="button" className="new-chat" onClick={newChat} aria-label="New chat">
+            <button type="button" className="new-chat" onClick={newChat} aria-label={t('newChat')}>
               <Plus size={17} aria-hidden="true" />
-              <span>New chat</span>
+              <span>{t('newChat')}</span>
             </button>
           )}
           <div className="language-select">
             <Globe2 size={16} aria-hidden="true" />
             <label className="sr-only" htmlFor="language">
-              Output language
+              {t('sampleLanguage')}
             </label>
             <select
               id="language"
               value={language}
               onChange={(event) => changeLanguage(event.target.value as Language)}
-              title="Language for new replies"
+              title={t('sampleLanguageTitle')}
             >
-              <option value="en">English</option>
-              <option value="hi">हिन्दी</option>
+              <option value="en" lang="en">
+                English
+              </option>
+              <option value="hi" lang="hi">
+                हिन्दी
+              </option>
             </select>
             <ChevronDown size={12} aria-hidden="true" />
           </div>
@@ -691,7 +868,7 @@ export default function App() {
             onClick={() => infoDialog.current?.showModal()}
           >
             <span aria-hidden="true" />
-            Preview
+            {live ? t('liveBadge') : t('previewBadge')}
           </button>
         </div>
       </header>
@@ -704,12 +881,9 @@ export default function App() {
           <div className="welcome-layout">
             <section className="welcome" aria-labelledby="welcome-title">
               <WelcomeVisual />
-              <p className="eyebrow">Less confusion. A clearer next step.</p>
-              <h1 id="welcome-title">
-                Let’s make sense
-                <br /> of your claim.
-              </h1>
-              <p className="welcome-caption">Paste a remark. Add a screenshot. Start here.</p>
+              <p className="eyebrow">{t('eyebrow')}</p>
+              <h1 id="welcome-title">{t('welcomeTitle')}</h1>
+              <p className="welcome-caption">{live ? t('welcomeLive') : t('welcomePreview')}</p>
             </section>
             {composer}
             <div className="starter-actions">
@@ -724,8 +898,8 @@ export default function App() {
                   <Check size={12} className="mini-check" aria-hidden="true" />
                 </span>
                 <span>
-                  <strong>Show me an example</strong>
-                  <small>A quick, visual walkthrough</small>
+                  <strong>{t('example')}</strong>
+                  <small>{t('exampleCaption')}</small>
                 </span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
@@ -739,39 +913,39 @@ export default function App() {
                   <ImagePlus size={23} aria-hidden="true" />
                 </span>
                 <span>
-                  <strong>Add a screenshot</strong>
-                  <small>Or drag & drop it here</small>
+                  <strong>{t('addScreenshot')}</strong>
+                  <small>{t('dropCaption')}</small>
                 </span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
             </div>
             <div className="welcome-footer">
-              <span>English & हिन्दी</span>
+              <span>{live ? t('languagesFooter') : t('sampleLanguagesFooter')}</span>
               <span aria-hidden="true">·</span>
-              <span>No account needed</span>
+              <span>{t('noAccount')}</span>
               <span aria-hidden="true">·</span>
-              <span>You choose when to send</span>
+              <span>{live ? t('approvedOnly') : t('nothingSent')}</span>
             </div>
           </div>
         ) : (
           <>
-            <h1 className="sr-only">Your conversation</h1>
-            <section className="conversation" aria-label="Conversation">
+            <h1 className="sr-only">{t('conversationTitle')}</h1>
+            <section className="conversation" aria-label={t('conversation')}>
               <div className="thread">
                 {turns.map((turn) => (
                   <article className="turn" key={turn.id}>
                     <div className="user-message">
                       {turn.sample && (
-                        <span className="sample-message-label">Illustrative example</span>
+                        <span className="sample-message-label">{t('illustrative')}</span>
                       )}
                       {turn.image && (
                         <button
                           className="message-image"
                           type="button"
                           onClick={() => setZoomImage(turn.image)}
-                          aria-label={`Enlarge ${turn.image.name}`}
+                          aria-label={t('enlarge', { name: turn.image.name })}
                         >
-                          <img src={turn.image.url} alt="Your attached image" />
+                          <img src={turn.image.url} alt={t('yourImage')} />
                           <span>
                             <ImagePlus size={13} aria-hidden="true" />
                             {turn.image.name}
@@ -779,7 +953,7 @@ export default function App() {
                         </button>
                       )}
                       {turn.text && (
-                        <p dir="auto" lang={turn.sample ? turn.language : undefined}>
+                        <p dir="auto" lang={turn.sample ? turn.language : ''}>
                           {turn.text}
                         </p>
                       )}
@@ -787,7 +961,7 @@ export default function App() {
                         className="edit-message"
                         type="button"
                         onClick={() => editTurn(turn)}
-                        aria-label="Edit this message"
+                        aria-label={t('editThis')}
                       >
                         <PenLine size={13} aria-hidden="true" />
                       </button>
@@ -797,36 +971,49 @@ export default function App() {
                         <MessageCircle size={18} />
                       </span>
                       <div className="assistant-content">
-                        {turn.sample ? (
+                        {live && !turn.sample && (
+                          <ActivityPanel
+                            activity={turn.activity ?? []}
+                            working={!turn.response && !turn.failure}
+                          />
+                        )}
+                        {turn.response ? (
+                          <AnswerCard
+                            response={turn.response}
+                            onEdit={() => editTurn(turn)}
+                            sample={turn.sample}
+                          />
+                        ) : live && !turn.sample ? (
+                          <div
+                            className="unavailable-reply"
+                            role={turn.failure ? 'alert' : 'status'}
+                          >
+                            <h2>{turn.failure ? t('analysisFailedTitle') : t('analyzing')}</h2>
+                            <p>{(turn.failure ? message(turn.failure) : '') || t('waiting')}</p>
+                            <button
+                              className="text-button"
+                              type="button"
+                              onClick={() => editTurn(turn)}
+                            >
+                              {t('editRemark')}
+                            </button>
+                          </div>
+                        ) : turn.sample ? (
                           turn.response ? (
-                            <AnswerCard
-                              mode="sample"
-                              response={turn.response}
-                              onEdit={() => editTurn(turn)}
-                            />
+                            <AnswerCard response={turn.response} onEdit={() => editTurn(turn)} />
                           ) : (
                             <div className="opening-sample" role="status">
                               <LoaderCircle className="spin" size={17} aria-hidden="true" />
-                              Opening the sample walkthrough…
+                              {t('openingSample')}
                             </div>
                           )
-                        ) : turn.response ? (
-                          <AnswerCard
-                            mode="live"
-                            response={turn.response}
-                            onEdit={() => editTurn(turn)}
-                          />
-                        ) : turn.failure ? (
+                        ) : (
                           <div className="unavailable-reply" role="status">
                             <span className="reply-kicker">
-                              {turn.image && !turn.text ? 'Image attached' : 'Live analysis'}
+                              {turn.image ? t('imageAttached') : t('messageReady')}
                             </span>
-                            <h2>
-                              {turn.image && !turn.text
-                                ? 'Got the image. Reading it is the next piece.'
-                                : 'Your message is here. Analysis isn’t available yet.'}
-                            </h2>
-                            <p>{turn.failure}</p>
+                            <h2>{turn.image ? t('imageNext') : t('assistantDisconnected')}</h2>
+                            <p>{turn.image ? t('imageUnavailable') : t('previewUnavailable')}</p>
                             <div className="reply-actions">
                               <button
                                 className="light-button"
@@ -834,7 +1021,7 @@ export default function App() {
                                 disabled={pending || readingFile}
                                 onClick={() => void openExample()}
                               >
-                                <MessageCircle size={16} aria-hidden="true" /> See an example{' '}
+                                <MessageCircle size={16} aria-hidden="true" /> {t('seeExample')}{' '}
                                 <ArrowUpRight size={14} aria-hidden="true" />
                               </button>
                               <button
@@ -843,23 +1030,13 @@ export default function App() {
                                 onClick={() => editTurn(turn)}
                               >
                                 <PenLine size={14} aria-hidden="true" />
-                                {turn.image && !turn.text ? 'Add or edit wording' : 'Edit message'}
+                                {turn.image ? t('editWording') : t('editMessage')}
                               </button>
                             </div>
                             <details className="connection-details">
-                              <summary>Why can’t it answer yet?</summary>
-                              <p>
-                                Live analyze calls the backend only when you submit text. It never
-                                auto-submits a claim, never substitutes a canned sample for your
-                                remark, and never sends ANALYSIS_ACCESS_TOKEN or LLM keys from the
-                                browser. Images stay local until OCR exists.
-                              </p>
+                              <summary>{t('whyUnavailable')}</summary>
+                              <p>{t('connectionExplanation')}</p>
                             </details>
-                          </div>
-                        ) : (
-                          <div className="opening-sample" role="status">
-                            <LoaderCircle className="spin" size={17} aria-hidden="true" />
-                            Analyzing with grounded evidence…
                           </div>
                         )}
                       </div>
@@ -879,7 +1056,7 @@ export default function App() {
         type="file"
         accept={IMAGE_ACCEPT}
         tabIndex={-1}
-        aria-label="Choose image file"
+        aria-label={t('chooseImage')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
@@ -892,7 +1069,7 @@ export default function App() {
         accept={IMAGE_ACCEPT}
         capture="environment"
         tabIndex={-1}
-        aria-label="Capture photo"
+        aria-label={t('capturePhoto')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
@@ -904,75 +1081,105 @@ export default function App() {
         type="file"
         accept=".txt,text/plain"
         tabIndex={-1}
-        aria-label="Choose text file"
+        aria-label={t('chooseText')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
         }}
       />
+      {live && (
+        <dialog
+          className="info-dialog consent-dialog"
+          ref={consentDialog}
+          aria-labelledby="consent-title"
+          onCancel={() => setConsent(null)}
+          onClose={() => setConsent(null)}
+        >
+          <h2 id="consent-title">{t('consentTitle')}</h2>
+          <p>{t('consentDestination')}</p>
+          <p>{t('consentPrivacy')}</p>
+          <p>{t('consentLanguage', { language: consent ? nativeNames[consent.language] : '' })}</p>
+          <pre className="consent-text" dir="auto" lang="">
+            {consent?.text}
+          </pre>
+          <div className="reply-actions">
+            <button
+              type="button"
+              className="light-button"
+              autoFocus
+              onClick={() => {
+                consentDialog.current?.close();
+                setConsent(null);
+                requestAnimationFrame(() => textarea.current?.focus());
+              }}
+            >
+              {t('backEdit')}
+            </button>
+            <button type="button" className="light-button" onClick={() => void confirmAnalysis()}>
+              {t('analyzeReviewed')}
+            </button>
+          </div>
+          <small>{t('consentScope')}</small>
+        </dialog>
+      )}
       <dialog className="info-dialog" ref={infoDialog} aria-labelledby="preview-info-title">
         <button
           className="dialog-close icon-button"
           type="button"
           onClick={() => infoDialog.current?.close()}
-          aria-label="Close preview details"
+          aria-label={t('closeDetails')}
         >
           <X size={20} aria-hidden="true" />
         </button>
         <span className="dialog-icon">
           <Info size={25} aria-hidden="true" />
         </span>
-        <h2 id="preview-info-title">What works in this preview</h2>
+        <h2 id="preview-info-title">{live ? t('aboutLive') : t('aboutPreview')}</h2>
         <ul className="capability-list">
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Type, paste, or import a text file</span>
+            <span>{t('capabilityText')}</span>
           </li>
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Add, paste, photograph or preview an image</span>
+            <span>{t('capabilityImage')}</span>
           </li>
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Explore a clearly labelled sample answer</span>
+            <span>{t('capabilityExample')}</span>
           </li>
         </ul>
         <div className="connection-note">
-          <strong>How live analyze works</strong>
-          <p>
-            With a running backend and VITE_API_BASE_URL (or same-origin), submitting text calls{' '}
-            <code>/api/v1/analyze</code>. Image text extraction, voice, PDF reading and document
-            downloads are still unavailable. Sample answers remain illustrative—not advice or a
-            usable claim draft. Nothing is auto-submitted.
-          </p>
+          <strong>{live ? t('optIn') : t('disconnected')}</strong>
+          <p>{live ? t('liveInfo') : t('previewInfo')}</p>
         </div>
         <p className="dialog-privacy">
           <LockKeyhole size={15} aria-hidden="true" />
-          Use fictional or redacted material. LLM keys and ANALYSIS_ACCESS_TOKEN stay server-side
-          only. Camera availability depends on your device.
+          {live ? t('livePrivacy') : t('previewPrivacy')}
         </p>
-        <small>Not an official EPFO service or legal advice.</small>
+        <small>{t('disclaimer')}</small>
+        <small>{t('uiReview')}</small>
       </dialog>
       <dialog
         className="image-dialog"
         ref={imageDialog}
-        aria-label="Image preview"
+        aria-label={t('imagePreview')}
         onClose={() => setZoomImage(null)}
       >
         <button
           className="dialog-close icon-button"
           type="button"
           onClick={() => imageDialog.current?.close()}
-          aria-label="Close image preview"
+          aria-label={t('closeImage')}
         >
           <X size={20} aria-hidden="true" />
         </button>
         {zoomImage && (
           <>
-            <img src={zoomImage.url} alt={`Full preview of ${zoomImage.name}`} />
+            <img src={zoomImage.url} alt={t('fullImage', { name: zoomImage.name })} />
             <p>
               {zoomImage.name}
-              <span>Local preview · no text has been extracted</span>
+              <span>{t('localImage')}</span>
             </p>
           </>
         )}

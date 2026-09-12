@@ -11,87 +11,59 @@ import {
 } from 'lucide-react';
 import type { AnalyzeResponse } from '../lib/contracts';
 import { Evidence } from './Evidence';
-
-type AnswerMode = 'live' | 'sample';
+import { useLocale } from '../lib/i18n';
 
 type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
-  mode?: AnswerMode;
+  sample?: boolean;
+  mode?: 'live' | 'sample';
 };
 
-const sampleLabels = {
-  banner: 'Sample only · not real claim advice',
-  title: 'Your sample answer',
-  edit: 'Edit remark',
-  tabs: ['Overview', 'Next steps', 'Draft'],
-  tablist: 'Explore the sample answer',
-  documents: 'Document preview',
-  noDocuments: 'No document information was supplied.',
-  noActions: 'No steps were supplied.',
-  noDraft: 'No draft was supplied.',
-  progress: (done: number, total: number) => `${done} of ${total} checked`,
-  tracking: 'Temporary checklist · not saved or verified by any service.',
-  draftNotice: 'Sample request — not for submission',
-  missing: 'Unfilled placeholders',
-  copy: 'Copy sample',
-  copying: 'Copying…',
-  copied: 'Sample copied, including its disclosures.',
-  copyError: 'Could not copy. Select and copy the sample and its disclosures manually.',
-  disclosure: 'About this sample',
-  disclosureNote:
-    'Fictional preview, not a live analysis. Evidence is imaginary and unverified. Original fixture notes below are not a current service check.',
-  clarificationTitle: 'One more detail',
-  clarification: 'Please clarify the remark before continuing.',
-  unsupportedTitle: 'Not enough evidence',
-  unsupported: 'We cannot support an answer to this remark. Try editing it with more context.',
-  errorTitle: 'Could not prepare an answer',
-  error: 'Please edit the remark and try again.',
-};
-
-const liveLabels = {
-  banner: 'Grounded analysis · educational, not legal advice',
-  title: 'Your grounded answer',
-  edit: 'Edit remark',
-  tabs: ['Overview', 'Next steps', 'Draft'],
-  tablist: 'Explore the grounded answer',
-  documents: 'Required documents',
-  noDocuments: 'No document information was supplied.',
-  noActions: 'No steps were supplied.',
-  noDraft: 'No draft was supplied.',
-  progress: (done: number, total: number) => `${done} of ${total} checked`,
-  tracking: 'Temporary checklist · not saved or verified by any service.',
-  draftNotice: 'Draft from cited evidence — review before any use',
-  missing: 'Unfilled placeholders',
-  copy: 'Copy draft',
-  copying: 'Copying…',
-  copied: 'Draft copied, including disclosures.',
-  copyError: 'Could not copy. Select and copy the draft and its disclosures manually.',
-  disclosure: 'About this answer',
-  disclosureNote:
-    'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
-  clarificationTitle: 'One more detail',
-  clarification: 'Please clarify the remark before continuing.',
-  unsupportedTitle: 'Not enough evidence',
-  unsupported: 'We cannot support an answer to this remark. Try editing it with more context.',
-  errorTitle: 'Could not prepare an answer',
-  error: 'Please edit the remark and try again.',
-};
-
-const notChatbotBullets = [
-  'Cites EPFO Markdown paths and original source URLs from the evidence ledger.',
-  'Abstains or asks for clarification when evidence is thin.',
-  'Checklists and drafts come from cited blocks, not free-form chat.',
-];
-
-function labelsFor(mode: AnswerMode) {
-  return mode === 'live' ? liveLabels : sampleLabels;
+function useAnswerLabels(sample: boolean) {
+  const { t, locale } = useLocale();
+  return {
+    locale,
+    text: {
+      sample: t(sample ? 'sampleBanner' : 'liveBanner'),
+      title: t(sample ? 'sampleTitle' : 'liveTitle'),
+      edit: t('editRemark'),
+      tabs: [t('overview'), t('nextSteps'), t('draft')],
+      tablist: t(sample ? 'sampleTabs' : 'liveTabs'),
+      documents: t(sample ? 'documentPreview' : 'documents'),
+      noDocuments: t('noDocuments'),
+      noActions: t('noActions'),
+      noDraft: t('noDraft'),
+      progress: (done: number, total: number) => t('checked', { done, total }),
+      tracking: t('checklistNote'),
+      draftNotice: t(sample ? 'sampleDraftNotice' : 'liveDraftNotice'),
+      missing: t('missing'),
+      missingList: (fields: string) => t('missingList', { fields }),
+      copy: t(sample ? 'copySample' : 'copyDraft'),
+      copying: t('copying'),
+      copied: t(sample ? 'sampleCopied' : 'draftCopied'),
+      copyError: t(sample ? 'sampleCopyError' : 'draftCopyError'),
+      disclosure: t(sample ? 'sampleDisclosure' : 'liveDisclosure'),
+      disclosureNote: t(sample ? 'sampleDisclosureNote' : 'liveDisclosureNote'),
+      clarificationTitle: t('clarificationTitle'),
+      clarification: t('clarification'),
+      unsupportedTitle: t('unsupportedTitle'),
+      unsupported: t('unsupported'),
+      errorTitle: t('errorTitle'),
+      error: t('editRetry'),
+    },
+  };
 }
 
-function highlightPlaceholders(text: string) {
+const canonicalFields = new Set(['claimant_name', 'claim_id', 'claim_type']);
+function highlightPlaceholders(text: string, sample: boolean) {
   return text.split(/(\[[^\]\n]+\])/g).map((part, index) =>
     part.startsWith('[') && part.endsWith(']') ? (
-      <mark className="draft-placeholder" key={index}>
+      <mark
+        className="draft-placeholder"
+        key={index}
+        lang={!sample && canonicalFields.has(part.slice(1, -1)) ? 'en' : undefined}
+      >
         {part}
       </mark>
     ) : (
@@ -100,8 +72,8 @@ function highlightPlaceholders(text: string) {
   );
 }
 
-function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: AnswerMode }) {
-  const text = labelsFor(mode);
+function SampleTabs({ response, sample }: { response: AnalyzeResponse; sample: boolean }) {
+  const { text, locale } = useAnswerLabels(sample);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -118,7 +90,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
     return () => {
       copyOperation.current += 1;
     };
-  }, [response, mode]);
+  }, [response, sample]);
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -143,17 +115,17 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
     tabRefs.current[next]?.focus();
   }
 
-  async function copyDraft() {
+  async function copySample() {
     if (!response.draft || copyState === 'pending') return;
     const operation = ++copyOperation.current;
     setCopyState('pending');
     const copiedText = [
-      text.banner,
+      text.sample,
       text.draftNotice,
       response.draft.title,
       ...response.draft.blocks.map((block) => block.text),
       ...(response.draft.missing_fields.length
-        ? [`${text.missing}: ${response.draft.missing_fields.join(', ')}`]
+        ? [text.missingList(response.draft.missing_fields.join(', '))]
         : []),
       text.disclosure,
       text.disclosureNote,
@@ -170,7 +142,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
 
   return (
     <>
-      <div className="answer-tabs" role="tablist" aria-label={text.tablist} lang="en">
+      <div className="answer-tabs" role="tablist" aria-label={text.tablist} lang={locale}>
         {text.tabs.map((tab, index) => {
           const Icon = icons[index];
           return (
@@ -187,7 +159,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
               }}
               onClick={() => setSelected(index)}
               onKeyDown={(event) => navigateTabs(event, index)}
-              key={tab}
+              key={index}
             >
               <Icon size={16} aria-hidden="true" />
               {tab}
@@ -208,12 +180,12 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
           {response.explanation.map((claim, index) => (
             <div className="answer-claim" key={index}>
               <p>{claim.text}</p>
-              <Evidence ids={claim.citation_ids} citations={response.citations} mode={mode} />
+              <Evidence ids={claim.citation_ids} citations={response.citations} sample={sample} />
             </div>
           ))}
         </div>
         <div className="answer-documents">
-          <h3 lang="en">{text.documents}</h3>
+          <h3 lang={locale}>{text.documents}</h3>
           {response.required_documents.length ? (
             response.required_documents.map((document, index) => (
               <div className="document-tile" key={index}>
@@ -223,13 +195,13 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
                   <Evidence
                     ids={document.citation_ids}
                     citations={response.citations}
-                    mode={mode}
+                    sample={sample}
                   />
                 </div>
               </div>
             ))
           ) : (
-            <p className="answer-empty" lang="en">
+            <p className="answer-empty" lang={locale}>
               {text.noDocuments}
             </p>
           )}
@@ -246,7 +218,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
       >
         {response.actions.length ? (
           <>
-            <div className="steps-progress" lang="en">
+            <div className="steps-progress" lang={locale}>
               <span className="steps-progress-label" id={`${id}-progress`} aria-live="polite">
                 {text.progress(checked.size, response.actions.length)}
               </span>
@@ -256,7 +228,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
                 aria-labelledby={`${id}-progress`}
               />
             </div>
-            <p className="steps-note" lang="en">
+            <p className="steps-note" lang={locale}>
               {text.tracking}
             </p>
             <ol className="steps-list">
@@ -280,7 +252,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
                     <Evidence
                       ids={action.citation_ids}
                       citations={response.citations}
-                      mode={mode}
+                      sample={sample}
                     />
                   </div>
                 </li>
@@ -288,7 +260,7 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
             </ol>
           </>
         ) : (
-          <p className="answer-empty" lang="en">
+          <p className="answer-empty" lang={locale}>
             {text.noActions}
           </p>
         )}
@@ -304,9 +276,9 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
       >
         {response.draft ? (
           <>
-            <div className="draft-toolbar" lang="en">
+            <div className="draft-toolbar" lang={locale}>
               <span>{text.draftNotice}</span>
-              <button type="button" onClick={copyDraft} disabled={copyState === 'pending'}>
+              <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
                 {copyState === 'copied' ? (
                   <Check size={16} aria-hidden="true" />
                 ) : (
@@ -319,23 +291,39 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
               <h3 id={`${id}-draft-title`}>{response.draft.title}</h3>
               {response.draft.blocks.map((block, index) => (
                 <div className="draft-block" key={index}>
-                  <p>{highlightPlaceholders(block.text)}</p>
-                  <Evidence ids={block.citation_ids} citations={response.citations} mode={mode} />
+                  <p>{highlightPlaceholders(block.text, sample)}</p>
+                  <Evidence
+                    ids={block.citation_ids}
+                    citations={response.citations}
+                    sample={sample}
+                  />
                 </div>
               ))}
             </article>
             {response.draft.missing_fields.length > 0 && (
-              <p className="draft-missing" lang="en">
+              <p className="draft-missing" lang={locale}>
                 {text.missing}:{' '}
-                <span lang={response.language}>{response.draft.missing_fields.join(', ')}</span>
+                <span lang={response.language}>
+                  {sample
+                    ? response.draft.missing_fields.join(', ')
+                    : response.draft.missing_fields.map((field, index) => (
+                        <span
+                          key={field}
+                          lang={!sample && canonicalFields.has(field) ? 'en' : undefined}
+                        >
+                          {index > 0 ? ', ' : ''}
+                          {field}
+                        </span>
+                      ))}
+                </span>
               </p>
             )}
-            <p className="copy-feedback" role="status" aria-live="polite" lang="en">
+            <p className="copy-feedback" role="status" aria-live="polite" lang={locale}>
               {copyState === 'copied' ? text.copied : copyState === 'error' ? text.copyError : ''}
             </p>
           </>
         ) : (
-          <p className="answer-empty" lang="en">
+          <p className="answer-empty" lang={locale}>
             {text.noDraft}
           </p>
         )}
@@ -344,8 +332,8 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
   );
 }
 
-export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProps) {
-  const text = labelsFor(mode);
+export function AnswerCard({ response, onEdit, mode, sample = mode !== 'live' }: AnswerCardProps) {
+  const { text, locale } = useAnswerLabels(sample);
   const id = useId();
   const title =
     response.status === 'success'
@@ -358,10 +346,10 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
 
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
-      <p className="sample-banner" lang="en">
-        <Info size={15} aria-hidden="true" /> {text.banner}
+      <p className="sample-banner" lang={locale}>
+        <Info size={15} aria-hidden="true" /> {text.sample}
       </p>
-      <header className="answer-header" lang="en">
+      <header className="answer-header" lang={locale}>
         <span className="answer-icon">
           <MessageCircle size={22} aria-hidden="true" />
         </span>
@@ -373,17 +361,21 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
         </button>
       </header>
       {response.status === 'success' ? (
-        <AnswerTabs response={response} mode={mode} />
+        <SampleTabs response={response} sample={sample} />
       ) : (
         <div className="answer-message">
           <p
-            lang={response.status === 'error' && response.error?.message ? response.language : 'en'}
+            lang={
+              response.status === 'error' && sample && response.error?.message
+                ? response.language
+                : locale
+            }
           >
             {response.status === 'needs_clarification'
               ? text.clarification
               : response.status === 'unsupported'
                 ? text.unsupported
-                : response.error?.message || text.error}
+                : (sample ? response.error?.message : null) || text.error}
           </p>
           {response.status === 'needs_clarification' && (
             <ul className="answer-questions">
@@ -394,18 +386,18 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
           )}
         </div>
       )}
-      <details className="answer-disclosure">
-        <summary lang="en">
+      <details className="answer-disclosure" open={!sample}>
+        <summary lang={locale}>
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
-        <p lang="en">{text.disclosureNote}</p>
-        {mode === 'live' && (
+        <p lang={locale}>{text.disclosureNote}</p>
+        {!sample && (
           <div className="not-chatbot-note" lang="en">
             <strong>Not a general chatbot</strong>
             <ul>
-              {notChatbotBullets.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
+              <li>Cites EPFO Markdown paths and original source URLs from the evidence ledger.</li>
+              <li>Abstains or asks for clarification when evidence is thin.</li>
+              <li>Checklists and drafts come from cited blocks, not free-form chat.</li>
             </ul>
           </div>
         )}
@@ -413,7 +405,10 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
           <ul>
             {response.warnings.map((warning, index) => (
               // Demo warnings mix preserved English notes with prewritten Hindi translations.
-              <li key={index} lang={/[\u0900-\u097f]/u.test(warning) ? 'hi' : 'en'}>
+              <li
+                key={index}
+                lang={sample ? (/[\u0900-\u097f]/u.test(warning) ? 'hi' : 'en') : response.language}
+              >
                 {warning}
               </li>
             ))}

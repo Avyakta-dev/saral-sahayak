@@ -13,7 +13,7 @@ const sourceUrl = 'https://example.invalid/synthetic-evidence';
 const input = (page: Page) => page.getByRole('textbox', { name: 'Your message', exact: true });
 const send = (page: Page) => page.getByRole('button', { name: 'Send message', exact: true });
 const language = (page: Page) =>
-  page.getByRole('combobox', { name: 'Output language', exact: true });
+  page.getByRole('combobox', { name: 'Sample language', exact: true });
 const menu = (page: Page) => page.locator('summary[aria-label="Add a file"]');
 const imageInput = (page: Page) => page.getByLabel('Choose image file', { exact: true });
 const textInput = (page: Page) => page.getByLabel('Choose text file', { exact: true });
@@ -21,7 +21,7 @@ const card = (page: Page) => page.getByRole('region', { name: 'Your sample answe
 const sources = (page: Page) => page.locator('details.evidence:visible > summary');
 const unavailable = (page: Page) =>
   page.getByRole('heading', {
-    name: 'Your message is here. Analysis isn’t available yet.',
+    name: 'Your message is here. The assistant isn’t connected yet.',
     exact: true,
   });
 type Upload = { name: string; mimeType: string; buffer: Buffer };
@@ -237,11 +237,11 @@ test('landing is a single empty composer with no outcome selector, stepper or sa
   await expect(input(page)).toHaveCount(1);
   await expect(send(page)).toBeDisabled();
   await expect(language(page)).toHaveValue('en');
-  await expect(page.getByRole('combobox')).toHaveCount(1);
+  await expect(page.getByRole('combobox')).toHaveCount(2);
   await expect(page.getByRole('combobox', { name: /outcome|success/i })).toHaveCount(0);
   await expect(page.getByRole('navigation')).toHaveCount(0);
   await expect(
-    page.getByText(/Local UI\. Live analyze needs a running backend; OCR isn’t connected\./),
+    page.getByText(/Local preview\. Analysis & image reading aren’t connected\./),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /Show me an example/ })).toBeVisible();
   await noSample(page);
@@ -285,7 +285,7 @@ test('details modal is named, keyboard trapped, Escape/close dismiss it and pres
   ).toBeVisible();
   await expect(
     dialog.getByText(
-      /Image text extraction, voice, PDF reading and document downloads are still unavailable/,
+      /Live analysis, image text extraction, voice, PDF reading and document downloads/,
     ),
   ).toBeVisible();
   await expect(
@@ -372,17 +372,10 @@ test('real remarks and follow-ups never silently become a canned answer', async 
   await sendRemark(page);
   await noSample(page);
   await expect(
-    page
-      .getByText(
-        /analysis service|Analysis is not available|non-JSON|not available on this server|Analysis request failed|HTTP \d{3}/i,
-      )
-      .first(),
+    page.getByText(/This preview can’t analyze your claim or answer follow-up questions yet/),
   ).toBeVisible();
-  const why = page.locator('details.connection-details').filter({
-    has: page.locator('summary', { hasText: /Why can.?t it answer yet\?/ }),
-  });
-  await why.locator('summary').click();
-  await expect(why).toContainText(/never substitutes a canned sample/);
+  await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
+  await expect(page.getByText(/never substitutes a canned answer/)).toBeVisible();
   await screenshot(page, info, 'normal-reply');
   await sendRemark(page, 'Can you clarify my fictional follow-up?');
   await expect(unavailable(page)).toHaveCount(2);
@@ -429,7 +422,9 @@ test('explicit sample takes 700ms, preserves unsent text, and shows only the com
   await page.getByRole('button', { name: /Show me an example/ }).click();
   await expect(page.getByText('Opening the sample walkthrough…', { exact: true })).toBeVisible();
   await expect(input(page)).toHaveAttribute('readonly', '');
-  await expect(page.getByRole('button', { name: 'Stop request', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Stop opening sample', exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('tablist')).toHaveCount(0);
   await page.clock.runFor(699);
   await expect(page.getByRole('tablist')).toHaveCount(0);
@@ -698,7 +693,7 @@ for (const action of ['stop', 'new chat', 'language'] as const) {
     await page.getByRole('button', { name: /Show me an example/ }).click();
     await page.clock.runFor(300);
     if (action === 'stop')
-      await page.getByRole('button', { name: 'Stop request', exact: true }).click();
+      await page.getByRole('button', { name: 'Stop opening sample', exact: true }).click();
     else if (action === 'new chat')
       await page.getByRole('button', { name: 'New chat', exact: true }).click();
     else await language(page).selectOption('hi');
@@ -758,7 +753,7 @@ test('image-only send honestly reports no OCR, editing restores it, and image pl
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/OCR and claim analysis from images are not available yet/),
+    page.getByText(/OCR and claim analysis are not available yet; no text has been extracted/),
   ).toBeVisible();
   await expect(page.getByRole('img', { name: 'Your attached image', exact: true })).toBeVisible();
   await noSample(page);
@@ -770,7 +765,7 @@ test('image-only send honestly reports no OCR, editing restores it, and image pl
   await input(page).fill(remark);
   await send(page).click();
   await expect(page.locator('.user-message p')).toHaveText(remark);
-  await expect(unavailable(page)).toBeVisible();
+  await expect(page.getByText(/no text has been extracted/).first()).toBeVisible();
   await noSample(page);
 });
 
@@ -1081,39 +1076,15 @@ test('local interactions transmit no input/files/API requests and persist no cha
     requests.filter((request) => new URL(request.url).origin !== origin),
     'No request may leave the local origin',
   ).toEqual([]);
-  const apiProbes = requests.filter(
-    (request) =>
-      ['fetch', 'xhr', 'ping'].includes(request.type) &&
-      /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
-  );
-  const otherLocalApi = requests.filter(
-    (request) =>
-      ['fetch', 'xhr', 'ping'].includes(request.type) &&
-      !/\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
-  );
-  expect(otherLocalApi, 'Only capabilities/analyze probes are allowed locally').toEqual([]);
-  expect(apiProbes.length, 'Live UI should attempt analyze/capabilities').toBeGreaterThan(0);
-  // Analyze POST bodies intentionally include the remark text on same-origin only.
-  for (const probe of apiProbes) {
-    expect(new URL(probe.url).origin).toBe(origin);
-  }
   expect(
-    requests.filter(
-      (request) =>
-        !['GET', 'HEAD'].includes(request.method) &&
-        !/\/api\/v1\/analyze\/?$/.test(new URL(request.url).pathname),
-    ),
-    'No unexpected non-GET requests outside analyze',
+    requests.filter((request) => ['fetch', 'xhr', 'ping'].includes(request.type)),
+    'No local analysis/API requests either',
   ).toEqual([]);
-  const leaking = requests.filter(
-    (request) =>
-      (request.body ?? '').includes(marker) &&
-      !(
-        new URL(request.url).origin === origin &&
-        /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname)
-      ),
-  );
-  expect(leaking, 'Marker must not leave same-origin analyze/capabilities').toEqual([]);
+  expect(
+    requests.filter((request) => !['GET', 'HEAD'].includes(request.method)),
+    'No submitting HTTP requests',
+  ).toEqual([]);
+  expect(JSON.stringify(requests)).not.toContain(marker);
   expect(frames.join('\n')).not.toContain(marker);
   const storage = await page.evaluate(async () => ({
     local: { ...localStorage },
@@ -1224,10 +1195,7 @@ for (const state of [
     }
     if (state === 'normal-reply') {
       await sendRemark(page);
-      await page
-        .locator('summary')
-        .filter({ hasText: /Why can.?t it answer yet\?/ })
-        .click();
+      await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
     }
     if (state === 'attachment') await attach(page);
     if (state === 'info-modal')

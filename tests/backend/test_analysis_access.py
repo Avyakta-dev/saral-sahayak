@@ -49,7 +49,14 @@ def test_rate_bounds(value):
 
 def test_authentication_precedes_body_read_and_is_never_echoed(tmp_path):
     with TestClient(create_app(settings(), knowledge_root=tmp_path)) as client:
-        for path in ("/api/v1/analyze", "/api/v1/analyze/"):
+        for path in (
+            "/api/v1/analyze",
+            "/api/v1/analyze/",
+            "/api/v1/analyze/stream",
+            "/api/v1/analyze/stream/",
+            "/api/v1/images/uploads",
+            "/api/v1/images/uploads/",
+        ):
             response = client.post(
                 path, content="PRIVATE" * 8000, headers={"Authorization": "wrong"}
             )
@@ -109,7 +116,10 @@ def test_rate_admission_counts_failed_requests_without_trusting_forwarded_ip(tmp
         assert int(response.headers["retry-after"]) >= 1
 
 
-async def test_admission_before_receive_and_cancel_releases_slot():
+@pytest.mark.parametrize(
+    "path", ["/api/v1/analyze", "/api/v1/analyze/stream", "/api/v1/images/uploads"]
+)
+async def test_admission_before_receive_and_cancel_releases_slot(path):
     entered, release = asyncio.Event(), asyncio.Event()
 
     async def app(scope, receive, send):
@@ -124,19 +134,17 @@ async def test_admission_before_receive_and_cancel_releases_slot():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=gate), base_url="http://test"
     ) as client:
-        first = asyncio.create_task(
-            client.post("/api/v1/analyze", headers={"Authorization": "Bearer " + TOKEN})
-        )
+        first = asyncio.create_task(client.post(path, headers={"Authorization": "Bearer " + TOKEN}))
         await entered.wait()
         assert (
-            await client.post("/api/v1/analyze", headers={"Authorization": "Bearer " + TOKEN})
+            await client.post(path, headers={"Authorization": "Bearer " + TOKEN})
         ).status_code == 429
         first.cancel()
         with pytest.raises(asyncio.CancelledError):
             await first
         release.set()
         assert (
-            await client.post("/api/v1/analyze", headers={"Authorization": "Bearer " + TOKEN})
+            await client.post(path, headers={"Authorization": "Bearer " + TOKEN})
         ).status_code == 200
 
 

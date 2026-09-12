@@ -30,6 +30,30 @@ async function expectEvidence(container: HTMLElement, response: AnalyzeResponse,
   expect(within(container).queryByRole('link')).not.toBeInTheDocument();
 }
 
+it('marks canonical live draft identifiers as English while preserving requested-language prose', async () => {
+  const response = sample();
+  response.language = 'kn';
+  response.draft = {
+    title: 'ಕೋರಿಕೆ',
+    blocks: [
+      {
+        kind: 'template',
+        text: 'ಕೋರಿಕೆ [claimant_name] [claim_id] [claim_type]',
+        citation_ids: [],
+      },
+    ],
+    missing_fields: ['claimant_name', 'claim_id', 'claim_type'],
+  };
+  render(<AnswerCard response={response} onEdit={vi.fn()} sample={false} />);
+  await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
+  for (const name of ['claimant_name', 'claim_id', 'claim_type']) {
+    expect(screen.getByText(`[${name}]`)).toHaveAttribute('lang', 'en');
+    expect(screen.getByText(new RegExp(`^,? ?${name}$`))).toHaveAttribute('lang', 'en');
+  }
+  expect(screen.getByRole('region', { name: 'Your analysis' })).toHaveAttribute('lang', 'kn');
+  expect(screen.getByRole('button', { name: 'Copy draft' })).toBeVisible();
+});
+
 describe('illustrative walkthrough', () => {
   it.each<Language>(['en', 'hi'])(
     'validates %s without changing original metadata or warnings',
@@ -406,18 +430,20 @@ describe('AnswerCard', () => {
   it('labels live answers as grounded with not-chatbot disclosures', async () => {
     const response = sample();
     render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
-    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
-    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Your analysis' })).toBeVisible();
+    expect(screen.getByText('Backend analysis · not official EPFO or legal advice')).toBeVisible();
     expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByText('About this answer'));
-    expect(screen.getByText(/Educational guidance only/)).toBeVisible();
+    expect(screen.getByText('Limitations and warnings')).toBeVisible();
+    expect(screen.getByText(/Citations report backend evidence provenance/)).toBeVisible();
     expect(screen.getByText('Not a general chatbot')).toBeVisible();
     expect(screen.getByText(/Cites EPFO Markdown paths and original source URLs/)).toBeVisible();
     expect(screen.getByText(/Abstains or asks for clarification/)).toBeVisible();
     expect(screen.getByText(/Checklists and drafts come from cited blocks/)).toBeVisible();
     await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     // Live Evidence may render multiple citation details; assert copy without requiring a single node.
-    expect(screen.getAllByText(/Evidence cited by the analysis service/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/Evidence locations supplied by the backend/).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/Synthetic evidence only/)).not.toBeInTheDocument();
   });
 

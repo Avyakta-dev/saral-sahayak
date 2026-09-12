@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 export type Language = 'en' | 'hi';
 
-const languageSchema = z.enum(['en', 'hi']);
+export const outputLanguageSchema = z.enum(['en', 'hi', 'kn', 'ta', 'te', 'ml']);
+export type OutputLanguage = z.infer<typeof outputLanguageSchema>;
+const languageSchema = outputLanguageSchema;
 const recordIdSchema = z
   .string()
   .length(11)
@@ -72,32 +74,24 @@ const citationSchema = z
   })
   .strict()
   .superRefine((citation, context) => {
+    if (
+      (citation.start_column == null) !== (citation.end_column == null) ||
+      (citation.start_line === citation.end_line &&
+        citation.start_column != null &&
+        citation.end_column != null &&
+        citation.end_column < citation.start_column)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['end_column'],
+        message: 'Citation columns must be paired and ordered on a single line.',
+      });
+    }
     if (citation.end_line < citation.start_line) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['end_line'],
         message: 'Citation line range is reversed.',
-      });
-    }
-    const hasStart = citation.start_column !== undefined && citation.start_column !== null;
-    const hasEnd = citation.end_column !== undefined && citation.end_column !== null;
-    if (hasStart !== hasEnd) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['end_column'],
-        message: 'Citation columns must be supplied together.',
-      });
-    }
-    if (
-      hasStart &&
-      hasEnd &&
-      citation.start_line === citation.end_line &&
-      citation.end_column! < citation.start_column!
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['end_column'],
-        message: 'Citation column range is reversed.',
       });
     }
   });
@@ -219,7 +213,199 @@ export type Citation = z.infer<typeof citationSchema>;
 export type SupportedText = z.infer<typeof supportedTextSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 
-export function validateInput(text: string, language: Language): string | null {
+const checksSchema = z
+  .object({
+    model_configured: z.boolean(),
+    model_connectivity_verified: z.literal(false),
+    knowledge_index_present: z.boolean(),
+    knowledge_structure_ready: z.boolean(),
+    knowledge_content_verified: z.literal(false),
+    agent_implemented: z.literal(true),
+  })
+  .strict();
+
+export const capabilitiesSchema = z
+  .object({
+    schema_version: z.literal('1.0'),
+    default_language: z.literal('en'),
+    languages: z
+      .array(
+        z
+          .object({
+            code: outputLanguageSchema,
+            name: boundedText(100),
+            native_name: boundedText(100),
+            quality_verified: z.literal(false),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(6),
+    analysis_available: z.boolean(),
+    checks: checksSchema,
+    inputs: z
+      .array(z.enum(['text', 'image']))
+      .min(1)
+      .max(2)
+      .refine((inputs) => inputs.includes('text') && new Set(inputs).size === inputs.length),
+    downloads_available: z.literal(false),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const codes = value.languages.map((entry) => entry.code);
+    if (
+      !codes.includes(value.default_language) ||
+      new Set(codes).size !== codes.length ||
+      value.analysis_available !==
+        (value.checks.model_configured && value.checks.knowledge_structure_ready)
+    ) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Inconsistent capabilities.' });
+    }
+  });
+export type Capabilities = z.infer<typeof capabilitiesSchema>;
+
+// Fixtures retain historical defaults; the network boundary requires explicit wire fields.
+export const liveResponseSchema = z
+  .unknown()
+  .superRefine((value, context) => {
+    const required = [
+      'schema_version',
+      'status',
+      'language',
+      'classification',
+      'explanation',
+      'actions',
+      'required_documents',
+      'draft',
+      'citations',
+      'warnings',
+      'questions',
+      'error',
+    ];
+    if (!value || typeof value !== 'object' || required.some((key) => !Object.hasOwn(value, key))) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Incomplete analysis response.',
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+    const citations = (value as Record<string, unknown>).citations;
+    if (
+      Array.isArray(citations) &&
+      citations.some(
+        (citation) =>
+          !citation ||
+          typeof citation !== 'object' ||
+          !Object.hasOwn(citation, 'record_id') ||
+          !Object.hasOwn(citation, 'source_urls'),
+      )
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Incomplete citation metadata.',
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+  })
+  .pipe(responseSchema)
+  .superRefine((value, context) => {
+    const strings = [
+      ...value.explanation.map((block) => block.text),
+      ...value.actions.map((block) => block.text),
+      ...value.required_documents.map((block) => block.text),
+      ...value.questions,
+      ...value.warnings,
+      ...value.citations.map((citation) => citation.heading),
+      ...(value.classification
+        ? [value.classification.category, value.classification.rationale]
+        : []),
+      ...(value.draft
+        ? [
+            value.draft.title,
+            ...value.draft.blocks.map((block) => block.text),
+            ...value.draft.missing_fields,
+          ]
+        : []),
+    ];
+    if (strings.some((text) => !/[^\p{White_Space}\p{C}]/u.test(text))) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Response contains blank prose.' });
+    }
+  });
+
+export const transportErrorSchema = z.object({ error: errorDetailSchema }).strict();
+
+/** The browser PUTs image bytes here, so it must be a bare HTTPS origin without credentials. */
+export const uploadTicketSchema = z
+  .object({
+    object_key: z.string().regex(/^inbox\/[0-9a-f]{32}\.(?:png|jpg|jpeg|webp)$/),
+    upload_url: z
+      .string()
+      .max(2048)
+      .refine(
+        (url) =>
+          safeSourceUrl(url) !== null &&
+          url.startsWith('https://') &&
+          !/[\u0000-\u0020\u007f\\]/u.test(url),
+        'Upload URLs must be HTTPS without credentials.',
+      ),
+    content_type: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    expires_in: z.number().int().positive().max(900),
+  })
+  .strict();
+export type UploadTicket = z.infer<typeof uploadTicketSchema>;
+
+/** Image mode is an alternative to text, never an addition: exactly one input is sent. */
+export function imageInputAvailable(capabilities: { inputs?: string[] } | null): boolean {
+  return capabilities?.inputs?.includes('image') === true;
+}
+
+const activityText = boundedText(1024)
+  .refine((text) => new TextEncoder().encode(text).byteLength <= 1024)
+  .refine((text) => !/[\p{C}]/u.test(text) && text.trim().length > 0);
+export const activitySchema = z
+  .object({
+    phase: z.enum(['thinking', 'reading', 'searching', 'validating']),
+    turn: z.number().int().positive().max(128).optional(),
+    path: z
+      .string()
+      .max(1000)
+      .refine(
+        (path) =>
+          path.startsWith('references/knowledge/epfo/') &&
+          path.endsWith('.md') &&
+          !/[\\%?#:\p{C}]/u.test(path) &&
+          path.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
+      )
+      .optional(),
+    heading: activityText.optional(),
+    start_line: z.number().int().positive().safe().optional(),
+    end_line: z.number().int().positive().safe().optional(),
+  })
+  .strict()
+  .superRefine((event, context) => {
+    if (
+      (event.phase === 'reading' &&
+        (!event.path || event.start_line === undefined || event.end_line === undefined)) ||
+      (event.phase !== 'reading' &&
+        (event.path !== undefined ||
+          event.heading !== undefined ||
+          event.start_line !== undefined ||
+          event.end_line !== undefined)) ||
+      (event.start_line !== undefined &&
+        event.end_line !== undefined &&
+        event.end_line < event.start_line)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid reading activity metadata.',
+      });
+    }
+  });
+export type AnalysisActivity = z.infer<typeof activitySchema>;
+
+export function validateInput(text: string, language: OutputLanguage): string | null {
   if (codePointLength(text) > 8000)
     return 'Keep the original text within 8,000 Unicode characters, including surrounding spaces.';
   const trimmed = text.trim();
@@ -227,7 +413,7 @@ export function validateInput(text: string, language: Language): string | null {
   if (!trimmed || /^[\p{White_Space}\u001c-\u001f]*$/u.test(text)) {
     return 'Enter some text; whitespace alone is not enough.';
   }
-  if (!languageSchema.safeParse(language).success) return 'Choose English or Hindi.';
+  if (!languageSchema.safeParse(language).success) return 'Choose an enabled output language.';
   const body = JSON.stringify({ text: trimmed, language });
   if (new TextEncoder().encode(body).byteLength > 32768) {
     return 'The serialized request exceeds 32,768 UTF-8 bytes. Shorten the text.';

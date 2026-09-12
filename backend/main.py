@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
@@ -6,16 +7,25 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import ValidationError
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from backend.agent.activity import MAX_ACTIVITY_EVENTS, AnalysisActivity
 from backend.agent.service import AnalysisError, AnalysisService
-from backend.api.schemas import AnalyzeRequest, AnalyzeResponse, ErrorDetail
+from backend.api.schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    ErrorDetail,
+    UploadTicket,
+    UploadTicketRequest,
+)
 from backend.config import PUBLIC_KNOWLEDGE_ROOT, Settings
+from backend.images.pipeline import ImagePipeline
 from backend.knowledge_readiness import check_corpus
 from backend.languages import LANGUAGES
 from backend.llm import LLMClient
+from backend.tools.budget import Budget, BudgetLimits
 from backend.tools.knowledge_files import KnowledgeError, check_knowledge_root
 
 
@@ -89,6 +99,145 @@ async def _run_until_disconnect(request: Request, operation):
                 await pending
 
 
+def _analysis_failure(code: str, message: str, language: str) -> AnalyzeResponse:
+    return AnalyzeResponse(
+        status="error", language=language, error=ErrorDetail(code=code, message=message)
+    )
+
+
+def _transport_failure(code: str, message: str, status: int) -> JSONResponse:
+    """Non-analysis error envelope; never echoes inputs, keys or storage details."""
+    return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
+
+
+def _validated_result(result: AnalyzeResponse, payload: AnalyzeRequest) -> AnalyzeResponse:
+    result = AnalyzeResponse.model_validate(result.model_dump())
+    if result.language != payload.language:
+        raise AnalysisError("invalid_model_output", "The model output could not be validated.", 502)
+    return result
+
+
+def _sse(event: str, data: AnalysisActivity | AnalyzeResponse) -> bytes:
+    # JSON serialization escapes CR/LF in strings, so data never adds SSE frames.
+    return f"event: {event}\ndata: {data.model_dump_json(exclude_none=isinstance(data, AnalysisActivity))}\n\n".encode(
+        "utf-8"
+    )
+
+
+class _SharedBudgetService:
+    """Resolve one private image, then analyze text, on a single request budget.
+
+    Presents the same ``analyze(request, *, activity=...)`` seam as ``AnalysisService`` so
+    the streaming, disconnect and overflow paths stay unchanged.
+    """
+
+    def __init__(
+        self,
+        service: AnalysisService,
+        limits: BudgetLimits,
+        pipeline: ImagePipeline | None = None,
+    ):
+        self.service = service
+        self.limits = limits
+        self.pipeline = pipeline
+
+    async def analyze(self, request: AnalyzeRequest, *, activity=None) -> AnalyzeResponse:
+        if request.image_key is None:
+            return await self.service.analyze(request, activity=activity)
+        if self.pipeline is None:
+            raise AnalysisError("image_input_unavailable", "Image input is unavailable.", 503)
+        budget = Budget(self.limits)
+        text = await self.pipeline.extract(request.image_key, budget)
+        # Fresh text-only history: the key and the image never reach the agent or ledger.
+        reviewed = AnalyzeRequest(text=text, language=request.language, details=request.details)
+        return await self.service.analyze(reviewed, budget=budget, activity=activity)
+
+
+async def _analysis_events(service: AnalysisService, payload: AnalyzeRequest):
+    """Bounded request-local buffer; the one producer is always cancelled and joined."""
+    pending: deque[AnalysisActivity] = deque()
+    changed = asyncio.Event()
+    count = 0
+    overflow = False
+
+    def observe(event: AnalysisActivity):
+        nonlocal count, overflow
+        if overflow:
+            return
+        if count >= MAX_ACTIVITY_EVENTS:
+            overflow = True
+        else:
+            # Detach/revalidate even a host-created event before putting it on the wire.
+            pending.append(AnalysisActivity.model_validate(event.model_dump()))
+            count += 1
+        changed.set()
+
+    async def run():
+        try:
+            return _validated_result(await service.analyze(payload, activity=observe), payload)
+        except AnalysisError as exc:
+            return _analysis_failure(exc.code, exc.message, payload.language)
+        except Exception:
+            return _analysis_failure(
+                "analysis_failed", "The analysis could not be completed safely.", payload.language
+            )
+
+    task = asyncio.create_task(run())
+    task.add_done_callback(lambda _: changed.set())
+    try:
+        while True:
+            if overflow:
+                task.cancel()
+                with suppress(asyncio.CancelledError, Exception):
+                    await task
+                yield _sse(
+                    "result",
+                    _analysis_failure(
+                        "budget_exhausted",
+                        "Analysis exceeded its request budget.",
+                        payload.language,
+                    ),
+                )
+                return
+            if pending:
+                yield _sse("activity", pending.popleft())
+                continue
+            if task.done():
+                yield _sse("result", await task)
+                return
+            changed.clear()
+            await changed.wait()
+    finally:
+        if not task.done():
+            task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await task
+        pending.clear()
+
+
+class AnalysisStreamingResponse(StreamingResponse):
+    """Watch disconnects even on ASGI 2.4, including while no bytes are arriving.
+
+    Explicitly close a generator suspended at yield when send fails, instead of
+    relying on async-generator garbage collection to cancel provider work.
+    """
+
+    async def stream_response(self, send: Send) -> None:
+        try:
+            await super().stream_response(send)
+        finally:
+            await self.body_iterator.aclose()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            await _run_until_disconnect(Request(scope, receive), self.stream_response(send))
+        except AnalysisError as exc:
+            if exc.code != "client_disconnected":
+                raise
+        except OSError:
+            pass  # Transport closed; stream_response has already joined the producer.
+
+
 def create_app(
     settings: Settings | None = None,
     *,
@@ -101,6 +250,10 @@ def create_app(
         config = settings.llm_config()
     except (ValidationError, ValueError):
         config = None
+    try:
+        image = settings.image_config()
+    except (ValidationError, ValueError):
+        image = None
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -111,6 +264,10 @@ def create_app(
             AnalysisService(client, root, budget_limits=settings.analysis_budget_limits())
             if client is not None
             else None
+        )
+        # Shares the analysis client; the pipeline owns no separate provider connection.
+        app.state.image_pipeline = (
+            ImagePipeline(image, client) if client is not None and image is not None else None
         )
         try:
             yield
@@ -166,9 +323,7 @@ def create_app(
         return state["model_configured"] and state["knowledge_structure_ready"]
 
     def error_response(code: str, message: str, status: int, language: str):
-        result = AnalyzeResponse(
-            status="error", language=language, error=ErrorDetail(code=code, message=message)
-        )
+        result = _analysis_failure(code, message, language)
         return JSONResponse(status_code=status, content=result.model_dump())
 
     @app.get("/health/live")
@@ -201,21 +356,33 @@ def create_app(
             ],
             "analysis_available": available(state),
             "checks": state,
-            "inputs": ["text"],
+            "inputs": (
+                ["text", "image"]
+                if getattr(app.state, "image_pipeline", None) is not None
+                else ["text"]
+            ),
             "downloads_available": False,
         }
 
-    @app.post(
-        "/api/v1/analyze",
-        response_model=AnalyzeResponse,
-        responses={
-            503: {"model": AnalyzeResponse, "description": "Analysis dependency unavailable"}
-        },
-    )
-    async def analyze(payload: AnalyzeRequest, request: Request):
+    def shared_service(payload: AnalyzeRequest) -> AnalysisService | _SharedBudgetService:
+        """Text requests reach the service directly; only an image request adds the wrapper."""
+        service = app.state.analysis_service
+        if payload.image_key is None:
+            return service
+        return _SharedBudgetService(
+            service,
+            settings.analysis_budget_limits(),
+            getattr(app.state, "image_pipeline", None),
+        )
+
+    async def analysis_gate(payload: AnalyzeRequest) -> JSONResponse | None:
         if payload.language not in settings.supported_languages:
             return error_response(
                 "language_disabled", "The selected language is disabled.", 422, payload.language
+            )
+        if payload.image_key is not None and getattr(app.state, "image_pipeline", None) is None:
+            return error_response(
+                "image_input_unavailable", "Image input is unavailable.", 503, payload.language
             )
         state = await checks()
         if not state["model_configured"]:
@@ -237,13 +404,60 @@ def create_app(
                 503,
                 payload.language,
             )
+        return None
+
+    @app.post(
+        "/api/v1/images/uploads",
+        response_model=UploadTicket,
+        responses={
+            422: {"description": "Unsupported type or language"},
+            503: {"description": "Image input unavailable"},
+        },
+    )
+    async def images_upload(payload: UploadTicketRequest):
+        """Mint one opaque key plus a short-lived upload URL for a private object."""
+        if payload.language not in settings.supported_languages:
+            return _transport_failure(
+                "language_disabled", "The selected language is disabled.", 422
+            )
+        pipeline = getattr(app.state, "image_pipeline", None)
+        if pipeline is None:
+            return _transport_failure("image_input_unavailable", "Image input is unavailable.", 503)
+        state = await checks()
+        if not state["model_configured"]:
+            return _transport_failure(
+                "model_not_configured", "Model configuration is unavailable.", 503
+            )
+        if not state["knowledge_structure_ready"]:
+            return _transport_failure(
+                "knowledge_unavailable",
+                "The Markdown knowledge corpus is missing or incomplete.",
+                503,
+            )
         try:
-            result = await _run_until_disconnect(request, service.analyze(payload))
-            result = AnalyzeResponse.model_validate(result.model_dump())
-            if result.language != payload.language:
-                raise AnalysisError(
-                    "invalid_model_output", "The model output could not be validated.", 502
-                )
+            key, url, ttl = pipeline.admit(payload.content_type)
+        except AnalysisError as exc:
+            return _transport_failure(exc.code, exc.message, exc.http_status)
+        return UploadTicket(
+            object_key=key, upload_url=url, content_type=payload.content_type, expires_in=ttl
+        )
+
+    @app.post(
+        "/api/v1/analyze",
+        response_model=AnalyzeResponse,
+        responses={
+            503: {"model": AnalyzeResponse, "description": "Analysis dependency unavailable"}
+        },
+    )
+    async def analyze(payload: AnalyzeRequest, request: Request):
+        error = await analysis_gate(payload)
+        if error is not None:
+            return error
+        try:
+            result = _validated_result(
+                await _run_until_disconnect(request, shared_service(payload).analyze(payload)),
+                payload,
+            )
         except AnalysisError as exc:
             return error_response(exc.code, exc.message, exc.http_status, payload.language)
         except Exception:
@@ -254,5 +468,23 @@ def create_app(
                 payload.language,
             )
         return result
+
+    @app.post(
+        "/api/v1/analyze/stream",
+        response_class=StreamingResponse,
+        responses={
+            200: {"content": {"text/event-stream": {}}, "description": "Activity then result"},
+            503: {"model": AnalyzeResponse, "description": "Analysis dependency unavailable"},
+        },
+    )
+    async def analyze_stream(payload: AnalyzeRequest):
+        error = await analysis_gate(payload)
+        if error is not None:
+            return error
+        return AnalysisStreamingResponse(
+            _analysis_events(shared_service(payload), payload),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
 
     return app

@@ -1,4 +1,4 @@
-"""Single nonstreaming async turn; caller owns orchestration and turn budgets."""
+"""Single async turn; optional internal SSE never exposes partial model output."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import httpx
 
 from . import chat_completions, responses
 from . import messages as messages_api
+from .streaming import SSEDecoder
 from .types import LLMConfig, LLMError, LLMResult, Message, ToolDefinition, object_json, require
 
 _ADAPTERS = {"responses": responses, "chat_completions": chat_completions, "messages": messages_api}
@@ -56,7 +57,8 @@ class LLMClient:
 
         Append result.message unchanged, then one role='tool' Message per returned
         call (tool_call_id=call.id). All outstanding calls must have results before
-        continuation. No autoexecution, fallback, streaming, retries or loop.
+        continuation. No autoexecution, fallback, retries or loop. Provider streaming
+        is internal only: callers receive a complete, normally validated result.
         """
         failure: str | None = None
         try:
@@ -77,12 +79,14 @@ class LLMClient:
             self._validate_history(history, allowed)
             adapter = _ADAPTERS[self.config.api_style]
             payload = adapter.build(history, definitions, self.config.model, tokens)
+            require(not self.config.stream or self.config.api_style == "responses")
+            payload["stream"] = self.config.stream
             object_json(payload)  # Validate finite JSON before crossing HTTP boundary.
             headers = {
                 name: value.get_secret_value() for name, value in self.config.extra_headers.items()
             }
             headers["Content-Type"] = "application/json"
-            headers["Accept"] = "application/json"
+            headers["Accept"] = "text/event-stream" if self.config.stream else "application/json"
             key = self.config.api_key.get_secret_value()
             if self.config.api_style == "messages":
                 headers["x-api-key"] = key
@@ -96,6 +100,11 @@ class LLMClient:
 
         status = 0
         body = bytearray()
+        received = 0
+        decoder = SSEDecoder() if self.config.stream else None
+        stream = responses.Stream() if self.config.stream else None
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + seconds
         try:
             # Bound decoded bytes (including compressed responses), not just the
             # untrusted Content-Length. Error bodies are never read at all.
@@ -112,11 +121,55 @@ class LLMClient:
                 ) as response:
                     status = response.status_code
                     if 200 <= status < 300:
-                        async for chunk in response.aiter_bytes():
-                            if len(body) + len(chunk) > MAX_RESPONSE_BYTES:
+                        if decoder is not None:
+                            content_type = response.headers.get("content-type", "")
+                            if content_type.split(";", 1)[0].strip().lower() != "text/event-stream":
                                 failure = "bad_response"
-                                break
-                            body.extend(chunk)
+                        if failure is None:
+                            async for chunk in response.aiter_bytes():
+                                received += len(chunk)
+                                if received > MAX_RESPONSE_BYTES:
+                                    failure = "bad_response"
+                                    break
+                                if decoder is None:
+                                    body.extend(chunk)
+                                else:
+                                    # Bound cooperative CPU slices as well as HTTP waits.
+                                    # A large already-buffered frame must not bypass the
+                                    # deadline or starve external cancellation.
+                                    for start in range(0, len(chunk), 8192):
+                                        await asyncio.sleep(0)
+                                        if loop.time() >= deadline:
+                                            raise TimeoutError
+                                        try:
+                                            for event, data in decoder.feed(
+                                                chunk[start : start + 8192]
+                                            ):
+                                                stream.feed(event, data)
+                                                if stream.body is not None:
+                                                    break
+                                        except Exception:
+                                            failure = "bad_response"
+                                        if failure or stream.body is not None:
+                                            break
+                                    if failure or stream.body is not None:
+                                        break
+                        if failure is None:
+                            # Parse under the same wall-clock deadline as transport.
+                            try:
+                                if decoder is not None:
+                                    decoder.finish()
+                                    require(stream.body is not None)
+                                    parsed = adapter.parse(stream.body, allowed)
+                                else:
+                                    parsed = adapter.parse(
+                                        object_json(body.decode("utf-8")), allowed
+                                    )
+                            except Exception:
+                                failure = "bad_response"
+                            await asyncio.sleep(0)
+                            if loop.time() >= deadline:
+                                raise TimeoutError
         except (TimeoutError, httpx.TimeoutException):
             failure = "timeout"
         except httpx.TransportError:
@@ -133,12 +186,6 @@ class LLMClient:
             raise LLMError("provider_error")
         if not 200 <= status < 300:
             raise LLMError("bad_response")
-        try:
-            parsed = adapter.parse(object_json(body.decode("utf-8")), allowed)
-        except Exception:
-            failure = "bad_response"
-        if failure:
-            raise LLMError(failure)
         return parsed
 
     def _validate_history(self, history: list[Message], allowed: set[str]) -> None:
