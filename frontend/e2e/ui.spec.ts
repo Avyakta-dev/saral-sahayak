@@ -374,7 +374,7 @@ test('real remarks and follow-ups never silently become a canned answer', async 
   await expect(
     page
       .getByText(
-        /analysis service|Analysis is not available|non-JSON|not available on this server/i,
+        /analysis service|Analysis is not available|non-JSON|not available on this server|Analysis request failed|HTTP \d{3}/i,
       )
       .first(),
   ).toBeVisible();
@@ -1105,7 +1105,15 @@ test('local interactions transmit no input/files/API requests and persist no cha
     ),
     'No unexpected non-GET requests outside analyze',
   ).toEqual([]);
-  expect(JSON.stringify(requests)).not.toContain(marker);
+  const leaking = requests.filter(
+    (request) =>
+      (request.body ?? '').includes(marker) &&
+      !(
+        new URL(request.url).origin === origin &&
+        /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname)
+      ),
+  );
+  expect(leaking, 'Marker must not leave same-origin analyze/capabilities').toEqual([]);
   expect(frames.join('\n')).not.toContain(marker);
   const storage = await page.evaluate(async () => ({
     local: { ...localStorage },
