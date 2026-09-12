@@ -39,4 +39,7 @@ node --test extension/tests/privacy-*.test.cjs extension/tests/background.test.c
 node --check extension/privacy/*.js extension/background.js
 ```
 
+- 31 production privacy-UI checks (`privacy-ui.test.cjs`) cover explicit capture/review, invalid previews, deadline preservation and complete DOM scrubbing on terminal states. They found misleading expiry copy that claimed the displayed deadline began at Capture; wording now describes the earlier Inspect deadline and separate vault ceiling, without changing lifecycle policy.
+- Offline VM/Chrome/canvas mocks (except native crypto) do **not** prove real pixel rendering, browser memory cleanup, Chrome/Brave lifecycle, useful sanitized screenshots or provider safety.
+
 Chrome/Brave interactive Fill on a real EPFO portal, selective pixel redaction, Analyze/upload and Avyakta UI polish remain **not run / not complete**. Keep issues 17 and 18 open until their evidence checklists are satisfied.
