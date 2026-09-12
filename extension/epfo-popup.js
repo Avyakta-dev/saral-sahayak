@@ -220,8 +220,8 @@
   }
 
   el("detect").addEventListener("click", () => run("Detecting rejection remarks locally; no screenshot or backend request…", async (token) => {
+    const hasPreview = Boolean(el("remark").value);
     resetCandidates();
-    el("remark").value = "";
     el("detection-warnings").replaceChildren();
     el("detection-warnings").hidden = true;
     const response = await request("SS_EPFO_DETECT");
@@ -236,15 +236,15 @@
       option.value = String(index);
       el("candidates").append(option);
     });
-    if (candidates.length === 1) {
+    if (candidates.length === 1 && !hasPreview) {
       el("candidates").value = "0";
       el("remark").value = candidates[0].text;
-    } else if (candidates.length > 1) {
-      el("remark").value = "";
     }
     strings(el("detection-warnings"), "Detection warnings", response.data.warnings);
     el("detection-warnings").hidden = !el("detection-warnings").childElementCount;
-    status(candidates.length === 1 ? "One remark detected. Review and edit it before approval." : candidates.length ? "Choose a candidate explicitly, or paste your own remark." : "No usable remark detected. Paste the rejection remark yourself.");
+    status(hasPreview
+      ? candidates.length ? "Your existing remark was kept. Choose a detected candidate only if you want to replace it, then review and approve again." : "No usable remark detected. Your existing remark was kept; review it before approval."
+      : candidates.length === 1 ? "One remark detected. Review and edit it before approval." : candidates.length ? "Choose a candidate explicitly, or paste your own remark." : "No usable remark detected. Paste the rejection remark yourself.");
   }));
   el("connect").addEventListener("click", () => run("Loading backend capabilities; no remark is sent…", async (token) => {
     languages = [];
@@ -279,8 +279,10 @@
   el("candidates").addEventListener("change", () => {
     const value = el("candidates").value;
     const candidate = value === "" ? null : candidates[Number(value)];
-    el("remark").value = candidate ? candidate.text : "";
-    invalidate("Candidate changed. Review and edit the remark, then approve again.");
+    if (candidate) el("remark").value = candidate.text;
+    invalidate(candidate
+      ? "Candidate changed. Review and edit the remark, then approve again."
+      : "No candidate selected. Your existing remark was kept; review it and approve again.");
   });
   el("consent").addEventListener("change", () => {
     if (!el("consent").checked) invalidate("Approval removed. Pending work is cancelled; already sent data cannot be recalled.");
