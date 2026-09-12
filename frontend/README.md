@@ -35,7 +35,7 @@ In `frontend/`, point Vite at that origin (no trailing slash). An empty value me
 VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
 ```
 
-Copy `VITE_API_BASE_URL=` from the root [`.env.example`](../.env.example). **LLM keys and `ANALYSIS_ACCESS_TOKEN` stay server-side only** — never put them in `VITE_*`, browser code, or frontend settings. Submitting a remark calls `POST /api/v1/analyze` only when you send; nothing auto-submits. The sample walkthrough still uses local fixtures via **Show me an example**.
+Copy `VITE_API_BASE_URL=` from the root [`.env.example`](../.env.example). Backend `CORS_ORIGINS` must include this exact page origin (`http://127.0.0.1:5173` by default — `localhost` differs). **LLM keys and `ANALYSIS_ACCESS_TOKEN` stay server-side only** — never put them in `VITE_*`, browser code, or frontend settings. Submitting a remark calls `POST /api/v1/analyze` only when you send; nothing auto-submits. The composer status line reports capabilities readiness for judges. The sample walkthrough still uses local fixtures via **Show me an example**. Full steps: [demo runbook](../docs/demo-runbook.md).
 
 For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory.
 

@@ -24,6 +24,11 @@ import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
 import { analyzeRemark, fetchCapabilities } from './lib/api';
+import {
+  probeBackendStatus,
+  unavailableFailureMessage,
+  type BackendStatus,
+} from './lib/backendStatus';
 import { loadDemoResponse } from './lib/demo';
 import { getWalkthrough, walkthroughRemark } from './lib/walkthrough';
 import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib/attachments';
@@ -105,6 +110,10 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [readingFile, setReadingFile] = useState(false);
   const [pending, setPending] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>({
+    kind: 'checking',
+    label: 'Checking analysis backend…',
+  });
   const [dragging, setDragging] = useState(false);
   const [zoomImage, setZoomImage] = useState<ImageAttachment | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -133,6 +142,27 @@ export default function App() {
     },
     [],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const status = await probeBackendStatus(controller.signal);
+        if (!controller.signal.aborted) setBackendStatus(status);
+      } catch (cause) {
+        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+          return;
+        if (!controller.signal.aborted) {
+          setBackendStatus({
+            kind: 'unreachable',
+            label: 'Analysis backend unreachable',
+            detail: 'Could not complete the readiness probe.',
+          });
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!textarea.current) return;
@@ -354,19 +384,29 @@ export default function App() {
           const capabilities = await fetchCapabilities(controller.signal);
           if (!capabilities.analysis_available) {
             if (request.current !== controller || controller.signal.aborted) return;
+            setBackendStatus({
+              kind: 'not_ready',
+              label: 'Backend reachable — analysis not ready',
+              detail: unavailableFailureMessage(capabilities),
+            });
             setTurns((previous) =>
               previous.map((turn) =>
                 turn.id === id
                   ? {
                       ...turn,
-                      failure:
-                        'Analysis is not available on this server right now (model configuration or knowledge gates). Your message was not turned into guidance.',
+                      failure: unavailableFailureMessage(capabilities),
                     }
                   : turn,
               ),
             );
             return;
           }
+          setBackendStatus({
+            kind: 'ready',
+            label: 'Analysis available (config + structure only)',
+            detail:
+              'Not a policy, connectivity, or language-quality certificate. Synthetic inputs only.',
+          });
         } catch (cause) {
           if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
             return;
@@ -641,9 +681,13 @@ export default function App() {
       <p className="composer-notice" role="status">
         {notice}
       </p>
-      <p className="preview-limit" id="preview-limit">
-        <LockKeyhole size={12} aria-hidden="true" /> Local UI. Live analyze needs a running backend;
-        OCR isn’t connected.{' '}
+      <p
+        className={`preview-limit backend-status backend-status-${backendStatus.kind}`}
+        id="preview-limit"
+        role="status"
+        title={backendStatus.detail ?? backendStatus.label}
+      >
+        <LockKeyhole size={12} aria-hidden="true" /> {backendStatus.label}. OCR isn’t connected.{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
           Details
         </button>
@@ -852,7 +896,10 @@ export default function App() {
                                 Live analyze calls the backend only when you submit text. It never
                                 auto-submits a claim, never substitutes a canned sample for your
                                 remark, and never sends ANALYSIS_ACCESS_TOKEN or LLM keys from the
-                                browser. Images stay local until OCR exists.
+                                browser. Images stay local until OCR exists. If the backend is up
+                                but not ready, check model configuration, corpus structure,
+                                CORS_ORIGINS for this exact page origin (127.0.0.1 vs localhost),
+                                and VITE_API_BASE_URL.
                               </p>
                             </details>
                           </div>
@@ -941,9 +988,10 @@ export default function App() {
           <strong>How live analyze works</strong>
           <p>
             With a running backend and VITE_API_BASE_URL (or same-origin), submitting text calls{' '}
-            <code>/api/v1/analyze</code>. Image text extraction, voice, PDF reading and document
-            downloads are still unavailable. Sample answers remain illustrative—not advice or a
-            usable claim draft. Nothing is auto-submitted.
+            <code>/api/v1/analyze</code>. The status line reports capabilities readiness for judges.
+            Image text extraction, voice, PDF reading and document downloads are still unavailable.
+            Sample answers remain illustrative—not advice or a usable claim draft. Nothing is
+            auto-submitted.
           </p>
         </div>
         <p className="dialog-privacy">

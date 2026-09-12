@@ -2,6 +2,8 @@
 
 Issue #29 remains open. This CLI prepares or runs explicitly selected public review cases through the real `AnalysisService` and `LLMClient`; it does not certify policy accuracy, semantic grounding, fluent language output or Level 2 completion. No live calls were made while implementing/testing the runner.
 
+For local UI→API demo setup (CORS, `VITE_API_BASE_URL`, HTTP readiness), see [demo-runbook.md](demo-runbook.md) and `python -m scripts.check_demo_readiness`. That probe does not close issue 29 or 30.
+
 ## Safe default
 
 From the repository root, using the installed project environment:
