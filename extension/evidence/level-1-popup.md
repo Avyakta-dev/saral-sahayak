@@ -31,6 +31,19 @@ Acceptance follows [Anish's revised criteria](https://github.com/iotserver24/sar
 
 No real claimant data, provider key or file was entered. Only synthetic remark strings were used and then cleared. No Analyze, Fill, model request, form submission or general screenshot scan was performed. Desktop observation screenshots were not added to Git because the browser chrome contains unrelated tabs.
 
+## Native paste and keyboard-clear follow-up
+
+A later actual-toolbar-popup run on the same Chrome version completed the previously missing native paste step. This section supersedes the earlier NOT RUN entry for Chrome Ctrl+V, not for Brave.
+
+- Put only `Synthetic rejection: name mismatch — paste acceptance.` on the OS clipboard. No previous clipboard contents were read or saved.
+- The first focus attempt lost the popup and pasted into the browser address bar instead. It was not submitted as a search and is not counted as extension evidence; the address entry was restored.
+- Reopened the actual toolbar popup, focused its Rejection remark entry, and pressed **Ctrl+V**. Accessibility observation verified the exact synthetic text inside the popup's Rejection remark field and its invalidation status. **PASS: native clipboard paste.**
+- Used Tab navigation from the remark through enabled controls. Focus was verified at Save & scan page (without activating it), then at Clear session on the next Tab. Intermediate individual controls were not independently observed. **PASS for traversing to Clear; not full accessibility certification.**
+- Pressed **Enter** while Clear session was focused. Verified the remark was empty, Analyze remained disabled, and both general/EPFO clear messages appeared. **PASS: keyboard Clear activation and visible reset.**
+- No Analyze, general screenshot scan, Fill, source-page capture or provider request was invoked. The clipboard remains set to the non-private synthetic sample; no clipboard-read permission was added to the extension.
+
+Brave, screen reader, full focus-order/zoom testing and network instrumentation remain NOT RUN. Popup interactions used the installed extension, not a synthetic runtime. This is additional acceptance evidence for the reviewer, not automatic closure.
+
 ## Manifest beyond original Level 1
 
 Current `manifest.json` is MV3 with `background.js`, `activeTab`, `scripting`, `storage`, OpenAI host permission and loopback host permission. There is no manifest-declared persistent content script. The popup includes a general form assistant and a separate EPFO path. It is **not** a zero-permission/offline-only extension. Keys/profile/file state currently use trusted extension session storage; this is not the approved future isolated privacy vault.
@@ -39,6 +52,6 @@ The legacy general form path can send raw profile/field data and an original scr
 
 ## Reproduction and remaining acceptance
 
-Use Chrome Extensions → Developer mode → Load unpacked → select `extension` → Extensions menu → Saral Sahayak. Do not use a normal tab at `popup.html` as a replacement for its toolbar action. Enter the synthetic strings above, press Tab, and use Clear session. Native paste, complete keyboard/assistive checks and Brave still require evidence. Reviewer decides issue acceptance; this report does not close the issue automatically.
+Use Chrome Extensions → Developer mode → Load unpacked → select `extension` → Extensions menu → Saral Sahayak. Do not use a normal tab at `popup.html` as a replacement for its toolbar action. Enter the synthetic strings above, press Tab, and use Clear session. Native Chrome paste and keyboard Clear are now evidenced above; complete keyboard/assistive checks and Brave still require evidence. Reviewer decides issue acceptance; this report does not close the issue automatically.
 
 Local environment change: the unpacked extension remains installed/enabled and Developer mode remains on for further checks. No browser-store publishing or package installation occurred. Existing unrelated browser extensions were not changed.
