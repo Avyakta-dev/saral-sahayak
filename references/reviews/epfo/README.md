@@ -4,7 +4,7 @@
 
 This is Avyakta's offline Level 2/3 review package, reviewed on 2026-09-12. It is outside the runtime knowledge root. Nothing here is a retriever, production answer, model execution result, or instruction for the runtime agent.
 
-Related work: [Level 2 issue #27](https://github.com/Avyakta-dev/saral-sahayak/issues/27) and [Level 3 issue #28](https://github.com/Avyakta-dev/saral-sahayak/issues/28). The current issue board requires Level 2 review before Level 3 acceptance. This combined offline package was prepared before that board was fetched; its Level 3 register/handoff is preparatory, not authorization to bypass the dependency or close either issue.
+Related work: [Level 2 issue #27](https://github.com/iotserver24/saral-sahayak/issues/27) and [Level 3 issue #28](https://github.com/iotserver24/saral-sahayak/issues/28). The current issue board requires Level 2 review before Level 3 acceptance. This combined offline package was prepared before that board was fetched; its Level 3 register/handoff is preparatory, not authorization to bypass the dependency or close either issue.
 
 The generated corpus exists: 181 canonical reason files and five top-level Markdown documents. Older planning documents describing its absence are historical status snapshots. Existence and faithful conversion do not establish correctness of the guidance.
 
