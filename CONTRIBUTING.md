@@ -17,6 +17,11 @@ Ajay follows the [five-level extension guide](references/ajay-extension-guide.md
 
 **Advanced privacy/provider and extension UI scope:** follow the [requirements guide](references/extension-privacy-and-provider-guide.md), not an assumed implementation. Ajay owns Extension Privacy Levels 1–5 (threat contract; client vault/redacted capture; placeholder filling/local restoration; provider modes; cross-mode acceptance). Avyakta owns Extension UI Levels 1–3 (privacy mocks; controls/preview/renderer integration; accessibility/errors/completion). Keep his pending knowledge PR work as priority. Shravya retains main web UI. Original Extension and Image Levels 1–5 remain separate, one explicit request/checkpoint at a time. Issues and artifact links are created separately by the coordinator, not claimed complete here.
 
+
+## Avoid accidental GitHub issue auto-close
+
+GitHub auto-closes issues when commit or PR title/body text matches verbs like **close**, **fix**, or **resolve** next to `#N` — even inside phrases such as “does not close #N”. Prefer wording like **Related to issue N** (no close/fix/resolve verbs beside the number) unless you truly intend to close that issue.
+
 ## Branch workflow
 
 `main` is the shared integration baseline. Ownership is name-to-role only, not a branch assignment. Every task uses its own local temporary descriptive branch created from up-to-date `main`.
