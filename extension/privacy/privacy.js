@@ -23,6 +23,34 @@
   let deadline = 0;
   let timer = null;
 
+  // Classify coarse fail-closed reasons for the terminal UI (no secrets, no transport enablement).
+  function failClosedKind(message) {
+    const text = String(message || '');
+    if (/cancell?ed/i.test(text)) return 'cancelled';
+    if (/blocked|unsupported|restricted|coverage cannot|cannot be inspected|uninspectable/i.test(text)) return 'blocked';
+    if (/source (page |tab )?chang|stale|navigation invalidated|page was left|generation mismatch|tab switched|source tab/i.test(text)) {
+      return 'stale';
+    }
+    if (/unavailable|not connected|could not connect|worker disconnected|worker is unavailable/i.test(text)) {
+      return 'unavailable';
+    }
+    if (/expir/i.test(text)) return 'expired';
+    if (/closed/i.test(text)) return 'closed';
+    return 'ended';
+  }
+
+  function failClosedLabel(kind) {
+    switch (kind) {
+      case 'blocked': return 'Blocked capture';
+      case 'stale': return 'Stale / page changed';
+      case 'cancelled': return 'Cancelled';
+      case 'unavailable': return 'Unavailable';
+      case 'expired': return 'Expired';
+      case 'closed': return 'Closed';
+      default: return 'Session ended';
+    }
+  }
+
   function end(message, notify = true) {
     if (state === 'ended') return;
     state = 'ended';
@@ -62,17 +90,26 @@
     }
     ui = null;
     document.body.replaceChildren();
+    const kind = failClosedKind(message);
     const main = document.createElement('main');
+    main.className = 'fail-closed';
+    main.setAttribute('data-fail-closed', kind);
     const title = document.createElement('h1');
     title.textContent = 'Local privacy session closed';
+    const chip = document.createElement('p');
+    chip.className = `fail-closed-chip fail-closed-${kind}`;
+    chip.textContent = failClosedLabel(kind);
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
     status.textContent = message;
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = 'Analyze, upload, provider destination and Submit stayed disabled. Recapture is required for a new local session. No automatic restart or submission.';
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Close';
     close.addEventListener('click', () => window.close());
-    main.append(title, status, close);
+    main.append(title, chip, status, note, close);
     document.body.append(main);
     close.focus();
   }
@@ -457,12 +494,20 @@
     // Contract: first/last stays off for the personal registry set. Any toggle clears approvals.
     if (!alive()) return;
     ui['first-last'].checked = false;
+    if (['reviewed', 'restoring', 'restored', 'filling', 'filled'].includes(state)) {
+      end('First/last preview change invalidated the approved session. Recapture is required. Analyze/upload stay disabled.');
+      return;
+    }
     clearLocalApprovals('First/last preview is unavailable for the current personal safe-label set. Prior review approvals were cleared.');
   });
   ui['provider-mode'].addEventListener('change', () => {
     if (!alive()) return;
     // Mode/destination changes invalidate approvals even while the control stays disabled for users.
     ui['provider-mode'].value = '';
+    if (['reviewed', 'restoring', 'restored', 'filling', 'filled'].includes(state)) {
+      end('Provider/mode or destination change invalidated the approved session. Recapture is required. Analyze/upload stay disabled.');
+      return;
+    }
     clearLocalApprovals('Provider/mode or destination change cleared prior Analyze/Fill approvals. Recapture when a destination is available.');
   });
   ui['analyze-consent'].addEventListener('change', () => {

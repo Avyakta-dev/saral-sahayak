@@ -61,3 +61,24 @@ footer { margin: 20px 0; }
 #outbound-meta { font-family: ui-monospace, monospace; font-size: .85rem; }
 #analyze-destination { margin-bottom: 12px; }
 #first-last-row { color: #52645e; font-size: .92rem; }
+
+/* Extension UI Level 2 — fail-closed terminal categories (blocked / stale / unavailable) */
+.fail-closed { max-width: 760px; margin: 0 auto; }
+.fail-closed-chip {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  background: #e9ece4;
+  color: #52645e;
+}
+.fail-closed-blocked { background: #fee2e2; color: #7f1d1d; }
+.fail-closed-stale { background: #ffedd5; color: #9a3412; }
+.fail-closed-unavailable { background: #e0e7ff; color: #3730a3; }
+.fail-closed-cancelled,
+.fail-closed-closed { background: #e9ece4; color: #52645e; }
+.fail-closed-expired { background: #fef3c7; color: #92400e; }
