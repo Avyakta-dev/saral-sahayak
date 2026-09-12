@@ -1,5 +1,9 @@
 # Live acceptance status and next team tasks
 
+## Follow-up scope
+
+The [issue #29 offline acceptance report](issue-29-offline-acceptance.md) adds actual-corpus scripted adapter/service regressions and opt-in content-free turn diagnostics. It makes no new live provider calls and does not supersede the failed live results below. This page's team audit describes the baseline at the time of those attempts, not later frontend or privacy-contract merges.
+
 ## What was tested
 
 On 2026-09-12, Anish's configured Responses-compatible model was called with the synthetic initials/name-mismatch case from `references/reviews/epfo/cases.json` and the actual Markdown corpus. No real claimant identity, API key or endpoint is included in this report. Raw provider traces remain outside Git.
