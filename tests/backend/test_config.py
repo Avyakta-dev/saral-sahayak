@@ -80,18 +80,20 @@ def test_image_environment_mapping(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("enabled", "endpoint", "bucket"),
+    ("enabled", "lifecycle", "endpoint", "bucket"),
     [
-        (False, IMAGE_ENDPOINT, "synthetic-bucket"),  # explicit opt-in is required
-        (True, "", "synthetic-bucket"),  # no destination
-        (True, IMAGE_ENDPOINT, ""),  # no bucket
-        (True, "   ", "synthetic-bucket"),
+        (False, True, IMAGE_ENDPOINT, "synthetic-bucket"),  # explicit opt-in is required
+        (True, False, IMAGE_ENDPOINT, "synthetic-bucket"),  # lifecycle attestation required
+        (True, True, "", "synthetic-bucket"),  # no destination
+        (True, True, IMAGE_ENDPOINT, ""),  # no bucket
+        (True, True, "   ", "synthetic-bucket"),
     ],
 )
-def test_image_config_fails_closed_when_incomplete(enabled, endpoint, bucket):
+def test_image_config_fails_closed_when_incomplete(enabled, lifecycle, endpoint, bucket):
     settings = Settings(
         _env_file=None,
         image_input_enabled=enabled,
+        image_lifecycle_configured=lifecycle,
         image_r2_endpoint=endpoint,
         image_r2_bucket=bucket,
     )

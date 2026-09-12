@@ -618,7 +618,7 @@ describe('capability readiness, refresh and cancellation', () => {
       await submit();
       const signal = fake.analyze.mock.calls[0][1];
       if (action === 'cancel')
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel analysis' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Stop analysis' }));
       if (action === 'language') fireEvent.change(languages(), { target: { value: 'hi' } });
       if (action === 'mode') examples();
       if (action === 'new chat') fireEvent.click(screen.getByRole('button', { name: 'New chat' }));

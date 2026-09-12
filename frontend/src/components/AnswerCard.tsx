@@ -511,7 +511,7 @@ export function AnswerCard({
 
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
-      <p className={isSample ? 'sample-banner' : 'sample-banner service-banner'} lang="en">
+      <p className={isSample ? 'sample-banner' : 'sample-banner service-banner'} lang={locale}>
         <Info size={15} aria-hidden="true" /> {text.sample}
       </p>
       <header className="answer-header" lang={locale}>
@@ -590,10 +590,10 @@ export function AnswerCard({
         </div>
       )}
       <details className="answer-disclosure" open={!isSample && response.warnings.length > 0}>
-        <summary lang="en">
+        <summary lang={locale}>
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
-        <p lang="en">{text.disclosureNote}</p>
+        <p lang={locale}>{text.disclosureNote}</p>
         {!isSample && (
           <div className="not-chatbot-note" lang="en">
             <strong>Not a general chatbot</strong>
