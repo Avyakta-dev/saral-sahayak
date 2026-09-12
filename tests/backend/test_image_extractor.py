@@ -250,3 +250,38 @@ def test_echo_and_text_screens_are_pure_and_case_insensitive():
     assert not admissible_text("", max_chars=10)
     assert not admissible_text("x" * 11, max_chars=10)
     assert time.monotonic() > 0
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "0123456789abcdef0123456789abcdef",
+        "abcdef0123456789abcdef0123456789",
+        "SYNTHETICACCESSKEY123456",
+        "SYNTHETICACCESSKEY123456%2F20260101%2Fauto%2Fs3%2Faws4_request",
+    ],
+)
+async def test_isolated_signed_url_secrets_never_leave_extraction(text):
+    url = (
+        "https://account.r2.cloudflarestorage.com/validated/0123456789abcdef0123456789abcdef.png"
+        "?X-Amz-Signature=abcdef0123456789abcdef0123456789"
+        "&X-Amz-Credential=SYNTHETICACCESSKEY123456%2F20260101%2Fauto%2Fs3%2Faws4_request"
+    )
+    with pytest.raises(AnalysisError) as error:
+        await extract_rejection_text(
+            FakeClient(extracted(text)),
+            url,
+            Budget(),
+            max_chars=8000,
+            max_output_tokens=1000,
+        )
+    assert error.value.code == "invalid_image_output" and text not in str(error.value)
+
+
+def test_short_url_dates_and_expiry_are_not_treated_as_private_fragments():
+    assert not echoes_hidden(
+        "Rejected on 20260101 after 120 days",
+        (
+            "https://account.r2.cloudflarestorage.com/validated/image.png?X-Amz-Date=20260101&X-Amz-Expires=120",
+        ),
+    )

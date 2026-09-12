@@ -30,16 +30,32 @@ Related to [issue 17](https://github.com/iotserver24/saral-sahayak/issues/17) (v
 | `raster.js` | Fully opaque crop placeholder (no original pixels) |
 | `privacy.html` / `privacy.js` / `privacy.css` | Developer UI including restore + per-field/batch Fill approval |
 
+## Inspection retirement and worker loss
+
+`PRIVACY_INVALIDATED` carries the retired page-inspection generation, never field values. The controller accepts revocation only for its currently bound generation and exact sender/tab/document. Retiring a previous inspection must not cancel a newly opened request on the same document. After accepting an INSPECT reply, the controller immediately CHECKs that generation before exposing candidate metadata; a mutation during reply delivery therefore still fails closed. Old/type-only notifications cannot authorize capture: every capture/review/Fill still performs its own current-generation check.
+
+This fixes a reproduced stale-notification race that can occur when a page controller outlives its worker context. It does not prove the cause of every observed Chrome disconnect or prevent genuine worker suspension. Worker loss still clears the UI and requires recapture. Reload the extension and source page together when updating the protocol; an old adapter may lack the new notification generation, but operation-time checks remain mandatory.
+
 ## Verification
 
 Run from the repository root with Node.js 22:
 
 ```bash
 node --test extension/tests/privacy-*.test.cjs extension/tests/background.test.cjs
-node --check extension/privacy/*.js extension/background.js
+for file in extension/privacy/*.js extension/background.js; do node --check "$file" || exit 1; done
 ```
 
-- 31 production privacy-UI checks (`privacy-ui.test.cjs`) cover explicit capture/review, invalid previews, deadline preservation and complete DOM scrubbing on terminal states. They found misleading expiry copy that claimed the displayed deadline began at Capture; wording now describes the earlier Inspect deadline and separate vault ceiling, without changing lifecycle policy.
+- [Fill hardening follow-up](../evidence/privacy-18-fill-hardening.md) records stale-response/replay protection, immediate pending-buffer cleanup, whole-batch validation and truthful outcomes after site handlers. Changing selected fields clears prior Fill consent. Synthetic events can trigger site workflows; no general prevention of page-initiated submission is claimed.
+- 37 production privacy-UI checks (`privacy-ui.test.cjs`) cover explicit capture/review, invalid previews, deadline preservation and complete DOM scrubbing on terminal states. They found misleading expiry copy that claimed the displayed deadline began at Capture; wording now describes the earlier Inspect deadline and separate vault ceiling, without changing lifecycle policy.
 - Offline VM/Chrome/canvas mocks (except native crypto) do **not** prove real pixel rendering, browser memory cleanup, Chrome/Brave lifecycle, useful sanitized screenshots or provider safety.
 
 Chrome/Brave interactive Fill on a real EPFO portal, selective pixel redaction, Analyze/upload and Avyakta UI polish remain **not run / not complete**. Keep issues 17 and 18 open until their evidence checklists are satisfied.
+
+## Related UI mocks
+
+Avyakta’s Extension UI Level 1 annotated mocks (issue 21) are at [`../mocks/privacy-ux-level-1/`](../mocks/privacy-ux-level-1/). Those files do not replace this developer UI or certify redaction.
+
+## Related UI Level 2 (issue 22)
+
+A partial Extension UI Level 2 slice wires outbound-vs-local disclosure, disabled provider/first-last/Analyze controls, and plain-text renderer checks into this window. Evidence: [`../evidence/ui-level-2-controls-preview.md`](../evidence/ui-level-2-controls-preview.md). Vault/transport modules above remain Ajay-owned and unchanged by that UI slice. Level 1 mocks stay labelled at [`../mocks/privacy-ux-level-1/`](../mocks/privacy-ux-level-1/).
+

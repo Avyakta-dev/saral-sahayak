@@ -30,7 +30,7 @@ The independent validator checks readable meaning, causes, detection, ordered fi
 
 ## Navigation and remaining implementation limitations
 
-The current index is about 51 KB because full claim-type descriptions repeat on each entry. Category sections range up to about 10 KB, below the 12 KiB hard read cap but larger than the tool's 3072-byte default. Bounded reads may require continuation. Future navigation improvements should preserve claim-type applicability and be measured against actual Anish-owned traces; no tool budgets were raised.
+A later Level-2 grounding pass compacted index claim-type labels (full names remain in each reason file), added an offline grounding-flags section for agreed conflict/ambiguity cases, and labeled each reason-file URL from the `source_links.json` catalog so official/circular hosts are visually separated from secondary news/blog/forum reporting. Catalog labels remain archived metadata, not fresh verification. Category sections can still exceed the tool's 3072-byte default read; bounded reads may require continuation. Measure further navigation changes against actual Anish-owned traces; no tool budgets were raised.
 
 Readable reason sections are checked against the 120-line/12 KiB maximum. The complete-source JSON section duplicates information and is not needed for review evidence; the fixture validator rejects it as an evidence target. Tests do not show that a model will select the best sections.
 

@@ -10,7 +10,7 @@ export default defineConfig({
   workers: 2,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: 'http://127.0.0.1:5183',
     channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -23,8 +23,10 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'], defaultBrowserType: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run dev -- --mode preview-test --port 5174',
-    url: 'http://127.0.0.1:5174',
+    command:
+      "node --input-type=module -e \"import {createServer} from 'vite'; const server = await createServer({envDir:false,server:{host:'127.0.0.1',port:5183,strictPort:true}}); await server.listen();\"",
+    env: { VITE_PREVIEW_ONLY: 'true', VITE_API_BASE_URL: '' },
+    url: 'http://127.0.0.1:5183',
     reuseExistingServer: false,
     timeout: 30_000,
   },

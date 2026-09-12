@@ -46,11 +46,17 @@ it('parses split UTF8/CRLF, real activity and final validated result without his
     );
   vi.stubGlobal('fetch', fetcher);
   const activity = vi.fn();
-  expect(await analyzeTextStream(' Synthetic ', 'en', signal(), activity)).toEqual(success);
+  expect(await analyzeTextStream(' Synthetic ', 'en', signal(), activity)).toEqual(
+    liveResponseSchema.parse(success),
+  );
   expect(activity).toHaveBeenCalledExactlyOnceWith(reading);
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0][0]).toBe('/api/v1/analyze/stream');
-  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ text: 'Synthetic', language: 'en' });
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({
+    text: ' Synthetic ',
+    language: 'en',
+    details: { claimant_name: null, claim_id: null, claim_type: null },
+  });
 });
 
 it.each([

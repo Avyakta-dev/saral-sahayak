@@ -49,11 +49,13 @@ Judges sometimes call EPFO rejections “niche.” That is intentional. A genera
 
 Be explicit with judges:
 
-- **Live acceptance is still open.** Documented live attempts on a synthetic supported case hit budget/timeout failures; that is **not** a green live acceptance report. See [live acceptance status](live-acceptance-status.md).
+- **Integrated demo readiness (issue 30) is still open.** A post-#52 synthetic live success exists on one English case; that is progress, not full matrix or production certification. See [live acceptance status](live-acceptance-status.md) and the [demo runbook](demo-runbook.md).
 - Offline corpus/structure tests and fake-model suites do **not** prove fluent multilingual output, current EPFO policy, or production deployment.
 - We do **not** claim live government integration, automatic claim submission, or guaranteed claim approval.
 - Extension privacy guarantees and browser acceptance remain partly open; do not demo them as finished unless the linked evidence says so.
 - Do **not** invent green live results for pitch day.
+
+For the longer room talk track, use [judge-demo-script.md](judge-demo-script.md).
 
 ## 60-second demo script (synthetic case only)
 
@@ -63,6 +65,6 @@ Use only synthetic fixtures (for example the initials / name-mismatch style case
 2. **Ask (10s):** Paste/analyze that synthetic text against the curated Markdown corpus (not a naked ChatGPT tab).
 3. **Show grounding (20s):** Point at citations—Markdown path under `references/knowledge/epfo/…`, record/heading, and original source URLs. Contrast: “ChatGPT would not give you this trail by design.”
 4. **Show product shape (15s):** Checklist steps from cited fix blocks; draft letter assembled from validated actions + placeholders—not invented personal data.
-5. **Honest close (10s):** “Educational guide, not legal advice. Live acceptance still open; readiness is not correctness. Niche depth on EPFO rejections is the product.”
+5. **Honest close (10s):** “Educational guide, not legal advice. Demo readiness and language/policy review remain open; readiness is not correctness. Niche depth on EPFO rejections is the product.”
 
-If the live path is unavailable in the room, walk the same story against corpus files and offline evidence—and say so out loud. Judges prefer an honest synthetic walkthrough over a silent fake success.
+If the live path is unavailable in the room, walk the same story against corpus files and offline evidence—and say so out loud. Judges prefer an honest synthetic walkthrough over a silent fake success. Prefer the [demo runbook](demo-runbook.md) so CORS/`VITE_API_BASE_URL` mistakes do not look like product failures.

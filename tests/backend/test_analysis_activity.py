@@ -33,7 +33,7 @@ from backend.agent.service import AnalysisError, AnalysisService, dispatch_tool
 from backend.api.schemas import AnalyzeRequest, AnalyzeResponse
 from backend.config import Settings
 from backend.llm import ToolCall
-from backend.tools.budget import BudgetLimits
+from backend.tools.budget import Budget, BudgetLimits
 from backend.tools.knowledge_files import KnowledgeFiles
 
 REQUEST = AnalyzeRequest(text="PRIVATE-SYNTHETIC-USER-INPUT")
@@ -50,6 +50,23 @@ def frames(raw):
             assert event.startswith("event: ") and data.startswith("data: ")
             output.append((event[7:], json.loads(data[6:])))
     return output
+
+
+async def test_activity_observer_cannot_start_model_after_deadline(root, monkeypatch):
+    now = [0.0]
+    monkeypatch.setattr(
+        "backend.agent.service.Budget", lambda limits: Budget(limits, clock=lambda: now[0])
+    )
+    client = supported_client()
+
+    def observer(event):
+        if event.phase == "thinking":
+            now[0] = 31
+
+    with pytest.raises(AnalysisError) as error:
+        await AnalysisService(client, root).analyze(REQUEST, activity=observer)
+    assert error.value.code == "budget_exhausted"
+    assert client.calls == []
 
 
 async def test_exact_host_activity_order_and_ledger_ranges(root):

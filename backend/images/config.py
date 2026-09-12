@@ -17,8 +17,15 @@ class ImageConfig(BaseModel):
     content_types: tuple[str, ...] = SUPPORTED_IMAGE_TYPES
     upload_ttl_seconds: int = Field(default=120, gt=0, le=900)
     url_max_ttl_seconds: int = Field(default=120, gt=0, le=900)
-    max_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
-    ocr_max_chars: int = Field(default=8000, gt=0)
+    # Operator attestation: both inbox/ and validated/ have enforced expiry rules.
+    # False keeps image input unavailable; URL expiry alone does not delete objects.
+    lifecycle_configured: bool = False
+    max_bytes: int = Field(default=10 * 1024 * 1024, gt=0, le=10 * 1024 * 1024)
+    max_pixels: int = Field(default=16_000_000, gt=0, le=16_000_000)
+    max_dimension: int = Field(default=8192, gt=0, le=8192)
+    max_pending_tickets: int = Field(default=1024, gt=0, le=1024)
+    max_concurrent: int = Field(default=2, gt=0, le=2)
+    ocr_max_chars: int = Field(default=8000, gt=0, le=8000)
     ocr_max_output_tokens: int = Field(default=1000, gt=0, le=16000)
 
     @field_validator("endpoint")

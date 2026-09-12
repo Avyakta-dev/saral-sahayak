@@ -49,11 +49,12 @@ class Settings(BaseSettings):
     # Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY),
     # so only the destination is configured here.
     image_input_enabled: bool = False
+    image_lifecycle_configured: bool = False
     image_r2_endpoint: str = ""
     image_r2_bucket: str = ""
     image_upload_ttl_seconds: int = Field(default=120, gt=0, le=900)
     image_url_max_ttl_seconds: int = Field(default=120, gt=0, le=900)
-    image_max_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    image_max_bytes: int = Field(default=10 * 1024 * 1024, gt=0, le=10 * 1024 * 1024)
     image_ocr_max_chars: int = Field(default=8000, gt=0)
     image_ocr_max_output_tokens: int = Field(default=1000, gt=0, le=16000)
     image_content_types: list[str] = Field(default_factory=lambda: list(SUPPORTED_IMAGE_TYPES))
@@ -116,13 +117,14 @@ class Settings(BaseSettings):
 
     def image_config(self) -> ImageConfig | None:
         """Fail closed: image input needs an explicit opt-in and an explicit destination."""
-        if not self.image_input_enabled:
+        if not self.image_input_enabled or not self.image_lifecycle_configured:
             return None
         if not all((self.image_r2_endpoint, self.image_r2_bucket)):
             return None
         return ImageConfig(
             endpoint=self.image_r2_endpoint,
             bucket=self.image_r2_bucket,
+            lifecycle_configured=self.image_lifecycle_configured,
             content_types=tuple(self.image_content_types),
             upload_ttl_seconds=self.image_upload_ttl_seconds,
             url_max_ttl_seconds=self.image_url_max_ttl_seconds,

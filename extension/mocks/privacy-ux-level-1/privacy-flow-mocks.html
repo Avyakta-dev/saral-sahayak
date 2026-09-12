@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; connect-src 'none'; script-src 'none'">
+  <title>Extension UI Level 1 · synthetic privacy-flow mocks (not redaction)</title>
+  <style>
+    :root {
+      --bg: #fffbf5;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #d6d3d1;
+      --panel: #ffffff;
+      --accent: #166534;
+      --warn: #9a3412;
+      --blocked: #7f1d1d;
+      --ok: #14532d;
+      --chip: #ecfccb;
+      --mock: #fef3c7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header.banner, footer.banner {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+      background: var(--mock);
+    }
+    footer.banner { border-top: 1px solid var(--line); border-bottom: 0; margin-top: 2rem; }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
+    .eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem; color: var(--warn); font-weight: 700; }
+    .disclaimer { margin: 0.5rem 0 0; color: var(--muted); max-width: 70rem; }
+    nav.toc { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 2; }
+    nav.toc a { color: var(--accent); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.8rem; background: #f0fdf4; }
+    main { padding: 1rem 1.25rem 2rem; display: grid; gap: 1rem; max-width: 72rem; }
+    section.panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    }
+    section.panel h2 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+    .meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0 0.75rem; }
+    .chip {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 0.15rem 0.55rem;
+      font-size: 0.72rem;
+      font-weight: 650;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--ok);
+    }
+    .chip.mock { background: var(--mock); color: var(--warn); }
+    .chip.blocked { background: #fee2e2; color: var(--blocked); }
+    .chip.local { background: #e0e7ff; color: #312e81; }
+    .layout { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+    @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+    .phone {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fafaf9;
+      padding: 0.75rem;
+      min-height: 12rem;
+    }
+    .phone h3 { margin: 0 0 0.5rem; font-size: 0.9rem; }
+    .notes {
+      border-left: 3px solid var(--accent);
+      padding: 0.15rem 0 0.15rem 0.75rem;
+      color: var(--muted);
+    }
+    .notes strong { color: var(--ink); }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.35rem 0; }
+    button, .btn {
+      appearance: none;
+      border: 1px solid #15803d;
+      background: #166534;
+      color: #fff;
+      border-radius: 8px;
+      padding: 0.4rem 0.7rem;
+      font: inherit;
+      font-weight: 600;
+    }
+    button[disabled], .btn.disabled {
+      background: #d6d3d1;
+      border-color: #a8a29e;
+      color: #57534e;
+    }
+    button.secondary, .btn.secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+    .mask {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.08em;
+      background: #111827;
+      color: #f9fafb;
+      border-radius: 6px;
+      padding: 0.2rem 0.45rem;
+      display: inline-block;
+      min-width: 3.2rem;
+      text-align: center;
+    }
+    .slot {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.45rem 0.55rem;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      margin: 0.35rem 0;
+      background: #fff;
+    }
+    .preview-box {
+      height: 120px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background:
+        repeating-linear-gradient(45deg, #0f172a 0 10px, #1e293b 10px 20px);
+      color: #e2e8f0;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 0.5rem;
+    }
+    .crop {
+      outline: 2px dashed #86efac;
+      outline-offset: -6px;
+      position: relative;
+    }
+    .crop::after {
+      content: "synthetic crop outline (opaque fill — not a real redaction pipeline)";
+      position: absolute;
+      left: 8px; right: 8px; bottom: 8px;
+      font-size: 0.7rem;
+      color: #bbf7d0;
+    }
+    label.check { display: flex; gap: 0.45rem; align-items: flex-start; margin: 0.45rem 0; }
+    .status { padding: 0.45rem 0.6rem; border-radius: 8px; background: #f5f5f4; border: 1px solid var(--line); }
+    .status.warn { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
+    .status.blocked { background: #fee2e2; border-color: #fecaca; color: #7f1d1d; }
+    .status.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+    ul.tight { margin: 0.35rem 0; padding-left: 1.1rem; }
+    .flow svg { width: 100%; height: auto; background: #fff; border-radius: 8px; border: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <header class="banner" id="top">
+    <p class="eyebrow">Synthetic annotated mock · Extension UI Level 1 · Related to issue 21</p>
+    <h1>Privacy-flow UX mocks (do not implement redaction)</h1>
+    <p class="disclaimer">
+      Static HTML/SVG annotations only. No network, no vault, no provider calls, no real secrets.
+      Fixed masks show exactly <code>***</code>. Safe labels match Ajay’s host registry:
+      <code>applicant name</code>, <code>contact email</code>, <code>contact phone</code>, <code>postal address</code>.
+      These mocks <strong>must not</strong> be read as proof that capture, pixel flattening, or redaction works.
+      Local / loopback mode is a destination choice — <strong>not</strong> labelled inherently private.
+      First/last character preview is <strong>local-only</strong>, off by default, and illustrated here as a future opt-in control.
+      Ajay owns vault/transport fail-closed behavior; this artifact does not change those contracts.
+    </p>
+  </header>
+
+  <nav class="toc" aria-label="Mock states">
+    <a href="#flow">Flow</a>
+    <a href="#s-not-connected">Not connected</a>
+    <a href="#s-capture">Capture</a>
+    <a href="#s-mask-crop">Mask/crop</a>
+    <a href="#s-fixed-star">Fixed ***</a>
+    <a href="#s-first-last">First/last opt-in</a>
+    <a href="#s-analyze">Analyze</a>
+    <a href="#s-restore">Restored preview</a>
+    <a href="#s-fill">Fill / manual</a>
+    <a href="#s-provider">Provider/mode</a>
+    <a href="#s-blocked">Blocked pages</a>
+    <a href="#checklist">Checklist</a>
+  </nav>
+
+  <main>
+    <section class="panel flow" id="flow" aria-labelledby="flow-title">
+      <h2 id="flow-title">Annotated happy-path skeleton</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip">Contract handoff states (threat contract §8)</span>
+      </div>
+      <svg viewBox="0 0 960 180" role="img" aria-label="Synthetic privacy flow diagram from capture to manual submission">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#166534"></path>
+          </marker>
+        </defs>
+        <rect x="8" y="40" width="110" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="63" y="68" text-anchor="middle" font-size="12" fill="#14532d">Capture</text>
+        <text x="63" y="84" text-anchor="middle" font-size="10" fill="#57534e">explicit</text>
+        <line x1="118" y1="68" x2="148" y2="68" stroke="#166534" marker-end="url(#arrow)"/>
+
+        <rect x="150" y="40" width="120" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="210" y="68" text-anchor="middle" font-size="12" fill="#14532d">Mask / crop</text>
+        <text x="210" y="84" text-anchor="middle" font-size="10" fill="#57534e">opaque preview</text>
+        <line x1="270" y1="68" x2="300" y2="68" stroke="#166534" marker-end="url(#arrow)"/>
+
+        <rect x="302" y="40" width="120" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="362" y="68" text-anchor="middle" font-size="12" fill="#14532d">Review ***</text>
+        <text x="362" y="84" text-anchor="middle" font-size="10" fill="#57534e">+ mode disclose</text>
+        <line x1="422" y1="68" x2="452" y2="68" stroke="#166534" marker-end="url(#arrow)"/>
+
+        <rect x="454" y="40" width="110" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="509" y="68" text-anchor="middle" font-size="12" fill="#14532d">Analyze</text>
+        <text x="509" y="84" text-anchor="middle" font-size="10" fill="#57534e">separate OK</text>
+        <line x1="564" y1="68" x2="594" y2="68" stroke="#166534" marker-end="url(#arrow)"/>
+
+        <rect x="596" y="40" width="130" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="661" y="68" text-anchor="middle" font-size="12" fill="#14532d">Local restore</text>
+        <text x="661" y="84" text-anchor="middle" font-size="10" fill="#57534e">trusted window</text>
+        <line x1="726" y1="68" x2="756" y2="68" stroke="#166534" marker-end="url(#arrow)"/>
+
+        <rect x="758" y="40" width="190" height="56" rx="8" fill="#ecfccb" stroke="#166534"/>
+        <text x="853" y="68" text-anchor="middle" font-size="12" fill="#14532d">Fill ≠ Submit</text>
+        <text x="853" y="84" text-anchor="middle" font-size="10" fill="#57534e">manual submission</text>
+
+        <text x="20" y="140" font-size="12" fill="#9a3412">Fail-closed branches (also mocked below): not connected · blocked / unsupported / restricted page · expired / stale</text>
+        <text x="20" y="162" font-size="11" fill="#57534e">Diagram is illustrative only — vault TTL, pixel coverage, and transport remain Ajay-owned and fail closed.</text>
+      </svg>
+    </section>
+
+    <section class="panel" id="s-not-connected" aria-labelledby="nc-title">
+      <h2 id="nc-title">Clear “not connected” state</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip blocked">Idle / unavailable</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>Trusted privacy window (synthetic)</h3>
+          <p class="status blocked" role="status">Not connected — local privacy worker unavailable. No capture, Analyze, Fill, or provider session is active.</p>
+          <p class="status">Could not connect to the local privacy worker.</p>
+          <div class="row">
+            <button type="button" disabled>Inspect</button>
+            <button type="button" disabled>Capture opaque preview locally</button>
+            <button type="button" disabled>Analyze</button>
+            <button type="button" class="secondary" disabled>Fill selected fields</button>
+          </div>
+          <p class="status warn">Opening this UI does not start capture and does not probe a private network destination.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Match Ajay’s production copy tone (“Could not connect…”, “worker unavailable”) without claiming a live connection check happened in this mock file.</p>
+          <p>All action controls stay disabled. No inherited approval, tokens, or restored values.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-capture" aria-labelledby="cap-title">
+      <h2 id="cap-title">Capture (explicit, click-only)</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip">Local capture</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>1. Inspect → select → Capture</h3>
+          <p class="status ok">Local worker ready (synthetic). Choose Inspect to request safe field metadata.</p>
+          <fieldset>
+            <legend>Fields to represent with placeholders</legend>
+            <label class="check"><input type="checkbox" checked disabled> applicant name</label>
+            <label class="check"><input type="checkbox" checked disabled> contact email</label>
+            <label class="check"><input type="checkbox" disabled> contact phone <em>(empty → filled:false)</em></label>
+            <label class="check"><input type="checkbox" disabled> postal address</label>
+          </fieldset>
+          <div class="row">
+            <button type="button" disabled>Inspect</button>
+            <button type="button">Capture opaque preview locally</button>
+          </div>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Capture is user-initiated after field selection. Labels are extension-owned constants, never raw DOM names.</p>
+          <p>Empty phone shows how a missing value stays <code>filled: false</code> with no length hint.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-mask-crop" aria-labelledby="mc-title">
+      <h2 id="mc-title">Mask / crop preview</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip">Sanitized preview (illustrated)</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>2. Crop + opaque preview surface</h3>
+          <div class="row">Crop X/Y/W/H: <code>24, 80, 640, 360</code> (synthetic CSS px)</div>
+          <div class="preview-box crop" aria-hidden="true">
+            Fully opaque synthetic PNG placeholder<br>No original screenshot bytes in this mock
+          </div>
+          <label class="check"><input type="checkbox" disabled> I have reviewed this fully opaque local preview.</label>
+          <div class="row">
+            <button type="button" class="secondary">Cancel and clear</button>
+            <button type="button" disabled>Confirm local preview</button>
+          </div>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Preview is drawn as a new opaque surface. This file does <em>not</em> run raster redaction; the patterned box is illustrative only.</p>
+          <p>Manual crop/mask edits would create a new revision and clear consent (contract). Cancel remains available.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-fixed-star" aria-labelledby="fs-title">
+      <h2 id="fs-title">Fixed-star display (<code>***</code>)</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip local">Mask width ≠ value length</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>Slot list after capture (synthetic)</h3>
+          <div class="slot"><span>applicant name</span><span>Filled: yes</span><span class="mask">***</span></div>
+          <div class="slot"><span>contact email</span><span>Filled: yes</span><span class="mask">***</span></div>
+          <div class="slot"><span>contact phone</span><span>Filled: no</span><span class="mask">***</span></div>
+          <div class="slot"><span>postal address</span><span>Filled: yes</span><span class="mask">***</span></div>
+          <p class="status">Every mask is exactly three stars in a fixed-size control. No star count, tooltip, or a11y text derived from the value.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Aligns with <code>slots.js</code> / threat contract: model-visible fragment may include label + token + filled + constant <code>***</code> mask metadata locally, never length hints.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-first-last" aria-labelledby="fl-title">
+      <h2 id="fl-title">Explicit first/last opt-in (local-only)</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip local">Off by default</span>
+        <span class="chip blocked">Not for personal slots yet</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>Local reveal control (future non-sensitive labels only)</h3>
+          <p class="status warn">First/last preview stays <strong>off</strong> for applicant name, contact email, contact phone, and postal address.</p>
+          <label class="check">
+            <input type="checkbox" disabled>
+            <span>Opt in to show first &amp; last grapheme locally for an approved non-sensitive slot (≥12 graphemes). Fragments never enter Analyze payload, raster, logs, or metadata.</span>
+          </label>
+          <div class="slot">
+            <span>example non-sensitive label (not in registry yet)</span>
+            <span>local preview</span>
+            <span class="mask" title="Illustrative only">A*********Z</span>
+          </div>
+          <p class="status">Illustrative local-only container. Personal slots remain full <code>***</code>. Anish must approve any new non-sensitive label before it exists.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Demonstrates the disabled/conditional rule from the threat contract. This mock does not enable partial reveal in production UI.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-analyze" aria-labelledby="an-title">
+      <h2 id="an-title">Analyze (separate approval)</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip">Ready to Analyze</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>3. Exact payload + destination consent</h3>
+          <p class="status">Destination (synthetic disclosure): <code>https://api.example.invalid/v1/privacy-slots</code> · mode: Direct remote model</p>
+          <p class="status warn">Recipient retention is uncertain. Local mode would still be a recipient — not “private by default”.</p>
+          <label class="check"><input type="checkbox" disabled> I approve sending only tokens, filled flags, and safe labels for this reviewed payload.</label>
+          <div class="row">
+            <button type="button">Analyze</button>
+            <button type="button" class="secondary">Cancel</button>
+            <button type="button" disabled>Fill selected fields</button>
+            <button type="button" disabled>Submit</button>
+          </div>
+          <p class="status">“Filled: yes” does <em>not</em> authorize Analyze or Fill by itself.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Analyze is a separate control after preview confirmation and destination disclosure. Image upload remains unavailable until Image admission exists.</p>
+          <p>Outbound envelope (synthetic): schema <code>privacy-slots-1</code>, labels from registry, tokens like <code>[[SSP_A1B2C3D4E5F60718293A4B5C6D7E8F90]]</code> (public marker, not a secret).</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-restore" aria-labelledby="rs-title">
+      <h2 id="rs-title">Local restored-result preview</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip local">Trusted window only</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>4. Host template restored locally</h3>
+          <p class="status ok">Validated response for request <code>req-synthetic-001</code>. One-pass restore in this window.</p>
+          <div class="slot"><span>applicant name</span><span>resolved</span><span><code>Synthetic Person</code></span></div>
+          <div class="slot"><span>contact email</span><span>resolved</span><span><code>person@example.invalid</code></span></div>
+          <div class="slot"><span>contact phone</span><span>unresolved</span><span><em>missing — no Fill</em></span></div>
+          <div class="slot"><span>postal address</span><span>resolved</span><span><code>1 Example Lane</code></span></div>
+          <p class="status warn">Restored text must not be echoed into a later Analyze / provider / diagnostics path.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Values are fictional UI examples only. Restoration uses text nodes / plain display — never <code>innerHTML</code> injection of untrusted model markup.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-fill" aria-labelledby="fill-title">
+      <h2 id="fill-title">Separate Fill and manual submission</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip">Ready to Fill</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>5. Approve Fill (never Submit)</h3>
+          <fieldset>
+            <legend>Fields to fill on the page</legend>
+            <label class="check"><input type="checkbox" checked disabled> applicant name</label>
+            <label class="check"><input type="checkbox" checked disabled> contact email</label>
+            <label class="check"><input type="checkbox" disabled> contact phone (blocked — unresolved)</label>
+          </fieldset>
+          <label class="check consent">
+            <input type="checkbox" disabled>
+            <span>I approve filling the selected values on the page. I understand the site may autosave. The extension never submits.</span>
+          </label>
+          <div class="row">
+            <button type="button">Fill selected fields</button>
+            <button type="button" disabled>Submit</button>
+          </div>
+          <p class="status">After Fill: review the page yourself and submit manually if appropriate. Extension does not click Submit / <code>requestSubmit</code>.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Matches merged privacy Fill copy from Ajay’s developer UI. Fill crosses the privacy boundary intentionally; isolation does not continue after page release.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-provider" aria-labelledby="pm-title">
+      <h2 id="pm-title">Provider / mode disclosure</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip warn">Equal redaction all modes</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>Settings disclosure strip (synthetic)</h3>
+          <label>Mode
+            <select disabled>
+              <option>EPFO backend (de-identified remark)</option>
+              <option selected>Direct remote model</option>
+              <option>Direct loopback model</option>
+              <option>Optional local companion</option>
+            </select>
+          </label>
+          <p class="status">Exact destination: <code>http://127.0.0.1:11434/…</code> (example loopback)</p>
+          <p class="status warn"><strong>Local / loopback is still a recipient.</strong> It is not labelled “private”, “zero retention”, or safer than remote by default. Identical token/safe-label rules apply.</p>
+          <p class="status">Transport key (if any) is session/header-only — never a vault slot, never model content.</p>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> Mode changes clear consent/vault/results (contract). No silent fallback between providers. Capability checks must not send private samples.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="s-blocked" aria-labelledby="bl-title">
+      <h2 id="bl-title">Blocked / unsupported / restricted-page cases</h2>
+      <div class="meta">
+        <span class="chip mock">MOCK</span>
+        <span class="chip blocked">Fail closed</span>
+      </div>
+      <div class="layout">
+        <div class="phone">
+          <h3>Error gallery (synthetic constant codes only)</h3>
+          <p class="status blocked"><strong>Restricted page:</strong> Capture blocked on <code>chrome://</code>, Web Store, PDF viewer, or other uninspectable roots. Recapture unavailable — use manual assistance.</p>
+          <p class="status blocked"><strong>Unsupported target:</strong> Cross-origin frame / canvas / opaque overlay inside crop. Coverage cannot be proven → crop denied. No “probably safe” gaps.</p>
+          <p class="status blocked"><strong>Blocked Fill:</strong> Page looks like payment/security/claim submit workflow, or field changed since restore. Preflight abort — local/manual result only.</p>
+          <p class="status warn"><strong>Expired / stale:</strong> Vault TTL or page generation mismatch. All approvals cleared. Fresh Inspect + Capture required. Old tokens cannot be reused.</p>
+          <div class="row">
+            <button type="button" disabled>Capture opaque preview locally</button>
+            <button type="button" disabled>Analyze</button>
+            <button type="button" disabled>Fill selected fields</button>
+            <button type="button" class="secondary">Cancel and clear</button>
+          </div>
+        </div>
+        <div class="notes">
+          <p><strong>Annotation:</strong> UI shows coarse supported/blocked states only — no original pixels, private coordinates, or restored secrets in error text.</p>
+          <p>These panels document required messaging for UI Level 2+ integration; they do not execute Ajay’s controller checks.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="checklist" aria-labelledby="cl-title">
+      <h2 id="cl-title">Embedded acceptance checklist (see README)</h2>
+      <div class="meta"><span class="chip mock">MOCK ARTIFACT</span></div>
+      <ul class="tight">
+        <li>Capture · mask/crop preview · fixed <code>***</code> · first/last opt-in (local-only, off) · Analyze · local restored preview · separate Fill/manual submission · provider/mode disclosure</li>
+        <li>Blocked / unsupported / restricted-page · clear not-connected</li>
+        <li>No real secrets/network · mocks do not claim redaction implementation · local mode not labelled inherently private</li>
+      </ul>
+      <p class="disclaimer">Full state checklist with expected/observed columns lives in <code>README.md</code> beside this file.</p>
+    </section>
+  </main>
+
+  <footer class="banner">
+    <p class="eyebrow">Stop after Level 1 mocks</p>
+    <p class="disclaimer">
+      Next checkpoint (explicit request only): Extension UI Level 2 — integrate approved controls with Ajay’s privacy contracts without duplicating vault logic.
+      Shared label coordination: Shravya owns main web UI wording elsewhere; keep extension privacy labels aligned to the constant registry above.
+    </p>
+  </footer>
+</body>
+</html>

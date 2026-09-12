@@ -420,7 +420,12 @@
         showError(`${error.message} Reload the extension before entering new data.`);
       }
     } finally {
-      if (token === epoch) { busy = false; updateControls(); }
+      if (token === epoch) {
+        busy = false;
+        updateControls();
+        const clear = byId("clear-session");
+        if (document.activeElement === clear) clear.scrollIntoView({ block: "nearest" });
+      }
     }
   });
 

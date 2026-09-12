@@ -54,13 +54,17 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official
+- **Source types (record-level summary; not a positional zip with URLs):** official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Quoted from official MembersFAQ OTCP. Some later digital flows may have reduced printout dependence; check live portal.
 
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- [official] https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
 
 ## Complete source record
 

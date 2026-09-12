@@ -59,16 +59,25 @@ EPFO_office
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, forum, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, forum, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Widely reported operational failure mode; no single public rejection code.
 
-- https://righttoinformation.wiki/practical-guides/pf-transferred-to-wrong-member-id-correction
-- https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
-- https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
-- https://www.reddit.com/r/epfoindia/comments/1taoams/epfo_pf_transfer_stuck_for_4_years_amount/
-- https://epfigms.gov.in/
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://epfigms.gov.in/
+
+### Secondary (news / blog / forum)
+
+- [blog] https://righttoinformation.wiki/practical-guides/pf-transferred-to-wrong-member-id-correction
+- [blog] https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+- [blog] https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
+- [forum] https://www.reddit.com/r/epfoindia/comments/1taoams/epfo_pf_transfer_stuck_for_4_years_amount/
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 
