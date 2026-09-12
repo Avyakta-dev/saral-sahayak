@@ -89,11 +89,16 @@
     await verify(s);
     check(new Set(message.ids).size === message.ids.length && message.ids.every(id => s.inspection.candidates.some(candidate => candidate.id === id)), "Only listed selected fields can be read.");
     let values = await chrome.tabs.sendMessage(s.tabId, { type: "PRIVACY_READ", generation: s.inspection.generation, ids: message.ids }, { documentId: s.documentId });
-    check(session === s, "Privacy capture was cancelled.");
-    check(Array.isArray(values), "Approved field values could not be read safely.");
-    try { s.vault.approve(values, s.binding); }
-    finally { for (const item of values) if (item && typeof item === "object") item.value = ""; }
-    values = null;
+    try {
+      check(session === s, "Privacy capture was cancelled.");
+      check(Array.isArray(values), "Approved field values could not be read safely.");
+      s.vault.approve(values, s.binding);
+    } finally {
+      if (Array.isArray(values)) {
+        for (const item of values) if (item && typeof item === "object") item.value = "";
+      }
+      values = null;
+    }
     await verify(s);
     // All source pixels are denied in this first slice. Avoid capturing secret-bearing originals entirely.
     const artifact = await PrivacyRaster.opaqueRaster(message.crop, s.inspection.cropLimits);
