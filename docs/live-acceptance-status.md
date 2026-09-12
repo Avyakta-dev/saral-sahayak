@@ -45,3 +45,7 @@ Merged deliverables: backend foundation/agent, output-security fixes, corpus gen
 Note: #16 / #11 / #24 are closed as L1 contracts/UI only; dependent higher levels stay open.
 
 Each person should read their issue and the linked reference guide, inspect current code, work one level at a time, and submit evidence with the PR. Do not automatically advance dependent levels, publish private examples, or equate local models with private processing.
+
+## Pitch / differentiation
+
+For hackathon judges asking how this differs from ChatGPT, see [Why not ChatGPT?](why-not-chatgpt.md). That note does not change the live results above—live acceptance remains open until a validated success exists.
