@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "status": "error",
+  "language": "en",
+  "classification": null,
+  "explanation": [],
+  "actions": [],
+  "required_documents": [],
+  "draft": null,
+  "citations": [],
+  "warnings": [
+    "SYNTHETIC EXAMPLE ONLY: documentation fixture, not a captured runtime response or policy advice.",
+    "The agent is not implemented; configuring a model does not establish runtime readiness."
+  ],
+  "questions": [],
+  "error": {
+    "code": "agent_not_implemented",
+    "message": "The backend foundation is available; analysis is not implemented yet."
+  }
+}

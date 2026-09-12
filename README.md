@@ -4,7 +4,9 @@ An AI-assisted guide to understanding and resolving rejected EPFO claims, with p
 
 ## Current status
 
-This repository contains product references, source data and the current design. Application code, runtime file-reading tools, dependencies and deployment are not implemented yet. Knowledge-file generation is separate from implementing the application.
+This branch contains the backend foundation: typed API contracts, configurable model protocol adapters, bounded Markdown tools and offline tests. The real analysis agent, production Markdown corpus, frontend, OCR, document downloads and deployment are not implemented. Knowledge-file generation remains a separate task.
+
+The health endpoint can report a running server, but readiness and analysis explicitly report not-ready until agent integration is implemented. See the [backend contract and local setup](docs/backend-contract.md).
 
 The planned tool-using agent reads selected Markdown sections under `references/knowledge/epfo/` and bases answers on those sections and their original source URLs. It does not use embeddings, a vector database, a RAG/chunk pipeline or a deterministic alias retriever. It must not load the whole corpus into a prompt.
 
@@ -36,6 +38,15 @@ Start with text-based EPFO rejection analysis. Ground explanations, remedies and
 
 ## Local setup and collaboration
 
-There is no application to run or runtime dependency installation step yet. `main` is the shared integration baseline. Each task starts on a local temporary descriptive branch from up-to-date `main`; push that branch only when its pull request is ready, merge the reviewed PR into `main`, then delete the task branch locally and remotely. See [CONTRIBUTING.md](CONTRIBUTING.md) for the intended workflow; this is not a claim that remote settings or branch cleanup have been completed.
+Run the foundation locally with:
+
+```bash
+uv sync --frozen
+uv run uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+Copy `.env.example` to `.env` only when configuring your own provider; never commit the key. No live provider calls occur at startup. `/health/live` reports liveness; `/health/ready` and `/api/v1/analyze` intentionally return 503 in this foundation. Interactive API documentation is at `/docs`. Offline checks are `uv run pytest` and `uv run ruff check backend tests`.
+
+`main` is the shared integration baseline. Each task starts on a local temporary descriptive branch from up-to-date `main`; push that branch only when its pull request is ready, merge the reviewed PR into `main`, then delete the task branch locally and remotely. See [CONTRIBUTING.md](CONTRIBUTING.md) for the intended workflow; this is not a claim that remote settings or branch cleanup have been completed.
 
 Shareable PDF copies and searchable text companions are included in `references/`. The public presentation omits the private participant-contact slide. Original PDFs and the duplicate dataset ZIP are preserved locally in ignored `private-reference-originals/`; tool metadata, credentials, uploads and generated user documents are also excluded from Git.
