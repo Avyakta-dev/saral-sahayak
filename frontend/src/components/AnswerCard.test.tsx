@@ -303,7 +303,7 @@ describe('AnswerCard', () => {
     const { container } = renderCard(response, vi.fn(), 'live', onRetry, 'Try again (2 left)');
     expect(screen.getByText(response.error!.message)).toBeVisible();
     expect(screen.getByText(response.error!.code)).toBeVisible();
-    const message = container.querySelector('.answer-message')!;
+    const message = container.querySelector('.answer-message') as HTMLElement;
     for (const warning of response.warnings) {
       expect(within(message).getByText(warning)).toBeVisible();
     }
