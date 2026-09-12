@@ -3,7 +3,11 @@
 > **Hackathon build window:** 19 hours  
 > **Team:** Anish, Avyakta, Shravya, Ajay  
 > **Primary demo:** EPFO claim rejection  
-> **Stretch goal:** PM-JAY only after the EPFO flow is stable
+> **Stretch goal:** PM-JAY and voice only after the EPFO flow is stable
+
+**Status:** This is an implementation plan, not a completed application. Runtime code, file-reading tools, dependencies and deployment are not implemented yet. The [current Markdown agent design](markdown-agent-design.md) is the architecture source of truth above this plan and the historical PDFs/text. Markdown conversion is a separate generator task; verify its artifacts independently of runtime progress.
+
+**Architecture decision:** a tool-using agent reads bounded sections of public Markdown under `references/knowledge/epfo/` and cites file path, canonical record ID/heading and original source URLs. No embeddings, vector database, RAG/chunk pipeline or deterministic alias retriever; never load the entire corpus into the prompt. The original dataset remains source/archive only.
 
 ---
 
@@ -11,7 +15,9 @@
 
 ### One-line pitch
 
-**Saral Sahayak turns a confusing government claim rejection into a plain-language explanation, an exact fix, and a ready-to-use draft in under 30 seconds.**
+**Saral Sahayak aims to turn a confusing government claim rejection into a plain-language explanation, evidence-backed next steps and a usable draft, targeting under 30 seconds.**
+
+This is an unmeasured product target, not a performance claim. Unsupported cases must clarify or abstain rather than produce an exact-looking but ungrounded fix.
 
 ### Problem
 
@@ -37,42 +43,28 @@ PM-JAY is a stretch feature. It must never block the core EPFO experience.
 # 2. Core User Flow
 
 ```text
-User
-  │
-  ├── Paste rejection text
-  │
-  └── Upload rejection image
-          │
-          ▼
-    Extractor Agent
-          │
-          ▼
-    Structured rejection data
-          │
-          ▼
-    Classifier Agent
-          │
-          ▼
-    Rejection Category
-          │
-          ├───────────────┐
-          ▼               ▼
-     RAG / KB        User details
-          │               │
-          ├───────────────┤
-          ▼               ▼
-     Explainer       Fix Generator
-          │               │
-          └───────┬───────┘
-                  ▼
-              Draft Agent
-                  │
-                  ▼
-             Orchestrator
-                  │
-                  ▼
-             Final Response
+Paste rejection text (optional image extraction later)
+          ↓
+Extract supplied facts; preserve missing fields
+          ↓
+Tool-using agent/orchestrator
+          ↔ bounded list/read of public Markdown index and candidate sections
+          ↓
+Evidence-guided classification using canonical reason IDs
+          ├── ambiguous / insufficient evidence → clarify or abstain
+          ↓
+Selected evidence + source URLs + user-supplied details
+          ↓
+Explanation and supported fix steps
+          ↓
+Draft with placeholders for missing details
+          ↓
+Validate claim-level citations and uncertainty
+          ↓
+Structured response and honest UI status
 ```
+
+The Extractor, Classifier, Explainer, Fix Generator and Draft roles below are logical stages, not five mandatory deployed services. The agent may refine its classification after reading candidate Markdown sections.
 
 ---
 
@@ -107,7 +99,7 @@ A generated resubmission/appeal/request draft using the information supplied by 
 
 ### Grounding
 
-Show the source/evidence used for the result whenever possible.
+Require claim-level citations to Markdown paths, canonical record IDs/exact headings and original source URLs for substantive guidance. Clarify or abstain when evidence is unknown, ambiguous or insufficient.
 
 ---
 
@@ -148,7 +140,7 @@ Structured information:
 
 ### Purpose
 
-Map the extracted rejection to a known category in the curated knowledge base.
+Use bounded Markdown index and candidate-section reads to map the extracted rejection to a supported canonical reason and category. Classification is evidence-guided and may be refined after further permitted reads.
 
 ### Example
 
@@ -157,15 +149,17 @@ Input:
 "Name mismatch between Aadhaar and PF details"
 
 Output:
-EPFO_NAME_MISMATCH
+epfo-rr-001
 ```
 
 ### Output
 
 ```json
 {
-  "category_id": "EPFO_NAME_MISMATCH",
-  "confidence": 0.94,
+  "reason_id": "epfo-rr-001",
+  "category": "KYC_Identity",
+  "confidence": "supported",
+  "rationale": "Candidate sections support the supplied Aadhaar/UAN mismatch context.",
   "matched_phrases": [
     "name mismatch",
     "Aadhaar",
@@ -176,60 +170,34 @@ EPFO_NAME_MISMATCH
 
 ### Rules
 
-- Prefer known categories from the knowledge base.
-- Do not invent a new government rule.
-- Low-confidence results should be clearly marked.
+- Use actual canonical IDs; the example is illustrative, not implemented or sufficient evidence by itself.
+- Do not invent government codes/rules or calibrated confidence probabilities.
+- Distinguish classification confidence from source confidence.
+- Ask a focused clarification or abstain for ambiguous/unknown cases; do not force a match.
 
 ---
 
-## 4.3 RAG / Knowledge Base
+## 4.3 Markdown Knowledge and File Tools
 
-The knowledge base is the grounding layer.
+**The LLM is not the source of truth.** The agent must read relevant public Markdown evidence before recommending actions. The [current design](markdown-agent-design.md) defines the authoritative conversion, tool and citation contracts.
 
-### Each record should contain
+### Knowledge contract
 
-```json
-{
-  "id": "EPFO_NAME_MISMATCH_001",
-  "scheme": "EPFO",
-  "category": "Name mismatch",
-  "rejection_phrases": [
-    "name mismatch",
-    "name does not match"
-  ],
-  "meaning": "...",
-  "possible_causes": [],
-  "fix_steps": [],
-  "required_documents": [],
-  "form": null,
-  "portal_action": null,
-  "sources": [],
-  "source_urls": [],
-  "verification_status": "verified"
-}
-```
+A separate generator will convert all 181 source records into `references/knowledge/epfo/reasons/<epfo-rr-NNN>.md`, preserving IDs `epfo-rr-001` through `epfo-rr-181`. The navigation index is `references/knowledge/epfo/README.md`; `sources.md`, `glossary.md`, `claim-types-overview.md` and `resolution-playbooks.md` live alongside it.
 
-### Important rule
+Each reason must retain its title, aliases, category, claim types, severity, message wording, meaning, causes, detection context, ordered fixes, required documents, actors, prevention tips, related IDs, source URLs/types, confidence, verification date and caveats under stable headings. Aliases are reference content for reasoning, not a deterministic lookup service. Maintain source records/catalog and regenerate Markdown to avoid drift.
 
-**The LLM is not the source of truth.**
+`references/epfo-claim-rejection-rag-dataset/` remains the import source/archive, including its historical chunks, not runtime input or fallback retrieval. PDFs/text remain historical product context. Generated paths describe the agreed output contract; verify actual output before declaring readiness.
 
-The workflow is:
+### Tools and safety
 
-```text
-Rejection
-   ↓
-Classifier
-   ↓
-Known category
-   ↓
-Retrieve verified knowledge
-   ↓
-LLM generation using retrieved context
-   ↓
-Answer
-```
+Anish implements read-only `list_files` and `read_file`, with relative paths resolved under the fixed public `references/knowledge/epfo/` root. Reject absolute/traversal/symlink paths and non-Markdown reads; no repository-wide access, private files, shell, writes, code execution or automatic URL fetching. Reference documents and uploads are untrusted data, never executable instructions.
 
-The system should avoid giving unsupported instructions when the knowledge base does not contain adequate evidence.
+Enforce the [design's safety budgets](markdown-agent-design.md#initial-safety-budgets) in code: initially 12 tool calls, 8 distinct files, 50 listed entries/page, at most 120 lines and 12 KiB per read, 48 KiB/12,000 tokens cumulative tool output and a 30-second request deadline. Continuations and retries count; stop explicitly when limits are reached. Read selected index/candidate sections, never the whole corpus in one prompt.
+
+### Evidence behavior
+
+Read the index, select plausible reason files, compare relevant sections and supporting guidance, then confirm classification or ask clarification. Only generate actions supported by evidence actually read. Cite Markdown path, canonical record ID/exact heading and original source URLs at claim level; preserve source authority and uncertainty. For unknown, ambiguous, conflicting or insufficient evidence, clarify or abstain. Missing knowledge or tool failure is an explicit error, not permission to invent guidance.
 
 ---
 
@@ -245,7 +213,7 @@ Turn bureaucratic/technical language into simple language.
 - Short explanation
 - English/Hindi
 - No unnecessary jargon
-- Must stay grounded in retrieved evidence
+- Must stay grounded in Markdown sections actually read and attach claim-level citations
 
 ### Example output
 
@@ -315,6 +283,7 @@ Possible outputs:
 - Clearly identify missing information.
 - Do not fabricate personal details.
 - Do not claim guaranteed success.
+- Draft only from supported actions; preserve source citations for factual assertions and suppress a ready-to-use draft when clarification or abstention is required.
 
 ---
 
@@ -326,28 +295,27 @@ The orchestrator owns the complete pipeline.
 
 1. Accept request
 2. Extract information
-3. Classify rejection
-4. Retrieve supporting knowledge
+3. Form candidate classification hypotheses
+4. Read bounded public Markdown evidence using tools, then confirm classification or clarify/abstain
 5. Run explanation/fix/draft work
-6. Merge outputs
+6. Merge outputs and validate claim-level file/heading/URL citations
 7. Return final structured response
 8. Send pipeline status to frontend
 
 ### Parallelization
 
-After the category and retrieved context are available, independent work should run in parallel where practical:
+After classification and cited Markdown evidence are available, explanation and fix generation may run in parallel. Drafting depends on approved actions and user details; all stages share one request budget:
 
 ```text
-                 ┌── Explainer ──────┐
-Classifier ──────┼── Fix Generator ──┼── Final Result
-                 └── Draft Agent ────┘
+Evidence ──┬── Explainer ────────────────┐
+           └── Fix Generator → Draft ────┴── Validated Result
 ```
 
 ---
 
-# 5. Final API Contract
+# 5. Proposed API Contract
 
-The frontend should receive one predictable response shape.
+The frontend should receive one predictable response shape. This illustrative shape is not implemented; Anish and Shravya must agree the concrete schema using the [citation and response contract](markdown-agent-design.md#citation-and-response-contract).
 
 ```json
 {
@@ -363,13 +331,16 @@ The frontend should receive one predictable response shape.
     "amount": null
   },
   "classification": {
-    "category_id": "...",
-    "confidence": 0.94
+    "reason_id": "epfo-rr-001",
+    "category": "KYC_Identity",
+    "confidence": "supported",
+    "rationale": "..."
   },
   "explanation": {
     "title": "...",
     "body": "...",
-    "language": "en"
+    "language": "en",
+    "citation_ids": ["e1"]
   },
   "fix": {
     "steps": [],
@@ -382,10 +353,23 @@ The frontend should receive one predictable response shape.
     "content": "...",
     "missing_fields": []
   },
-  "sources": [],
+  "citations": [
+    {
+      "id": "e1",
+      "path": "references/knowledge/epfo/reasons/epfo-rr-001.md",
+      "record_id": "epfo-rr-001",
+      "heading": "<exact heading read from generated Markdown>",
+      "source_urls": [
+        "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      ]
+    }
+  ],
+  "clarification_questions": [],
   "warnings": []
 }
 ```
+
+The ID and URL above come from a source record, but the heading and claims are placeholders to validate against actual Markdown reads. Each fix step and factual draft assertion must also reference citation IDs. Preserve source authority, confidence and verification metadata where available. Use `needs_clarification`, `unsupported` or `error` instead of `success` when appropriate, with questions/limitations and no unsupported fixes or ready-to-use draft.
 
 ---
 
@@ -414,20 +398,20 @@ Language:
 
 ## Screen 2 — Processing
 
-Show live pipeline status:
+Show actual reported progress only; do not simulate live file reads or source verification:
 
 ```text
-✓ Extracting
-✓ Identifying rejection
-● Finding verified solution
-○ Preparing draft
+Completed: Extracting
+In progress: Reading relevant Markdown evidence
+Pending: Confirming reason and supported actions
+Pending: Preparing draft
 ```
 
 Possible status labels:
 
 - Extracting
 - Classifying
-- Retrieving guidance
+- Reading Markdown evidence
 - Explaining
 - Finding fix
 - Drafting
@@ -490,18 +474,12 @@ Show:
 - Agent orchestration
 - LLM integration
 - API contracts
-- RAG integration
+- Bounded Markdown file tools and evidence/citation integration
 - Environment/configuration
 - Final integration
 - Deployment
 - Final debugging
 - Demo reliability
-
-### Branch
-
-```text
-feature/anish-backend
-```
 
 ### Critical principle
 
@@ -509,7 +487,7 @@ Anish owns the integration spine. Other team members should not silently change 
 
 ---
 
-## Avyakta — Research / Knowledge Base / RAG
+## Avyakta — Research / Markdown Knowledge / Evidence Verification
 
 ### Owns
 
@@ -521,19 +499,13 @@ Anish owns the integration spine. Other team members should not silently change 
 - Required documents
 - Forms/actions
 - Source collection
-- Knowledge base JSON
-- Retrieval system
-- Source verification
-
-### Branch
-
-```text
-feature/avyakta-rag
-```
+- Markdown knowledge authoring/curation and index clarity
+- Source record/catalog maintenance with reproducible Markdown rebuilds
+- Evidence verification, authority/currency and caveat review
 
 ### Main deliverable
 
-A reliable, structured, source-backed EPFO knowledge base.
+A reliable, source-backed Markdown knowledge collection covering all 181 canonical reasons, with a navigable index and preserved evidence. File tools and orchestration belong to Anish; the generator is a separate task.
 
 ---
 
@@ -552,12 +524,6 @@ A reliable, structured, source-backed EPFO knowledge base.
 - Loading/error states
 - Visual polish
 
-### Branch
-
-```text
-feature/sharvya-ui
-```
-
 ### Main deliverable
 
 A complete frontend that works with mocked data first and the real API later.
@@ -574,16 +540,11 @@ A complete frontend that works with mocked data first and the real API later.
 - PDF/DOCX templates
 - Test fixtures
 - Sample rejection inputs
-- Regression testing
+- Regression/security testing
+- Run/test/demo documentation
 - Hindi checks
 - Demo samples
 - PPT/demo support
-
-### Branch
-
-```text
-feature/ajay-documents-tests
-```
 
 ### Main deliverable
 
@@ -593,115 +554,89 @@ Reliable supporting systems and a tested, demo-ready build.
 
 # 8. Repository Structure
 
+Existing documentation/source references and proposed generator/runtime paths are shown together below. Runtime modules are not implemented; the Python module layout is a proposal, not an installed stack. Generator implementation is separate from application implementation.
+
 ```text
 saral-sahayak/
-│
 ├── README.md
-├── PROJECT_PLAN.md
-├── ARCHITECTURE.md
+├── AGENTS.md
 ├── CONTRIBUTING.md
 ├── .gitignore
-├── .env.example
-│
-├── backend/
+├── .env.example                       # proposed
+├── references/
+│   ├── README.md
+│   ├── team-work-levels.md
+│   ├── planning/
+│   │   ├── markdown-agent-design.md   # current architecture
+│   │   └── hackathon-plan.md
+│   ├── knowledge/epfo/               # generator output contract
+│   │   ├── README.md
+│   │   ├── sources.md
+│   │   ├── glossary.md
+│   │   ├── claim-types-overview.md
+│   │   ├── resolution-playbooks.md
+│   │   └── reasons/epfo-rr-NNN.md     # 181 records
+│   ├── epfo-claim-rejection-rag-dataset/ # source/archive only
+│   ├── pdfs/                         # historical context
+│   └── text/                         # historical context
+├── backend/                          # proposed application
 │   ├── main.py
 │   ├── api/
 │   │   ├── routes.py
 │   │   └── schemas.py
-│   │
 │   ├── agents/
 │   │   ├── extractor.py
 │   │   ├── classifier.py
 │   │   ├── explainer.py
 │   │   ├── fix_generator.py
 │   │   └── draft_agent.py
-│   │
-│   ├── orchestrator/
-│   │   └── pipeline.py
-│   │
-│   ├── rag/
-│   │   ├── retriever.py
-│   │   └── knowledge.py
-│   │
+│   ├── orchestrator/pipeline.py
+│   ├── tools/knowledge_files.py      # bounded list/read, not retrieval
 │   ├── services/
 │   │   ├── llm.py
 │   │   └── documents.py
-│   │
 │   └── config.py
-│
-├── data/
-│   ├── epfo/
-│   │   ├── rejection_categories.json
-│   │   ├── remedies.json
-│   │   └── sources.json
-│   │
-│   └── samples/
-│       ├── text/
-│       └── images/
-│
-├── frontend/
+├── frontend/                         # proposed
 │   ├── app/
 │   ├── components/
 │   ├── lib/
 │   └── types/
-│
-├── documents/
+├── documents/                        # proposed
 │   ├── templates/
-│   └── generated/
-│
-├── tests/
-│   ├── classifier/
-│   ├── rag/
-│   ├── pipeline/
-│   └── fixtures/
-│
-└── docs/
-    ├── architecture.md
-    ├── dataset.md
-    └── demo.md
+│   └── generated/                    # ignored user outputs
+└── tests/
+    ├── knowledge_tools/               # proposed application tests
+    ├── classifier/
+    ├── pipeline/
+    └── fixtures/                      # synthetic inputs only
 ```
 
 ---
 
 # 9. Git Strategy
 
-## Main branch
+`main` is the shared integration baseline. Ownership is name-to-role only. This section describes the intended workflow, not verified remote settings or completed branch cleanup.
 
-```text
-main
-```
+### Temporary task workflow
 
-`main` must remain runnable.
+1. Preserve unfinished work; fetch and fast-forward local `main` from the remote before each new task.
+2. Create a local temporary descriptive branch, for example `task/markdown-file-tools`. Keep focused commits local while work is in progress.
+3. Push the task branch only when its pull request is ready. PRs need a pushed source branch; explicitly choose `main` as the PR base rather than relying on the remote default.
+4. Coordinate shared API/schema changes with Anish, update from `main` before merge when needed, and merge reviewed PRs into `main`.
+5. Delete the task branch remotely and locally after merge; preserve any unmerged work. Start the next task from newly updated `main`.
+6. No direct task pushes to `main`, destructive overwrites or force-pushing others' work. Once an application exists, merges must keep it runnable; until then validate documentation and knowledge artifacts.
 
-## Feature branches
-
-```text
-feature/anish-backend
-feature/avyakta-rag
-feature/sharvya-ui
-feature/ajay-documents-tests
-```
-
-### Rules
-
-1. No direct pushes to `main`.
-2. Each person works primarily in their own branch.
-3. Keep commits small and descriptive.
-4. Do not silently change shared API contracts.
-5. Before a major merge, update from `main`.
-6. Anish performs final integration merges.
-7. Every merged feature must keep the project runnable.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#branch-workflow) for commands and cleanup caveats. Remote default/protection settings require separate authorization and verification.
 
 ### Commit examples
 
 ```text
-feat: add extractor agent
-feat: add EPFO knowledge base
+feat: add bounded Markdown file tools
 feat: add result screen
 feat: add draft generation
 fix: handle empty rejection
-fix: improve retrieval matching
-test: add name mismatch cases
+fix: preserve evidence section citations
+test: reject knowledge path traversal
 docs: update architecture
 ```
 
@@ -714,6 +649,7 @@ docs: update architecture
 ```text
 backend/agents/
 backend/orchestrator/
+backend/tools/knowledge_files.py
 backend/api/
 backend/services/
 ```
@@ -721,9 +657,8 @@ backend/services/
 ## Avyakta
 
 ```text
-data/
-backend/rag/
-docs/dataset.md
+references/knowledge/epfo/
+references/epfo-claim-rejection-rag-dataset/  # source curation; rebuild Markdown
 ```
 
 ## Shravya
@@ -737,7 +672,7 @@ frontend/
 ```text
 documents/
 tests/
-data/samples/
+tests/fixtures/
 ```
 
 ### Shared / protected
@@ -759,18 +694,19 @@ README.md
 
 ### Anish
 
-- Initialize repository
+- Inspect repository and start a temporary task from up-to-date main
 - Set backend structure
 - Define API contracts
 - Define agent output schemas
 - Create orchestration skeleton
+- Define bounded list/read tools, path containment, budgets and citation schemas
 
 ### Avyakta
 
 - Begin EPFO research
 - Collect authoritative sources
 - Define initial rejection categories
-- Start knowledge-base schema
+- Agree Markdown record headings/index and review the separate generator contract
 
 ### Shravya
 
@@ -801,17 +737,18 @@ Build:
 - Extractor
 - Classifier
 - Basic orchestrator
+- Read-only Markdown file tools with containment/budget tests
 - LLM interface
 
 ## Avyakta
 
 Build:
 
-- Initial verified knowledge base
-- Rejection phrase mapping
-- Remedy data
-- Source metadata
-- Retrieval prototype
+- Review 181-record Markdown conversion and index navigation
+- Aliases and claim-type context as Markdown evidence
+- Remedy content with preserved caveats
+- Original URL/source metadata validation
+- Supported, ambiguous and unknown evidence cases
 
 ## Shravya
 
@@ -847,7 +784,7 @@ Build:
 - Explainer
 - Fix Generator
 - Draft Agent
-- RAG integration
+- Bounded Markdown file tools and evidence/citation integration
 - Complete orchestration
 
 ## Avyakta
@@ -859,7 +796,7 @@ Expand:
 - Documents
 - Forms
 - Sources
-- Retrieval quality
+- Markdown navigation, source fidelity and ambiguous-case evidence review
 
 ## Shravya
 
@@ -884,9 +821,9 @@ Input
  ↓
 Extract
  ↓
-Classify
+Read candidate Markdown sections
  ↓
-Retrieve
+Confirm reason or clarify/abstain
  ↓
 Explain
  ↓
@@ -909,7 +846,7 @@ The following MUST work:
 2. Analyze it
 3. Extract rejection information
 4. Classify the rejection
-5. Retrieve grounded information
+5. Read bounded Markdown evidence and preserve path/heading/URL citations
 6. Explain it
 7. Generate fix steps
 8. Generate a draft
@@ -931,15 +868,17 @@ Priority order:
 - Error handling
 - Empty input
 - LLM failure
-- Retrieval failure
+- Missing knowledge or file-tool failure
+- Path traversal/symlink denial and document prompt injection
+- Tool-call, output and deadline budget exhaustion
 - Invalid image
 - Missing fields
 
 ## 2. Grounding
 
-- Source display
-- Verified knowledge
-- Confidence
+- Claim-level path, record ID/heading and original URL display
+- Evidence actually read; official/secondary distinction and caveats
+- Classification uncertainty separate from source confidence
 - Avoid unsupported claims
 
 ## 3. UX
@@ -1010,11 +949,13 @@ The MVP is complete only when a user can:
 - See extraction
 - See classification
 - Receive a grounded explanation
-- Receive exact actionable fix steps
+- Receive evidence-supported actionable fix steps
 - See relevant documents/forms/actions where supported
 - Generate a draft
 - Download the draft
 - Switch between English and Hindi
+
+Acceptance also requires clarification/abstention for unknown, ambiguous or insufficient evidence; no forced reason or unsupported ready-to-use draft. Validate all 181 generated records/index links, citation fidelity, read-only public-root containment, document-instruction rejection and budget limits. Trace checks must show selective Markdown reads rather than full-corpus prompts.
 
 The system must clearly state that it is a guidance tool and does not guarantee appeal/rejection outcomes.
 
@@ -1029,6 +970,9 @@ Do not spend the 19-hour window on:
 - Complex persistence
 - Live EPFO API integration
 - Complex microservices
+- Embeddings or a vector database
+- Runtime RAG/chunk or deterministic alias retrieval
+- Full-corpus prompt stuffing
 - Custom ML training
 - Fine-tuning
 - Mobile application
@@ -1063,7 +1007,7 @@ Show a clear explanation.
 
 ### Step 4 — Fix
 
-Show exact actionable steps.
+Show supported actionable steps and any remaining uncertainty.
 
 ### Step 5 — Draft
 
@@ -1079,11 +1023,11 @@ English → हिन्दी
 
 ### Step 7 — Sources
 
-Show that the answer is grounded in the curated knowledge base.
+Show the exact Markdown paths, canonical record IDs/headings and original source URLs used. Include an ambiguous or unknown case to demonstrate clarification/abstention rather than invented guidance.
 
 ### Final message
 
-> We turn "claim rejected" into "here's exactly what to do."
+> We turn "claim rejected" into understandable, source-backed next steps — and say when more information is needed.
 
 ---
 
@@ -1106,7 +1050,7 @@ Build in parallel:
       ┌────────┼────────┐
       ↓        ↓        ↓
   Avyakta   Shravya    Ajay
-   RAG       UI      Docs/Test
+ Knowledge   UI      Docs/Test
       └────────┼────────┘
                ↓
           Final Product
