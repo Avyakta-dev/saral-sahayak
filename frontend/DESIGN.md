@@ -26,7 +26,7 @@ Configuration failures do not silently switch into preview. Switching modes is e
 - API warnings/limitations are visible by default; detailed source locations remain expandable. Preserve the reviewed “Not a general chatbot” explanation of bounded evidence, clarification and cited actions.
 - Preserve the shared backend-status/readiness summary. Configuration and structural readiness are not connectivity, authorization or policy-quality guarantees. Access denial never prompts users for a shared gateway token.
 - Preserve path, canonical record ID, exact heading, lines, zero-based columns and original source URLs. Keep remedy/source excerpts as separate evidence items.
-- Draft placeholders stay visible. Copy includes factual-block sources and limitations. API drafts and explicit samples use different notices; neither promises a successful claim outcome.
+- Draft placeholders stay visible. Copy includes factual-block sources and limitations. API drafts and explicit samples use different notices; neither promises a successful claim outcome. Live draft Download appears only when `downloads_available` is true; otherwise export stays copy-only.
 
 ## Interaction and privacy
 

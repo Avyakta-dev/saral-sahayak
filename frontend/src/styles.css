@@ -140,6 +140,9 @@ h3 {
   color: #506447;
 }
 .language-select select {
+  max-width: 12rem;
+  min-height: 44px;
+  line-height: 1.6;
   color: #354b30;
   font-size: 13px;
   border: 0;
@@ -1301,6 +1304,12 @@ mark {
   font-size: 10px;
   color: #846632;
 }
+.draft-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .draft-toolbar button {
   display: inline-flex;
   align-items: center;
@@ -1472,6 +1481,7 @@ mark {
     min-height: 450px;
   }
   .app-header {
+    flex-wrap: wrap;
     min-height: 70px;
     padding: 17px 20px;
     gap: 10px;

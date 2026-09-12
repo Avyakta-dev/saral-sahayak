@@ -290,6 +290,72 @@ describe('AnswerCard', () => {
     }
   });
 
+  it('hides download while capabilities.downloads_available is false', async () => {
+    const user = userEvent.setup();
+    render(
+      <AnswerCard
+        response={getDemoResponse('success', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        downloadsAvailable={false}
+      />,
+    );
+    await user.click(screen.getByRole('tab', { name: 'Draft' }));
+    expect(screen.getByRole('button', { name: 'Copy draft' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+  });
+
+  it('downloads a local draft .txt only when downloads_available is true', async () => {
+    const user = userEvent.setup();
+    const response = getDemoResponse('success', 'en');
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" downloadsAvailable />);
+    await user.click(screen.getByRole('tab', { name: 'Draft' }));
+
+    const createObjectURL = vi.fn(() => 'blob:synthetic-draft');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi.fn();
+    const remove = vi.fn();
+    const anchor = {
+      href: '',
+      download: '',
+      rel: '',
+      style: { display: '' },
+      click,
+      remove,
+    } as unknown as HTMLAnchorElement;
+    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      if (tag === 'a') return anchor;
+      return document.createElement(tag);
+    }) as typeof document.createElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+
+    await user.click(screen.getByRole('button', { name: 'Download draft' }));
+
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(anchor.download).toBe('saral-sahayak-draft-en.txt');
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-draft');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Draft downloaded, including disclosures.',
+    );
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('never offers download for unsupported cases without a draft', () => {
+    render(
+      <AnswerCard
+        response={getDemoResponse('unsupported', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        downloadsAvailable
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument();
+  });
+
   it('reports denied clipboard access honestly and allows a retry', async () => {
     const user = userEvent.setup();
     const writeText = vi

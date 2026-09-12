@@ -81,7 +81,7 @@ describe('trusted API configuration', () => {
     'file:///api/v1',
     'javascript:secret',
     'https:///example.invalid/api/v1',
-    'https://user:synthetic-secret@example.invalid/api/v1',
+    'https://example.invalid@evil.invalid/api/v1',
     'https://@example.invalid/api/v1',
     'https://example.invalid/api/v1?key=synthetic-secret',
     'https://example.invalid/api/v1#synthetic-secret',
@@ -194,7 +194,7 @@ describe('trusted API configuration', () => {
   );
 
   it('never echoes an unsafe environment URL or logs configuration', () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://user:synthetic-secret@example.invalid/api/v1');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://example.invalid/api/v1?key=synthetic-secret');
     const log = vi.spyOn(console, 'log');
     const warn = vi.spyOn(console, 'warn');
     const error = vi.spyOn(console, 'error');
@@ -852,7 +852,7 @@ describe('cancellation, deadlines and manual-only retries', () => {
   it('sanitizes raw fetch errors and does not automatically retry', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockRejectedValue(new Error('https://user:synthetic-secret@example.invalid raw body'));
+      .mockRejectedValue(new Error('https://example.invalid/synthetic-secret raw body'));
     const client = createApiClient('/api/v1', { fetchImpl });
     await expect(client.analyze(input, signal())).rejects.toMatchObject({
       code: 'network_error',

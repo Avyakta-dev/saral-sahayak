@@ -82,9 +82,9 @@
     };
     const nextGeneration = () => { generation = `${seed}-${++revision}`; };
 
-    function notify() {
+    function notify(retiredGeneration) {
       try {
-        const pending = env.chrome.runtime.sendMessage({ type: 'PRIVACY_INVALIDATED' }, () => { void env.chrome.runtime.lastError; });
+        const pending = env.chrome.runtime.sendMessage({ type: 'PRIVACY_INVALIDATED', generation: retiredGeneration }, () => { void env.chrome.runtime.lastError; });
         pending?.catch?.(() => {});
       } catch (_) { /* Losing the worker never retains or restores the session. */ }
     }
@@ -103,9 +103,10 @@
 
     function invalidate() {
       const hadState = state !== null;
+      const retiredGeneration = generation;
       cleanup();
       nextGeneration();
-      if (hadState) notify();
+      if (hadState) notify(retiredGeneration);
     }
 
     function geometry() {
@@ -419,8 +420,8 @@
         };
       } finally {
         prepared.length = 0; // No preflight values survive this operation.
-        // Completion consumes the snapshot and sends the existing data-free
-        // notification. A late operation must not clear a newer inspection.
+        // Completion consumes the snapshot and sends only its local generation.
+        // A late operation must not clear a newer inspection.
         if (state === active) invalidate();
       }
     }

@@ -98,6 +98,18 @@ describe('synthetic demo fixtures', () => {
     });
   });
 
+  it.each(['kn', 'ta', 'te', 'ml'] as const)(
+    'uses authored %s sample copy instead of the English fixture wording',
+    (language) => {
+      const response = getDemoResponse('success', language);
+      const sample = mockContent[language];
+      expect(response.language).toBe(language);
+      expect(response.explanation[0].text).toBe(sample.explanation);
+      expect(response.classification?.category).toBe(sample.category);
+      expect(response.explanation[0].text).not.toBe(originalSuccess.explanation[0].text);
+    },
+  );
+
   it('preserves the intentionally skeletal English success fixture', () => {
     const response = getDemoResponse('success', 'en');
     for (const field of [

@@ -288,7 +288,7 @@ test('host restoration renders hostile values as inert text and offers no unreso
     `applicant name: ${RESTORED_NAME}`, `<b>contact email</b>: ${RESTORED_EMAIL}`, 'address: unresolved (not filled)',
   ]);
   assert.deepEqual(fillChecks(h).map(node => node.parent.textContent), [
-    `applicant name → ${RESTORED_NAME}`, `<b>contact email</b> → ${RESTORED_EMAIL}`,
+    'applicant name', '<b>contact email</b>',
   ]);
   for (const id of ['restore-title-text', 'restored-slots', 'fill-fields']) {
     assert.equal(nodes(h.get(id)).some(node => ['IMG', 'B', 'SCRIPT'].includes(node.tagName)), false);
@@ -363,7 +363,7 @@ test('terminal filled response removes restored text and PNG, clears inputs, and
   const stale = [...h.port.onMessage.listeners][0], load = h.get('preview-image').onload;
   const selection = fillChecks(h)[0], change = [...selection.listeners.get('change')][0];
   h.reply(filled()); restorationScrubbed(h, 0);
-  assert.match(h.document.body.textContent, /field-a: filled — Field updated/);
+    assert.match(h.document.body.textContent, /1 filled, 0 failed, 0 skipped, 0 unknown/);
   assert.match(h.document.body.textContent, /Sites may autosave/);
   assert.match(h.document.body.textContent, /never clicks Submit/);
   const terminal = h.document.body.textContent, commands = plain(h.calls);
@@ -529,4 +529,62 @@ test('Level 2: cancel after outbound disclosure scrubs envelope and restored ban
   h.fire('cancel');
   restorationScrubbed(h, 1);
   assert.match(h.document.body.textContent, /Cancelled/);
+});
+
+test('Level 2: blocked capture during capturing ends with blocked chip and scrubs outbound', t => {
+  const h = harness(t); captured(h);
+  assert.equal(h.get('outbound-section').hidden, true);
+  h.reply({
+    type: 'expired',
+    message: 'Privacy operation blocked or source changed. No data was transmitted. Reopen to inspect again.',
+  });
+  scrubbed(h, 0);
+  assert.match(h.document.body.textContent, /Blocked capture/i);
+  assert.match(h.document.body.textContent, /Privacy operation blocked/i);
+  assert.match(h.document.body.textContent, /Analyze, upload, provider destination and Submit stayed disabled/i);
+  const mains = nodes(h.document.body).filter(node => node.tagName === 'MAIN');
+  assert.equal(mains.length, 1);
+  assert.equal(mains[0].getAttribute('data-fail-closed') || mains[0].attributes['data-fail-closed'], 'blocked');
+  assert.equal(nodes(h.document.body).some(node => ['Analyze', 'Upload image', 'Submit'].includes(node.textContent)), false);
+  assert.equal(h.calls.some(call => ['analyze', 'upload', 'submit'].includes(call.type)), false);
+});
+
+test('Level 2: stale page-change during preview scrubs envelope and labels stale', t => {
+  const h = harness(t); shown(h);
+  assert.equal(h.get('outbound-section').hidden, false);
+  h.reply({
+    type: 'expired',
+    message: 'The source page changed. Privacy state and preview were discarded.',
+  });
+  scrubbed(h, 0);
+  assert.match(h.document.body.textContent, /Stale \/ page changed/i);
+  assert.match(h.document.body.textContent, /source page changed/i);
+  const mains = nodes(h.document.body).filter(node => node.tagName === 'MAIN');
+  assert.equal(mains[0].getAttribute('data-fail-closed') || mains[0].attributes['data-fail-closed'], 'stale');
+  assert.equal(h.calls.some(call => call.type === 'analyze'), false);
+  noRaw(h);
+});
+
+test('Level 2: unavailable worker during inspect labels unavailable without enabling Analyze', t => {
+  const h = harness(t); inspect(h);
+  h.reply({
+    type: 'expired',
+    message: 'The local worker is unavailable. All session data have been cleared.',
+  });
+  scrubbed(h, 0);
+  assert.match(h.document.body.textContent, /Unavailable/i);
+  const mains = nodes(h.document.body).filter(node => node.tagName === 'MAIN');
+  assert.equal(mains[0].getAttribute('data-fail-closed') || mains[0].attributes['data-fail-closed'], 'unavailable');
+  assert.equal(h.calls.some(call => ['analyze', 'upload', 'submit'].includes(call.type)), false);
+});
+
+test('Level 2: provider-mode change after reviewed fail-closes and requires recapture', t => {
+  const h = harness(t); reviewed(h);
+  assert.equal(h.get('restore').disabled, false);
+  h.get('provider-mode').value = 'direct-remote';
+  h.fire('provider-mode', 'change', true);
+  scrubbed(h, 1);
+  assert.match(h.document.body.textContent, /invalidated the approved session|Recapture is required/i);
+  assert.equal(h.calls.some(call => call.type === 'analyze'), false);
+  assert.equal(h.calls.filter(call => call.type === 'cancel').length, 1);
 });

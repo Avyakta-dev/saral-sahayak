@@ -1158,6 +1158,9 @@ export default function App({
                             onEdit={() => editTurn(turn)}
                             mode={turn.sample ? 'sample' : 'live'}
                             qualityVerified={turn.qualityVerified ?? false}
+                            downloadsAvailable={
+                              !turn.sample && capabilities?.downloads_available === true
+                            }
                           />
                         ) : turn.failure ? (
                           <div className="api-transport-error" role="alert">
@@ -1421,7 +1424,7 @@ export default function App({
           {mode === 'api' && (
             <p>
               {capabilities?.downloads_available
-                ? 'The service reports downloads available, but no download endpoint is configured in this UI.'
+                ? 'Live drafts can save a local text file when the service reports downloads available. That is not a document service or claim submission.'
                 : 'Document downloads are unavailable.'}
             </p>
           )}

@@ -112,6 +112,6 @@ The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull request
 
 ## Review and integration status
 
-Anish accepted issue 24 through merged PR 35. This follow-up implements issue 25 and requests review; issue 26 requires completed/reviewed issue 25 before advancing. Real provider policy/translation quality, physical camera behavior, OCR and deployment are not certified by these tests.
+Anish accepted issue 24 through merged PR 35. This follow-up implements issue 25 and requests review; issue 26 requires completed/reviewed issue 25 before advancing. Live draft Download is shown only when `capabilities.downloads_available` is true; with the backend flag still false, export stays copy-only. Real provider policy/translation quality, physical camera behavior, OCR and deployment are not certified by these tests.
 
 See [WEB_UI_ACCEPTANCE.md](WEB_UI_ACCEPTANCE.md) for coverage, exact test evidence and remaining gates. Coordinate backend/API/CORS settings with Anish and image/document services with Ajay. No automatic issue closure or merge is implied by this document.

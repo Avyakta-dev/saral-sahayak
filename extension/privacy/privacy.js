@@ -23,8 +23,37 @@
   let deadline = 0;
   let timer = null;
 
+  // Classify coarse fail-closed reasons for the terminal UI (no secrets, no transport enablement).
+  function failClosedKind(message) {
+    const text = String(message || '');
+    if (/cancell?ed/i.test(text)) return 'cancelled';
+    if (/blocked|unsupported|restricted|coverage cannot|cannot be inspected|uninspectable/i.test(text)) return 'blocked';
+    if (/source (page |tab )?chang|stale|navigation invalidated|page was left|generation mismatch|tab switched|source tab/i.test(text)) {
+      return 'stale';
+    }
+    if (/unavailable|not connected|could not connect|worker disconnected|worker is unavailable/i.test(text)) {
+      return 'unavailable';
+    }
+    if (/expir/i.test(text)) return 'expired';
+    if (/closed/i.test(text)) return 'closed';
+    return 'ended';
+  }
+
+  function failClosedLabel(kind) {
+    switch (kind) {
+      case 'blocked': return 'Blocked capture';
+      case 'stale': return 'Stale / page changed';
+      case 'cancelled': return 'Cancelled';
+      case 'unavailable': return 'Unavailable';
+      case 'expired': return 'Expired';
+      case 'closed': return 'Closed';
+      default: return 'Session ended';
+    }
+  }
+
   function end(message, notify = true) {
     if (state === 'ended') return;
+    if (state === 'filling') message += ' Fill may have partially changed the page. Review it yourself; the extension never clicks Submit.';
     state = 'ended';
     clearInterval(timer);
     timer = null;
@@ -62,17 +91,30 @@
     }
     ui = null;
     document.body.replaceChildren();
+    const kind = failClosedKind(message);
     const main = document.createElement('main');
+    main.className = 'fail-closed';
+    main.setAttribute('data-fail-closed', kind);
     const title = document.createElement('h1');
     title.textContent = 'Local privacy session closed';
+    const chip = document.createElement('p');
+    chip.className = `fail-closed-chip fail-closed-${kind}`;
+    chip.textContent = failClosedLabel(kind);
     const status = document.createElement('p');
+    status.id = 'terminal-status';
     status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.setAttribute('aria-atomic', 'true');
     status.textContent = message;
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = 'Analyze, upload, provider destination and Submit stayed disabled. Recapture is required for a new local session. No automatic restart or submission.';
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Close';
+    close.setAttribute('aria-describedby', 'terminal-status');
     close.addEventListener('click', () => window.close());
-    main.append(title, status, close);
+    main.append(title, chip, status, note, close);
     document.body.append(main);
     close.focus();
   }
@@ -106,6 +148,7 @@
 
   function controls() {
     if (state === 'ended') return;
+    const active = document.activeElement;
     const busy = ['connecting', 'inspecting', 'capturing', 'reviewing', 'restoring', 'filling'].includes(state);
     ui.inspect.disabled = state !== 'ready';
     ui.fields.disabled = state !== 'inspected';
@@ -130,6 +173,17 @@
     ui['analyze-consent'].disabled = true;
     ui.cancel.disabled = false;
     ui['crop-form'].setAttribute('aria-busy', String(busy));
+    // Disabling the activated button otherwise drops keyboard focus to the body.
+    // Only focus host-authored status, never a restored value or its container.
+    if (active?.disabled) ui.status.focus();
+  }
+
+  function focusStep(id) {
+    // Do not steal focus if the user moved elsewhere while the worker was busy.
+    if (document.activeElement !== ui.status) return;
+    const heading = document.getElementById(id);
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
   }
 
   function send(message) {
@@ -203,6 +257,7 @@
     state = 'inspected';
     ui.status.textContent = 'Inspection complete. Select fields if wanted, check the crop, then explicitly Capture.';
     controls();
+    focusStep('inspect-title');
     tick();
   }
 
@@ -259,6 +314,7 @@
       imageReady = true;
       ui.status.textContent = 'Fully opaque local preview ready. Review it before confirming.';
       controls();
+      focusStep('preview-title');
     };
     ui['preview-image'].onerror = () => end('The local PNG could not be displayed. All session data have been cleared.');
     ui.status.textContent = 'Loading the locally generated opaque preview…';
@@ -306,7 +362,9 @@
           controls();
         });
         const text = document.createElement('span');
-        text.textContent = `${slot.label} → ${slot.value}`;
+        // Values are available for deliberate reading in the local result above,
+        // not repeated in checkbox names announced during keyboard navigation.
+        text.textContent = slot.label;
         label.append(checkbox, text);
         ui['fill-fields'].append(label);
         fillChoices.push({ slot: slot.slot, checkbox });
@@ -321,8 +379,9 @@
     ui['fill-outcomes'].hidden = true;
     ui['fill-outcomes'].textContent = '';
     state = 'restored';
-    ui.status.textContent = 'Local restoration complete. Select fields and approve Fill separately. Submit remains manual.';
+    ui.status.textContent = 'Local restoration complete. No analysis was performed. Select fields and approve Fill separately. Submit remains manual.';
     controls();
+    focusStep('fill-title');
     tick();
   }
 
@@ -331,15 +390,15 @@
       end('Invalid Fill result. The session has been cleared.');
       return;
     }
-    const lines = message.results.map((result) => {
-      const id = typeof result?.id === 'string' ? result.id : 'field';
-      const status = typeof result?.status === 'string' ? result.status : 'unknown';
-      const detail = typeof result?.message === 'string' ? result.message : '';
-      return `${id}: ${status}${detail ? ` — ${detail}` : ''}`;
-    });
-    const warnings = Array.isArray(message.warnings) ? message.warnings.filter((item) => typeof item === 'string') : [];
+    // Terminal announcements contain only host wording and status counts, never
+    // arbitrary adapter IDs/messages/warnings that could repeat a private value.
+    const counts = { filled: 0, failed: 0, skipped: 0, unknown: 0 };
+    for (const result of message.results) {
+      const status = ['filled', 'failed', 'skipped'].includes(result?.status) ? result.status : 'unknown';
+      counts[status] += 1;
+    }
     ui['fill-outcomes'].hidden = false;
-    ui['fill-outcomes'].textContent = [...lines, ...warnings, message.message || 'Fill finished. Nothing was submitted by the extension.'].join(' ');
+    ui['fill-outcomes'].textContent = `Fill attempt finished: ${counts.filled} filled, ${counts.failed} failed, ${counts.skipped} skipped, ${counts.unknown} unknown. Local preview and field data cleared. No analysis was performed. Sites may autosave. Review the page yourself; the extension never clicks Submit.`;
     state = 'filled';
     ui.status.textContent = 'Fill attempt finished. Review the page yourself; the extension never submits.';
     controls();
@@ -354,9 +413,13 @@
       return;
     }
     if (message.type === 'expired') {
-      end(typeof message.message === 'string' && message.message
-        ? message.message
-        : 'The local session expired. All preview and field data have been cleared. No automatic restart.', false);
+      const expired = !message.message || [
+        'Privacy window expired. Reopen from the source tab.',
+        'The 120-second request expired. Recapture is required.',
+      ].includes(message.message);
+      end(expired
+        ? 'The local session expired. All preview and field data have been cleared. No automatic restart.'
+        : 'Local operation blocked or source changed. Access may be unavailable or denied. All preview and field data have been cleared. Reopen from the source tab to inspect again.', false);
     } else if (message.type === 'ready' && state === 'connecting') {
       state = 'ready';
       ui.status.textContent = 'Local worker ready. Choose Inspect to request safe field metadata.';
@@ -371,6 +434,7 @@
       ui['restore-section'].hidden = false;
       ui.status.textContent = 'Local preview review confirmed. Restore is available; Analyze/upload/Submit stay disabled.';
       controls();
+      focusStep('restore-title');
     } else if (message.type === 'restored' && state === 'restoring') {
       restoredResult(message);
     } else if (message.type === 'filled' && state === 'filling') {
@@ -457,12 +521,20 @@
     // Contract: first/last stays off for the personal registry set. Any toggle clears approvals.
     if (!alive()) return;
     ui['first-last'].checked = false;
+    if (['reviewed', 'restoring', 'restored', 'filling', 'filled'].includes(state)) {
+      end('First/last preview change invalidated the approved session. Recapture is required. Analyze/upload stay disabled.');
+      return;
+    }
     clearLocalApprovals('First/last preview is unavailable for the current personal safe-label set. Prior review approvals were cleared.');
   });
   ui['provider-mode'].addEventListener('change', () => {
     if (!alive()) return;
     // Mode/destination changes invalidate approvals even while the control stays disabled for users.
     ui['provider-mode'].value = '';
+    if (['reviewed', 'restoring', 'restored', 'filling', 'filled'].includes(state)) {
+      end('Provider/mode or destination change invalidated the approved session. Recapture is required. Analyze/upload stay disabled.');
+      return;
+    }
     clearLocalApprovals('Provider/mode or destination change cleared prior Analyze/Fill approvals. Recapture when a destination is available.');
   });
   ui['analyze-consent'].addEventListener('change', () => {

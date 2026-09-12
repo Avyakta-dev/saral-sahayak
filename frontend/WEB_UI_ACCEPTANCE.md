@@ -44,7 +44,7 @@ On Windows, the real POSIX-secure backend runs through WSL with isolated locked 
 ## Review and remaining boundaries
 
 - Issue 24: already accepted by Anish; its accepted conversational design is retained.
-- Issue 25: code and reproducible acceptance evidence are submitted for review. Existing merged PRs 48, 51, 57 and 63 are preserved. The issue owner explicitly kept it open for reviewer acceptance and document downloads when a supported endpoint becomes available. Current `downloads_available: false` is respected; no endpoint is fabricated.
+- Issue 25: code and reproducible acceptance evidence are submitted for review. Existing merged PRs 48, 51, 57 and 63 are preserved. The issue owner explicitly kept it open for reviewer acceptance. Current `downloads_available: false` keeps export copy-only. When that flag is true, live drafts may save a local text file; that is not a document service or claim submission.
 - Issue 26: responsive/keyboard/axe, language presentation and failure-state checks are included as integration regressions. Formal Level 3 acceptance remains gated on reviewed issue 25 and independent language-quality/optional-service evidence. Automated checks do not provide those human approvals, so this task does not mark the issue complete.
 
 No real provider/source fetching, policy correctness, fluent multilingual output, physical-camera capture, OCR, public deployment or successful government outcome is certified. Live provider/credit use and shared backend/security changes require their own authorization. No automatic issue closure or merge is implied.

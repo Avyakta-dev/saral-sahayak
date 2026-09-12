@@ -3,6 +3,7 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Download,
   FileText,
   Info,
   ListChecks,
@@ -10,6 +11,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import type { AnalyzeResponse, Language } from '../lib/contracts';
+import { downloadDraftText, draftDownloadFilename } from '../lib/draftExport';
 import { Evidence } from './Evidence';
 
 type AnswerCardProps = {
@@ -21,6 +23,11 @@ type AnswerCardProps = {
   /** The parent owns the manual retry budget. */
   onRetry?: () => void;
   retryLabel?: string;
+  /**
+   * When capabilities.downloads_available is true, offer a local draft .txt download.
+   * Hidden while the backend reports downloads unavailable (no fake control).
+   */
+  downloadsAvailable?: boolean;
 };
 
 // Interface language is English; response content keeps its requested output language.
@@ -42,6 +49,10 @@ const labels = {
   copying: 'Copying…',
   copied: 'Sample copied, including its disclosures.',
   copyError: 'Could not copy. Select and copy the sample and its disclosures manually.',
+  download: 'Download sample',
+  downloading: 'Preparing…',
+  downloaded: 'Sample downloaded, including its disclosures.',
+  downloadError: 'Could not download. Use Copy sample instead.',
   disclosure: 'About this sample',
   disclosureNote:
     'Fictional preview, not a live analysis. Evidence is imaginary and unverified. Original fixture notes below are not a current service check.',
@@ -65,6 +76,9 @@ function answerLabels(isSample: boolean) {
     copy: 'Copy draft',
     copied: 'Draft copied with citations and limitations.',
     copyError: 'Could not copy. Select and copy the draft and its citations manually.',
+    download: 'Download draft',
+    downloaded: 'Draft downloaded, including disclosures.',
+    downloadError: 'Could not download. Use Copy draft instead.',
     disclosure: 'About this answer',
     disclosureNote:
       'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
@@ -92,25 +106,38 @@ function highlightPlaceholders(text: string) {
   );
 }
 
-function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSample: boolean }) {
+function ResponseTabs({
+  response,
+  isSample,
+  downloadsAvailable = false,
+}: {
+  response: AnalyzeResponse;
+  isSample: boolean;
+  downloadsAvailable?: boolean;
+}) {
   const text = answerLabels(isSample);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
   const [copyState, setCopyState] = useState<'idle' | 'pending' | 'copied' | 'error'>('idle');
+  const [downloadState, setDownloadState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const copyOperation = useRef(0);
+  const downloadOperation = useRef(0);
+  const showDownload = downloadsAvailable && Boolean(response.draft);
   const icons = [MessageCircle, ListChecks, FileText];
 
   useEffect(() => {
     setSelected(0);
     setChecked(new Set());
     setCopyState('idle');
-    // A clipboard completion must not update a replacement answer or an unmounted card.
+    setDownloadState('idle');
+    // Clipboard/download completion must not update a replacement answer or an unmounted card.
     return () => {
       copyOperation.current += 1;
+      downloadOperation.current += 1;
     };
-  }, [response, isSample]);
+  }, [response, isSample, downloadsAvailable]);
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -135,10 +162,8 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
     tabRefs.current[next]?.focus();
   }
 
-  async function copySample() {
-    if (!response.draft || copyState === 'pending') return;
-    const operation = ++copyOperation.current;
-    setCopyState('pending');
+  function exportBody() {
+    if (!response.draft) return '';
     const draftCitationIds = new Set(response.draft.blocks.flatMap((block) => block.citation_ids));
     const sourceNotes = response.citations
       .filter((citation) => draftCitationIds.has(citation.id))
@@ -150,7 +175,7 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
         `Lines: ${citation.start_line}–${citation.end_line}${citation.start_column != null && citation.end_column != null ? `; zero-based columns: ${citation.start_column}–${citation.end_column}` : ''}`,
         ...citation.source_urls,
       ]);
-    const copiedText = [
+    return [
       text.sample,
       text.draftNotice,
       response.draft.title,
@@ -163,12 +188,30 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
       text.disclosureNote,
       ...response.warnings,
     ].join('\n\n');
+  }
+
+  async function copySample() {
+    if (!response.draft || copyState === 'pending') return;
+    const operation = ++copyOperation.current;
+    setCopyState('pending');
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(copiedText);
+      await navigator.clipboard.writeText(exportBody());
       if (copyOperation.current === operation) setCopyState('copied');
     } catch {
       if (copyOperation.current === operation) setCopyState('error');
+    }
+  }
+
+  function downloadDraft() {
+    if (!response.draft || !showDownload || downloadState === 'pending') return;
+    const operation = ++downloadOperation.current;
+    setDownloadState('pending');
+    try {
+      downloadDraftText(draftDownloadFilename(response.language), exportBody());
+      if (downloadOperation.current === operation) setDownloadState('done');
+    } catch {
+      if (downloadOperation.current === operation) setDownloadState('error');
     }
   }
 
@@ -314,14 +357,30 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
           <>
             <div className="draft-toolbar" lang="en">
               <span>{text.draftNotice}</span>
-              <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
-                {copyState === 'copied' ? (
-                  <Check size={16} aria-hidden="true" />
-                ) : (
-                  <Copy size={16} aria-hidden="true" />
-                )}
-                {copyState === 'pending' ? text.copying : text.copy}
-              </button>
+              <div className="draft-toolbar-actions">
+                <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
+                  {copyState === 'copied' ? (
+                    <Check size={16} aria-hidden="true" />
+                  ) : (
+                    <Copy size={16} aria-hidden="true" />
+                  )}
+                  {copyState === 'pending' ? text.copying : text.copy}
+                </button>
+                {showDownload ? (
+                  <button
+                    type="button"
+                    onClick={downloadDraft}
+                    disabled={downloadState === 'pending'}
+                  >
+                    {downloadState === 'done' ? (
+                      <Check size={16} aria-hidden="true" />
+                    ) : (
+                      <Download size={16} aria-hidden="true" />
+                    )}
+                    {downloadState === 'pending' ? text.downloading : text.download}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <article className="draft-paper" aria-labelledby={`${id}-draft-title`}>
               <h3 id={`${id}-draft-title`}>{response.draft.title}</h3>
@@ -343,7 +402,15 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
               </p>
             )}
             <p className="copy-feedback" role="status" aria-live="polite" lang="en">
-              {copyState === 'copied' ? text.copied : copyState === 'error' ? text.copyError : ''}
+              {copyState === 'copied'
+                ? text.copied
+                : copyState === 'error'
+                  ? text.copyError
+                  : downloadState === 'done'
+                    ? text.downloaded
+                    : downloadState === 'error'
+                      ? text.downloadError
+                      : ''}
             </p>
           </>
         ) : (
@@ -364,6 +431,7 @@ export function AnswerCard({
   qualityVerified = false,
   onRetry,
   retryLabel = 'Try again',
+  downloadsAvailable = false,
 }: AnswerCardProps) {
   const isSample = mode === undefined ? sample : mode === 'sample';
   const text = answerLabels(isSample);
@@ -414,7 +482,11 @@ export function AnswerCard({
         </aside>
       )}
       {response.status === 'success' ? (
-        <ResponseTabs response={response} isSample={isSample} />
+        <ResponseTabs
+          response={response}
+          isSample={isSample}
+          downloadsAvailable={downloadsAvailable}
+        />
       ) : (
         <div className="answer-message">
           <p

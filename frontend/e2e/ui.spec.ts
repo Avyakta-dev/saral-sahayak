@@ -253,6 +253,23 @@ async function expectHeldDecode(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  // Deterministic offline baseline; never depend on a local/live model service.
+  await page.route('**/api/v1/capabilities', (route) =>
+    route.fulfill({
+      json: {
+        schema_version: '1.0',
+        default_language: 'en',
+        analysis_available: false,
+        languages: [
+          { code: 'en', name: 'English', native_name: 'English', quality_verified: false },
+          { code: 'hi', name: 'Hindi', native_name: 'हिन्दी', quality_verified: false },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/v1/analyze', (route) =>
+    route.fulfill({ status: 503, json: { message: 'Synthetic offline service unavailable.' } }),
+  );
   await page.goto('/');
 });
 

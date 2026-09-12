@@ -165,6 +165,17 @@ describe('API discovery and explicit consent', () => {
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
   });
 
+  it('offers a local draft download only after a live answer when downloads_available is true', async () => {
+    const capabilities = caps();
+    capabilities.downloads_available = true;
+    const { fake } = await ready(client(capabilities));
+    await submit();
+    fireEvent.click(screen.getByRole('tab', { name: 'Draft' }));
+    expect(screen.getByRole('button', { name: 'Copy draft' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Download draft' })).toBeVisible();
+    expect(fake.analyze).toHaveBeenCalledOnce();
+  });
+
   it('uses service native labels and submits only the selected enabled language', async () => {
     const subset = caps(['ta', 'en']);
     subset.languages[0].native_name = 'தமிழ் — enabled';
@@ -233,13 +244,13 @@ describe('API discovery and explicit consent', () => {
   });
 
   it('fails closed on invalid environment configuration without revealing its value', () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://private-user:private-secret@example.invalid/api/v1');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://example.invalid/api/v1?key=synthetic-config-token');
     render(<App />);
     type();
     expect(screen.getByText(/analysis service configuration is invalid/)).toBeVisible();
     expect(languages()).toBeDisabled();
     expect(analyzeButton()).toBeDisabled();
-    expect(document.body.textContent).not.toContain('private-secret');
+    expect(document.body.textContent).not.toContain('synthetic-config-token');
     examples();
     expect(screen.getByRole('button', { name: 'Preview' })).toBeVisible();
     expect(input()).toHaveValue(remark);
@@ -392,7 +403,7 @@ describe('real response states, edit context and explicit examples', () => {
     await ready(client(capabilities));
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     expect(screen.getByText(/configuration and knowledge structure only/)).toBeVisible();
-    expect(screen.getByText(/no download endpoint is configured/)).toBeVisible();
+    expect(screen.getByText(/Live drafts can save a local text file/)).toBeVisible();
     fireEvent.click(screen.getByText('Service language capabilities'));
     expect(screen.getByText('Service quality flag: true')).toBeVisible();
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
