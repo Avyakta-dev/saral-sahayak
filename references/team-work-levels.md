@@ -125,3 +125,7 @@ Build a Chrome/Brave MV3 popup using the same backend; a service worker is optio
 | 5 | Security/accessibility/browser regression and handoff | Check Chrome/Brave, limits, aborts, stale async completions, safe sources and transient storage. Record pass/fail/not-run; ZIP only if asked, no store publishing. Stop. |
 
 Levels 1–3 need no live agent. Level 4's successful production analysis still depends on the absent corpus and authorized model/grounding evaluation; resumed agent implementation and honest 503 transport tests are not end-to-end success. Read capabilities and offer only enabled languages rather than hardcoding the six accepted codes; none has verified quality. Keep existing backend tests, no keys or broad data collection, and follow the guide's 8,000-character/32,768-byte UTF-8 body limits. Start **Level 1 only**, then wait for an explicit request before each next level.
+
+### Separate image/OCR track
+
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.

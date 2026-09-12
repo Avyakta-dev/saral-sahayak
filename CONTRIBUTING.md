@@ -11,6 +11,8 @@ Ownership follows the [current Markdown agent design](references/planning/markdo
 
 Ajay follows the [five-level extension guide](references/ajay-extension-guide.md), starting with Level 1 only and stopping/reporting at each checkpoint, independently of Anish's resumed work. The analysis service reuses the existing FastAPI/adapters/file-tools/evidence foundation; the production corpus remains absent. Analysis gates missing model configuration or corpus structure with 503. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, still defaults to `en`, and exposes only enabled codes through `GET /api/v1/capabilities`; quality is unverified for every language. Do not change backend contracts to unblock the extension. This implementation round remains local, with no push or live provider requests.
 
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](references/ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
+
 ## Branch workflow
 
 `main` is the shared integration baseline. Ownership is name-to-role only, not a branch assignment. Every task uses its own local temporary descriptive branch created from up-to-date `main`.

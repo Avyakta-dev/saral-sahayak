@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.api.schemas import Classification
 from backend.languages import LanguageCode
 from backend.llm import ToolDefinition
+from backend.output_validation import LinkFreeText, NonBlankText
 
 
 class StrictModel(BaseModel):
@@ -29,7 +30,7 @@ class ReadFileArgs(StrictModel):
 
 
 class EvidenceText(StrictModel):
-    text: str = Field(min_length=1, max_length=6000)
+    text: NonBlankText = Field(min_length=1, max_length=6000)
     evidence_ids: list[Annotated[str, Field(min_length=1, max_length=128)]] = Field(
         min_length=1, max_length=30
     )
@@ -44,10 +45,10 @@ class FinalAnalysis(StrictModel):
     explanation: list[EvidenceText] = Field(default_factory=list, max_length=30)
     actions: list[EvidenceText] = Field(default_factory=list, max_length=30)
     required_documents: list[EvidenceText] = Field(default_factory=list, max_length=30)
-    questions: list[Annotated[str, Field(min_length=1, max_length=1000)]] = Field(
+    questions: list[Annotated[LinkFreeText, Field(min_length=1, max_length=1000)]] = Field(
         default_factory=list, max_length=10
     )
-    warnings: list[Annotated[str, Field(min_length=1, max_length=1000)]] = Field(
+    warnings: list[Annotated[LinkFreeText, Field(min_length=1, max_length=1000)]] = Field(
         default_factory=list, max_length=29
     )
 

@@ -4,6 +4,8 @@ This folder is the shared reference library for Saral Sahayak. Give your coding 
 
 **Current priority:** Anish's Level 2 implementation has explicitly resumed, not automatically completed. Changes remain local; no push or live provider requests in this round. Ajay independently starts the [extension guide](ajay-extension-guide.md) at Level 1 only, stopping and reporting after each requested level. His OCR/document downloads are deferred, not reassigned. Shravya retains web UI ownership and shared UI consistency; preserve existing tests.
 
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
+
 ## Copy-paste prompt
 
 > I am Anish [replace with your name]. Read AGENTS.md, references/README.md, CONTRIBUTING.md, my section of references/team-work-levels.md and references/planning/markdown-agent-design.md. Then read the implementation plan and relevant source references. Inspect the current code and working context within the task's permissions. Explain my responsibilities and the first unfinished level, distinguishing implemented code from plans. Only implement work when I ask, and stay within my assigned scope.

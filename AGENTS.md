@@ -21,6 +21,8 @@ The backend now has an analysis service reusing bounded file tools and the evide
 
 `main` is the shared integration baseline. Each task starts on a local temporary descriptive branch from up-to-date `main`; push only when the PR is ready, merge the PR into `main`, then delete the local and remote task branch. A PR still requires a pushed source branch. This documents the desired workflow, not remote configuration or completed cleanup. Follow the user's authorization and preserve existing work.
 
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](references/ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
+
 ## Engineering and privacy constraints
 
 - The Markdown agent design is the architecture source of truth above the old PDFs/text and archived dataset instructions. The updated hackathon plan supplies operational scope. Prioritize grounded EPFO text and independent quality review of the six accepted languages; downloads and optional OCR follow incrementally, while PM-JAY and voice are stretch work.
