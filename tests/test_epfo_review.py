@@ -1,5 +1,7 @@
 import copy
 import json
+import shutil
+import subprocess
 
 import pytest
 
@@ -9,6 +11,7 @@ from references.review_epfo_knowledge import (
     REVIEW_ROOT,
     build_inventory,
     sections,
+    serialize_inventory,
     validate_readable_record,
     validate_register,
     validate_review_cases,
@@ -32,15 +35,41 @@ def test_inventory_is_current_and_covers_every_record(records):
     assert all(row["readable_source_fidelity"] == "passed" for row in inventory["records"])
     assert all(row["semantic_review"] == "pending" for row in inventory["records"])
     assert all(row["live_source_verification"] == "not_attempted" for row in inventory["records"])
-    assert inventory["unique_source_urls"] == len({url for r in records for url in r["source_urls"]})
+    assert inventory["unique_source_urls"] == len(
+        {url for r in records for url in r["source_urls"]}
+    )
     for field, groups in inventory["groups"].items():
         for value, ids in groups.items():
-            expected = [r["id"] for r in records if value in (
-                r[field] if isinstance(r[field], list) else [r[field]]
-            )]
+            expected = [
+                r["id"]
+                for r in records
+                if value in (r[field] if isinstance(r[field], list) else [r[field]])
+            ]
             assert ids == expected
     for ids in inventory["shared_normalized_aliases"].values():
         assert len(ids) > 1
+
+
+def test_inventory_fingerprint_labels_are_sorted_and_serialization_is_repeatable(records):
+    first = serialize_inventory(records)
+    second = serialize_inventory(records)
+    assert first == second
+
+    labels = list(json.loads(first)["sha256_normalized_utf8"])
+    assert labels == sorted(labels)
+    assert len(labels) == len(set(labels))
+
+
+def test_review_script_supports_direct_execution(tmp_path):
+    script = REVIEW_ROOT.parents[1] / "review_epfo_knowledge.py"
+    result = subprocess.run(
+        [shutil.which("python3") or shutil.which("python"), str(script), "check"],
+        cwd=tmp_path,
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    assert "Checked 181 readable records" in result.stdout
 
 
 @pytest.mark.parametrize("record_number", range(181))
@@ -49,8 +78,11 @@ def test_readable_evidence_matches_source_not_just_embedded_json(records, record
     text = (OUTPUT / "reasons" / f"{record['id']}.md").read_text(encoding="utf-8")
     validate_readable_record(record, text)
     content = sections(text)
-    assert all(len(body.encode("utf-8")) <= 12 * 1024 and len(body.splitlines()) <= 120
-               for heading, body in content.items() if heading != "Complete source record")
+    assert all(
+        len(body.encode("utf-8")) <= 12 * 1024 and len(body.splitlines()) <= 120
+        for heading, body in content.items()
+        if heading != "Complete source record"
+    )
 
 
 @pytest.mark.parametrize("field", ["fix_steps", "notes", "source_urls", "related_reason_ids"])
@@ -71,9 +103,9 @@ def test_fresh_regeneration_matches_every_committed_markdown_file(records, tmp_p
     assert expected == actual
     assert len(actual) == 186
     for relative in expected:
-        assert (tmp_path / relative).read_text(encoding="utf-8") == (
-            OUTPUT / relative
-        ).read_text(encoding="utf-8")
+        assert (tmp_path / relative).read_text(encoding="utf-8") == (OUTPUT / relative).read_text(
+            encoding="utf-8"
+        )
 
 
 def test_catalog_preserves_authority_without_claiming_verification(records):
@@ -81,12 +113,17 @@ def test_catalog_preserves_authority_without_claiming_verification(records):
     catalog = inventory["source_authority_catalog"]
     assert len(catalog) == 119
     assert {entry["recorded_type"] for entry in catalog.values()} == {
-        "official", "circular", "news", "blog", "forum",
+        "official",
+        "circular",
+        "news",
+        "blog",
+        "forum",
     }
     assert all(entry["independently_verified"] is False for entry in catalog.values())
     for record in records:
-        assert all(record["id"] in catalog[url]["used_by_reason_ids"]
-                   for url in record["source_urls"])
+        assert all(
+            record["id"] in catalog[url]["used_by_reason_ids"] for url in record["source_urls"]
+        )
 
 
 def test_empty_fields_and_source_type_summary_are_explicit(records):
@@ -96,12 +133,20 @@ def test_empty_fields_and_source_type_summary_are_explicit(records):
             assert "_No additional note recorded._" in content["Sources and verification"]
         if not record["required_documents"]:
             assert content["Required documents"] == "_None recorded._"
-        assert "record-level summary; not URL-position aligned" in content["Sources and verification"]
+        assert (
+            "record-level summary; not URL-position aligned" in content["Sources and verification"]
+        )
 
 
-@pytest.mark.parametrize("filename", [
-    "sources.md", "glossary.md", "claim-types-overview.md", "resolution-playbooks.md",
-])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "sources.md",
+        "glossary.md",
+        "claim-types-overview.md",
+        "resolution-playbooks.md",
+    ],
+)
 def test_supporting_document_caveats_and_attribution_are_preserved(filename):
     source = ARCHIVE / filename if filename == "sources.md" else ARCHIVE / "docs" / filename
     text = (OUTPUT / filename).read_text(encoding="utf-8")
@@ -120,11 +165,17 @@ def test_cases_reference_readable_evidence_without_claiming_agent_success(record
         assert case["agent_execution"] == "not_run"
 
 
-@pytest.mark.parametrize("mutation, error", [
-    (lambda cases: cases[0]["evidence"][0].update(heading="Invented heading"), "evidence section"),
-    (lambda cases: cases[0]["evidence"][0].update(excerpt="INVENTED EXCERPT"), "excerpt drift"),
-    (lambda cases: cases[0].update(agent_execution="passed"), "executed agent"),
-])
+@pytest.mark.parametrize(
+    "mutation, error",
+    [
+        (
+            lambda cases: cases[0]["evidence"][0].update(heading="Invented heading"),
+            "evidence section",
+        ),
+        (lambda cases: cases[0]["evidence"][0].update(excerpt="INVENTED EXCERPT"), "excerpt drift"),
+        (lambda cases: cases[0].update(agent_execution="passed"), "executed agent"),
+    ],
+)
 def test_review_manifest_rejects_fabricated_evidence_and_results(records, mutation, error):
     cases = copy.deepcopy(read_review("cases.json"))
     mutation(cases)
@@ -150,11 +201,14 @@ def test_register_preserves_unverified_status_and_actual_source_urls(records):
         assert entry["gap"] and entry["acceptance_requirement"]
 
 
-@pytest.mark.parametrize("field, value, error", [
-    ("verified_on", "2026-09-12", "live verification"),
-    ("source_url", "https://example.org/invented.pdf", "not in original"),
-    ("gap", "", "limitation"),
-])
+@pytest.mark.parametrize(
+    "field, value, error",
+    [
+        ("verified_on", "2026-09-12", "live verification"),
+        ("source_url", "https://example.org/invented.pdf", "not in original"),
+        ("gap", "", "limitation"),
+    ],
+)
 def test_register_rejects_false_verification_or_provenance(records, field, value, error):
     register = copy.deepcopy(read_review("verification-register.json"))
     register[0][field] = value

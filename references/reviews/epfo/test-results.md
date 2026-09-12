@@ -1,6 +1,6 @@
 # Offline review test results
 
-Run date: 2026-09-12. Native Windows, project `uv` environment. The focused suite was rerun after moving the review package onto merged `main` at `7c43fe6`: 217 tests passed. The earlier pre-integration run had 211 tests. These results apply to the local review package, not a deployment or live model run.
+Run date: 2026-09-12. Native Windows, project `uv` environment. Historical submitted-PR evidence: the focused suite was rerun after moving the review package onto merged `main` at `7c43fe6`, where 217 tests passed; the earlier pre-integration run had 211 tests. After review fixes and integration with the current main branch, the complete repository suite passed 851 tests. These are offline results, not a deployment or live model run.
 
 ## Passing checks
 
@@ -14,12 +14,12 @@ Checked 181 readable records, 9 review cases, 6 verification gaps.
 No live sources or agent execution verified.
 
 uv run pytest tests/test_epfo_knowledge_contract.py tests/test_epfo_review.py -q
-217 passed
+Historical focused run: 217 passed. Current integrated full run: 851 passed.
 ```
 
 The tests include all 181 readable reason files; visible prose tampering while embedded JSON remains unchanged; exact regenerated-file comparison; source catalog membership/authority preservation; source caveat preservation; missing/forged excerpt rejection; uncertain-case expectation constraints; and rejection of fabricated verification dates and URLs.
 
-The 217 count includes parameterized per-record checks, not 217 independent policy evaluations. All nine agent cases remain `not_run`. All six priority source entries remain `not_attempted` with null actual verification dates.
+The historical 217 count includes parameterized per-record checks, not 217 independent policy evaluations. All nine agent cases remain `not_run`. All six priority source entries remain `not_attempted` with null actual verification dates.
 
 ## Blocked check
 
