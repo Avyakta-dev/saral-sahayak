@@ -107,6 +107,38 @@ Reopened the actual popup, entered `Synthetic network observation: name mismatch
 
 The worker inspector was left open on Network. Extension data used in this run were cleared. No settings were saved. **Issue 6 remains open:** Chrome individual focus-stop coverage, full assistive/visual checks and complete network coverage still need acceptance evidence; this report does not substitute mocks or source inspection for them.
 
+## Chrome focus visibility regression and fix — 2026-09-13
+
+Baseline `8efee93`, actual installed Chrome toolbar popup, same extension ID and version as above. Initial checks used the existing popup code; final checks used the `popup.js`/`popup.css` changes in this PR. No new HTML harness, fake backend or test files were added.
+
+### Individual forward controls
+
+All 15 destinations listed in the Brave sequence were observed individually in Chrome as well. The first two were verified through accessibility; Rejection remark through Clear were verified with full-display screenshots showing their focus outlines. Space expanded AI setup; its API key stayed empty and Model unchanged. Disabled EPFO controls were skipped. This was split across two popup openings: one traversal lost popup focus after Connect, so it is **not** claimed as an uninterrupted end-to-end keyboard run. The second opening used five Tabs to return to Full name, then individually observed each remaining stop through Clear. A later unexpected dismissal after Enter was excluded from reset acceptance rather than assumed successful.
+
+**PASS for individual forward reachability, not full accessibility certification.** The visible borders/labels were identifiable at the tested display configuration. The bottom outline of Save profile & settings touched the viewport edge; comprehensive focus-outline and zoom coverage remains incomplete. Full reverse traversal and spoken announcements remain NOT RUN.
+
+### Confirmed Clear regression
+
+A subsequent run entered `Synthetic Chrome network check.`, replaced it using Ctrl+A and typing, navigated to Clear, and pressed Enter. Accessibility verified an empty remark, disabled consent/Analyze, and both clear statuses. The before screenshot showed the complete Clear control; the after screenshot showed only the top of its focus outline at the viewport's bottom, with its label clipped. This reproduces the earlier Brave observation: longer reset messages change layout while the footer button retains focus.
+
+The fix scrolls Clear into view after the current reset finishes **only if it still owns focus**. The existing epoch guard prevents stale operations from scrolling, and no `.focus()` call steals focus back from another control. A scoped 8px block scroll margin keeps the 3px outline plus offset away from the edge. No permissions, transport, state-clearing semantics, deadlines or provider behavior changed.
+
+Retest: reloaded the actual unpacked extension after the script change, reopened its toolbar popup after the CSS change, navigated to Clear, then pressed Enter. Full-display observation confirmed the complete Clear label and focus outline remained visible without Ctrl+End. Repeated with AI setup expanded before Clear; it collapsed and the complete focused Clear control remained visible. **PASS: Chrome reset visibility with setup closed and expanded.** Brave post-fix, delayed/error reset and zoom-specific visual retests remain NOT RUN; existing synthetic tests do not establish these visual outcomes.
+
+### Chrome worker-network observation
+
+Before the fix/reload, opened this extension's `background.js` inspector, selected Network, and verified recording with All selected, empty filter and no throttling. Reopened the actual toolbar popup and performed the synthetic entry/edit/keyboard-Clear sequence above. No log clear was performed in the interval. The final worker Network panel was visually empty and displayed `Currently recording network activity`.
+
+This supplies the same **bounded worker-only observation** as Brave, not popup-target coverage, packet capture or a cold-worker test. The edited string was typed but not separately read back before Clear; exact edit fidelity is not a claim of this recording. No Connect, Detect, scan, Analyze, Fill, file selection or provider key was used. Native Ctrl+V was not repeated in the recording. No claim of HTTP 503, successful analysis or extension-wide zero egress follows from this empty table.
+
+### Validation and outstanding gates
+
+- `node --check extension/popup.js`: PASS.
+- `node --test extension/tests/*.test.cjs`: **374 passed, 0 failed, 0 skipped** after the script fix. The only subsequent runtime change was the scoped CSS scroll margin.
+- Existing `epfo-popup.test.cjs` also reran separately: 15 passed, including the four synthetic responses and hostile-HTML handling. This is automated renderer evidence, not live/provider/browser-state acceptance.
+- No keys, real claimant details, documents, original screenshots or HARs were staged. The desktop images contain unrelated browser chrome and remain outside Git. The extension was reloaded only after its synthetic data were cleared.
+- Issue 6 remains OPEN. Both browsers now have individual forward-focus evidence; full reverse/zoom/assistive checks and popup-plus-worker network coverage remain outstanding. Spoken screen-reader output is not available in this tool channel and requires independently recorded assistive acceptance. No issue or later dependency is closed by this fix.
+
 ## Manifest beyond original Level 1
 
 Current `manifest.json` is MV3 with `background.js`, `activeTab`, `scripting`, `storage`, OpenAI host permission and loopback host permission. There is no manifest-declared persistent content script. The popup includes a general form assistant and a separate EPFO path. It is **not** a zero-permission/offline-only extension. Keys/profile/file state currently use trusted extension session storage; this is not the approved future isolated privacy vault.
