@@ -2,7 +2,7 @@
 
 ## Current status
 
-Anish's Level 2 implementation has explicitly resumed. The FastAPI factory, configuration, schemas and single-turn LLM adapters now integrate `backend/agent/service.py`, reusing bounded Markdown tools and the request-local evidence ledger. This is not a declaration that Level 2 is complete. The production knowledge corpus is still absent; no live provider requests were made in this round, and model connectivity, policy correctness and language quality remain unverified. Changes remain local, with no push. A synthetic index or complete credentials alone must never imply readiness.
+Anish's Level 2 implementation has explicitly resumed. The FastAPI factory, configuration, schemas and single-turn LLM adapters now integrate `backend/agent/service.py`, reusing bounded Markdown tools and the request-local evidence ledger. This is not a declaration that Level 2 is complete. The production knowledge corpus is still absent; no live provider requests were made in this round, and model connectivity, policy correctness and language quality remain unverified. A synthetic index or complete credentials alone must never imply readiness.
 
 The four [JSON examples](examples/) are synthetic UI/schema fixtures, never responses served by the analysis endpoint. Their warnings are intentional. The success example's `epfo-rr-001` is a format illustration, not a real classification; its `synthetic-examples/schema-only.md` citation, heading, line range and `example.invalid` URL are imaginary. No corresponding knowledge file is created or claimed to have been read. Do not present these examples as policy advice, a usable draft, source verification or a live demo.
 
@@ -186,4 +186,14 @@ CORS is off by default. `CORS_ORIGINS` is a JSON array of exact HTTP(S) origins,
 
 Remaining work includes supplying and independently reviewing the generated production corpus, evaluating semantic grounding and translations in all enabled languages, integrating clients, and performing live model compatibility checks only when separately authorized. This round made no live requests. Offline tests use fake models/transports and synthetic files, not proof of fluent output or a production end-to-end flow. No archive retrieval, embeddings, deterministic alias retriever or full-corpus prompting should be introduced as a shortcut.
 
-The service already requires the selected reason to appear in cited explanation evidence and validates all emitted citation metadata against its ledger. Source correctness, claim support and translation fidelity remain independent review obligations. Potential follow-ups include whitespace-only prose validation and harmonizing the generic 400 parsing envelope; keep schema fixture validation separate from production evidence acceptance.
+The service already requires the selected reason to appear in cited explanation evidence and validates all emitted citation metadata against its ledger. Source correctness, claim support and translation fidelity remain independent review obligations. Whitespace-only generated prose and link syntax in uncited fields are rejected. Harmonizing the generic 400 parsing envelope remains a possible follow-up; keep schema fixture validation separate from production evidence acceptance.
+
+## Generated-output security checks
+
+Required generated prose must contain non-whitespace, non-control visible text; validation preserves accepted text exactly, including multilingual text and literal user details. Model warnings, clarification questions and classification prose reject URL/link syntax, including common HTML/percent encodings and malformed or credential-bearing URLs. Invalid final output follows the existing one-repair-then-error path.
+
+Evidence-bearing prose may contain only plain exact URLs from its cited read excerpts. Model-authored HTML/Markdown links are rejected; structured citations are the navigation interface. These are conservative syntax/provenance checks, not a universal phishing detector, semantic verifier or substitute for safe frontend text rendering.
+
+## Image input ownership
+
+The API still accepts text only. [Ajay’s separate secure image/OCR guide](../references/ajay-image-input-guide.md) documents proposed URL-only vision input, its security requirements, shared-backend approval and five implementation levels. No image settings, upload service or image endpoint are implemented by this security fix.

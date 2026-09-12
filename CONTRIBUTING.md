@@ -5,11 +5,17 @@ Ownership follows the [current Markdown agent design](references/planning/markdo
 | Owner | Responsibilities |
 | --- | --- |
 | Anish | Architecture, backend API and schemas, read-only Markdown tools, safe budgets, agent/LLM integration, citations, deployment and multilingual APIs; Level 2 explicitly resumed, not declared complete |
-| Avyakta | EPFO research, Markdown knowledge authoring/curation, aliases as reference content, remedies, index clarity, source authority/currency and evidence verification |
-| Shravya | Web frontend, input/language/result states, citations and accessibility; shared presentation consistency with Ajay |
-| Ajay | Chrome/Brave MV3 extension first, synthetic fixtures, browser/security regression and handoff; OCR/image handling and document downloads deferred, not reassigned |
+| Avyakta (`Avyakta-dev`) | EPFO research, Markdown knowledge authoring/curation, aliases as reference content, remedies, index clarity, source authority/currency and evidence verification remain priority while the knowledge PR is pending; also owns the separate extension UI Levels 1–3 |
+| Shravya (`Shravya2820`) | Retains main web frontend, input/language/result states, citations and accessibility; shared presentation consistency with Avyakta and Ajay |
+| Ajay (`Ajay-B-Acharya`) | Chrome/Brave MV3 extension implementation, synthetic fixtures, privacy/provider security, browser regression and handoff; OCR/image handling and document downloads deferred, not reassigned |
+
+Anish's confirmed username is `iotserver24`; shared backend/API/protocol, grounding and security changes still require his approval.
 
 Ajay follows the [five-level extension guide](references/ajay-extension-guide.md), starting with Level 1 only and stopping/reporting at each checkpoint, independently of Anish's resumed work. The analysis service reuses the existing FastAPI/adapters/file-tools/evidence foundation; the production corpus remains absent. Analysis gates missing model configuration or corpus structure with 503. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, still defaults to `en`, and exposes only enabled codes through `GET /api/v1/capabilities`; quality is unverified for every language. Do not change backend contracts to unblock the extension. This implementation round remains local, with no push or live provider requests.
+
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](references/ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
+
+**Advanced privacy/provider and extension UI scope:** follow the [requirements guide](references/extension-privacy-and-provider-guide.md), not an assumed implementation. Ajay owns Extension Privacy Levels 1–5 (threat contract; client vault/redacted capture; placeholder filling/local restoration; provider modes; cross-mode acceptance). Avyakta owns Extension UI Levels 1–3 (privacy mocks; controls/preview/renderer integration; accessibility/errors/completion). Keep his pending knowledge PR work as priority. Shravya retains main web UI. Original Extension and Image Levels 1–5 remain separate, one explicit request/checkpoint at a time. Issues and artifact links are created separately by the coordinator, not claimed complete here.
 
 ## Branch workflow
 
@@ -41,9 +47,9 @@ This is the intended collaboration workflow, not a claim about completed branch 
 These paths describe the intended implementation; inspect the repository before claiming that a component exists.
 
 - **Anish:** existing `backend/main.py`, `backend/api/`, `backend/agent/`, `backend/tools/`, `backend/evidence.py`, `backend/knowledge_readiness.py`, `backend/llm/`, `backend/languages.py`, `backend/config.py`, environment examples and future deployment configuration.
-- **Avyakta:** knowledge content and evidence review for `references/knowledge/epfo/`; source record/catalog curation in `references/epfo-claim-rejection-rag-dataset/`, coordinated with the separate Markdown generator to avoid drift. This is not retriever ownership.
-- **Shravya:** future `frontend/`.
-- **Ajay:** proposed `extension/` popup, fixtures and extension tests per the [extension guide](references/ajay-extension-guide.md). Existing `tests/backend/` stays intact. Future `documents/`, `backend/services/documents.py` and coordinated OCR/extractor work remain deferred responsibilities, not authorization to edit backend code for this extension task.
+- **Avyakta:** knowledge content and evidence review for `references/knowledge/epfo/`; source record/catalog curation in `references/epfo-claim-rejection-rag-dataset/`, coordinated with the separate Markdown generator to avoid drift. This is not retriever ownership. Also planned `extension/` UI controls/options/preview/renderer and UI tests, coordinated with Ajay; priority remains the pending knowledge PR.
+- **Shravya:** future main web `frontend/`; no transfer to extension contributors.
+- **Ajay:** proposed `extension/` implementation/security, capture/vault, placeholder validation/restoration, provider transport, fixtures and security tests per the [extension guide](references/ajay-extension-guide.md) and separate [privacy requirements](references/extension-privacy-and-provider-guide.md). Agree shared extension file boundaries with Avyakta before editing. Existing `tests/backend/` stays intact. Future `documents/`, `backend/services/documents.py` and coordinated OCR/extractor work remain deferred responsibilities, not authorization to edit backend code for this extension task.
 
 All 181 source reasons retain their canonical `epfo-rr-NNN` IDs in `references/knowledge/epfo/reasons/<epfo-rr-NNN>.md`, with index `references/knowledge/epfo/README.md` and supporting `sources.md`, `glossary.md`, `claim-types-overview.md` and `resolution-playbooks.md`. Maintain source data/catalog and regenerate Markdown rather than making untracked edits to generated content. The archived dataset, including its historical chunks, is not runtime input.
 

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from backend.evidence import EvidenceLedger
 from backend.languages import LanguageCode
+from backend.output_validation import LinkFreeText, NonBlankText
 
 
 class ContractModel(BaseModel):
@@ -63,12 +64,12 @@ class Citation(ContractModel):
 
 
 class SupportedText(ContractModel):
-    text: str = Field(min_length=1, max_length=6000)
+    text: NonBlankText = Field(min_length=1, max_length=6000)
     citation_ids: list[str] = Field(min_length=1, max_length=30)
 
 
 class DraftBlock(ContractModel):
-    text: str = Field(min_length=1, max_length=6000)
+    text: NonBlankText = Field(min_length=1, max_length=6000)
     kind: Literal["factual", "template", "user_supplied"]
     citation_ids: list[str] = Field(default_factory=list, max_length=30)
 
@@ -80,21 +81,21 @@ class DraftBlock(ContractModel):
 
 
 class Draft(ContractModel):
-    title: str = Field(min_length=1, max_length=200)
+    title: NonBlankText = Field(min_length=1, max_length=200)
     blocks: list[DraftBlock] = Field(min_length=1, max_length=50)
     missing_fields: list[str] = Field(default_factory=list, max_length=20)
 
 
 class Classification(ContractModel):
     reason_id: str = Field(pattern=r"^epfo-rr-\d{3}$")
-    category: str = Field(min_length=1, max_length=100)
+    category: LinkFreeText = Field(min_length=1, max_length=100)
     confidence: Literal["low", "medium", "high"]
-    rationale: str = Field(min_length=1, max_length=1000)
+    rationale: LinkFreeText = Field(min_length=1, max_length=1000)
 
 
 class ErrorDetail(ContractModel):
     code: str = Field(min_length=1, max_length=100)
-    message: str = Field(min_length=1, max_length=500)
+    message: NonBlankText = Field(min_length=1, max_length=500)
 
 
 class AnalyzeResponse(ContractModel):
@@ -107,8 +108,8 @@ class AnalyzeResponse(ContractModel):
     required_documents: list[SupportedText] = Field(default_factory=list, max_length=30)
     draft: Draft | None = None
     citations: list[Citation] = Field(default_factory=list, max_length=100)
-    warnings: list[str] = Field(default_factory=list, max_length=30)
-    questions: list[str] = Field(default_factory=list, max_length=10)
+    warnings: list[LinkFreeText] = Field(default_factory=list, max_length=30)
+    questions: list[LinkFreeText] = Field(default_factory=list, max_length=10)
     error: ErrorDetail | None = None
 
     @model_validator(mode="after")
