@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Local privacy preview · Saral Sahayak</title>
+  <link rel="stylesheet" href="privacy.css">
+  <script src="privacy.js" defer></script>
+</head>
+<body>
+  <main id="privacy-root">
+    <header>
+      <p class="eyebrow">Developer UI · local only</p>
+      <h1>Local privacy preview</h1>
+      <p>Inspect safe field labels, choose a crop, then explicitly generate and review an opaque preview. Nothing is sent to an AI provider or saved by this page.</p>
+    </header>
+
+    <p id="status" class="notice" role="status" aria-live="polite">Connecting to the local privacy worker…</p>
+    <p id="expiry" class="muted">No preview session started.</p>
+
+    <section aria-labelledby="inspect-title">
+      <h2 id="inspect-title">1. Inspect field labels</h2>
+      <p>Inspect returns field identifiers and safe labels, not field values. Selection starts empty. No keys, profiles, or file values are requested here.</p>
+      <button id="inspect" type="button" disabled>Inspect</button>
+      <fieldset id="fields" disabled>
+        <legend>Fields to represent with placeholders</legend>
+        <p class="muted">Inspect first. No fields are selected automatically.</p>
+      </fieldset>
+    </section>
+
+    <section aria-labelledby="crop-title">
+      <h2 id="crop-title">2. Choose crop and capture locally</h2>
+      <p>Crop coordinates are whole CSS pixels relative to the viewport. The default starts at (0, 0) and covers as much of the viewport as fits within 2048 physical pixels per side (2048 ÷ device pixel ratio).</p>
+      <form id="crop-form">
+        <fieldset id="crop-controls" disabled>
+          <legend>Viewport crop</legend>
+          <div class="crop-grid">
+            <label>X <input id="crop-x" name="x" type="number" min="0" step="1" required></label>
+            <label>Y <input id="crop-y" name="y" type="number" min="0" step="1" required></label>
+            <label>Width <input id="crop-width" name="width" type="number" min="1" step="1" required></label>
+            <label>Height <input id="crop-height" name="height" type="number" min="1" step="1" required></label>
+          </div>
+          <p id="crop-limits" class="muted">Viewport limits will appear after inspection.</p>
+        </fieldset>
+        <p class="notice">Conservative preview: entire chosen crop is opaque. No original screenshot is taken; canvas/images/frames/unknown content never preserved.</p>
+        <button id="capture" type="submit" disabled>Capture opaque preview locally</button>
+      </form>
+    </section>
+
+    <section id="preview-section" aria-labelledby="preview-title" hidden>
+      <h2 id="preview-title">3. Review local preview</h2>
+      <p>This is a newly generated, fully opaque PNG, not a redacted original screenshot. Every field mask is exactly <strong>***</strong>, regardless of its value or length. “Filled” only indicates whether a field has a value; tokens and values are not displayed.</p>
+      <img id="preview-image" alt="Locally generated fully opaque preview of the chosen crop">
+      <ul id="slots" class="slots"></ul>
+      <label class="check-row"><input id="review-check" type="checkbox" disabled> I have reviewed this fully opaque local preview.</label>
+      <button id="confirm" type="button" disabled>Confirm local preview</button>
+      <p class="muted">Confirmation records local review only. It does not authorize transmission, restoration, filling, or submission. The session expires 120 seconds after Capture, without renewal.</p>
+    </section>
+
+    <section aria-labelledby="unavailable-title">
+      <h2 id="unavailable-title">Not available in this developer UI</h2>
+      <p id="unavailable-help">Analyze, Restore, and Fill are disabled. This local-only page has no provider, network, storage, restoration, or form-filling functionality.</p>
+      <div class="actions">
+        <button type="button" disabled aria-describedby="unavailable-help">Analyze</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Restore</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Fill</button>
+      </div>
+    </section>
+
+    <footer class="actions">
+      <button id="cancel" class="secondary" type="button" disabled>Cancel and clear</button>
+      <button id="close" class="secondary" type="button">Close</button>
+    </footer>
+  </main>
+</body>
+</html>

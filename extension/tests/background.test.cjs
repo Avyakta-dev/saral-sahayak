@@ -102,7 +102,13 @@ function harness(options = {}) {
     runtime: {
       id: EXTENSION_ID,
       getURL: name => `chrome-extension://${EXTENSION_ID}/${name}`,
-      onMessage: { addListener: callback => { assert.equal(listener, undefined); listener = callback; } }
+      onMessage: { addListener: callback => { assert.equal(listener, undefined); listener = callback; } },
+      onConnect: { addListener: () => {} }
+    },
+    windows: {
+      onRemoved: { addListener: () => {} },
+      create: async request => mocked('createWindow', [request], () => ({ id: 70 })),
+      remove: async windowId => mocked('removeWindow', [windowId], () => undefined)
     },
     storage: { session: {
       setAccessLevel: async access => { record('setAccessLevel', [access]); },
@@ -121,6 +127,9 @@ function harness(options = {}) {
       }
     } },
     tabs: {
+      onRemoved: { addListener: () => {} },
+      onUpdated: { addListener: () => {} },
+      onActivated: { addListener: () => {} },
       query: async query => mocked('query', [query], () => [plain(h.tab)]),
       sendMessage: async (tabId, message, target) => mocked('sendMessage', [tabId, message, target], () => {
         assert.equal(tabId, TAB.id);
@@ -159,7 +168,7 @@ function harness(options = {}) {
     clearTimeout: id => timers.delete(id),
     importScripts: (...names) => {
       for (const name of names) {
-        assert.ok(['mapping.js', 'epfo-background.js'].includes(name));
+        assert.ok(['mapping.js', 'epfo-background.js', 'privacy/vault.js', 'privacy/raster.js', 'privacy/controller.js'].includes(name));
         const source = name === 'mapping.js' ? mappingSource : readFileSync(path.join(__dirname, '..', name), 'utf8');
         vm.runInContext(source, context, { filename: name });
       }
@@ -297,6 +306,94 @@ test('EPFO capabilities survive worker suspension, while malformed cached metada
   assert.match(rejected.error, /Saved backend capabilities are invalid/);
   assert.equal(malformed.session().epfoConnection, undefined);
   assert.equal(malformed.of('fetch').length, 0);
+});
+
+test('PRIVACY_OPEN clears legacy inputs before opening only the trusted local preview', async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: EPFO_CAPABILITIES } } });
+  await captured(h);
+  h.resetCalls();
+  h.hooks.createWindow = request => {
+    const stored = h.session().formAssistant;
+    assert.deepEqual(stored.profile, { name: '', email: '', phone: '', address: '' });
+    assert.equal(stored.key, '');
+    assert.equal(stored.file, null);
+    assert.equal(stored.scan, null);
+    assert.equal(h.session().epfoConnection, undefined);
+    assert.deepEqual(plain(request), { url: `chrome-extension://${EXTENSION_ID}/privacy/privacy.html`, type: 'popup', width: 500, height: 760 });
+    return { id: 70 };
+  };
+  assert.deepEqual(await h.send('PRIVACY_OPEN'), { ok: true });
+  assert.deepEqual(h.calls.map(call => call.name), ['sendMessage', 'remove', 'set', 'query', 'createWindow']);
+  assert.deepEqual(h.of('sendMessage')[0].args, [TAB.id, { type: 'SS_RESET' }, { documentId: DOCUMENT_ID }]);
+  assert.deepEqual(h.of('query')[0].args, [{ active: true, currentWindow: true }]);
+  assert.equal(h.of('createWindow').length, 1);
+  assert.equal(h.timers.size, 1);
+  const state = successful(await h.send('SS_GET'));
+  cleared(h, state);
+  assert.equal(h.timers.size, 0);
+  // A subsequent save proves busy was released and empty inputs cannot reuse old secrets.
+  cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+  for (const name of ['fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
+});
+
+for (const type of ['SS_GET', 'SS_EPFO_CANCEL', 'SS_CLEAR']) test(`${type} invalidates PRIVACY_OPEN pending cleanup or storage without opening a window`, async () => {
+  for (const phase of ['sendMessage', 'remove', 'set']) {
+    const h = harness();
+    await captured(h);
+    h.resetCalls();
+    const started = deferred();
+    const pending = deferred();
+    let first = true;
+    h.hooks[phase] = (...args) => {
+      if (phase === 'sendMessage') assert.equal(args[1].type, 'SS_RESET');
+      if (!first) return phase === 'sendMessage' ? { reset: true } : undefined;
+      first = false;
+      started.resolve();
+      return pending.promise;
+    };
+    const opening = h.send('PRIVACY_OPEN');
+    await started.promise;
+    assert.equal(h.of('createWindow').length, 0, phase);
+    const action = h.send(type);
+    // Clear may queue behind the suspended write/cleanup; let it invalidate first.
+    await new Promise(resolve => setImmediate(resolve));
+    pending.resolve(phase === 'sendMessage' ? { reset: true } : undefined);
+    const result = await action;
+    assert.equal(result.ok, true, `${type} during ${phase}: ${result.error}`);
+    if (type === 'SS_EPFO_CANCEL') assert.deepEqual(result.data, { cancelled: true });
+    failed(await opening, /Privacy capture requires an idle extension/);
+    const state = successful(await h.send('SS_GET'));
+    cleared(h, state);
+    assert.equal(h.session().epfoConnection, undefined);
+    // The rejected opening must release busy and never restore legacy credentials.
+    cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+    for (const name of ['query', 'createWindow', 'fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0, `${type} during ${phase}: ${name}`);
+    assert.equal(h.fills().length, 0);
+    assert.equal(h.timers.size, 0);
+  }
+});
+
+test('a concurrent form action cancels a pending privacy window and cannot leave stale state or busy locked', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  const started = deferred();
+  const pending = deferred();
+  h.hooks.createWindow = () => { started.resolve(); return pending.promise; };
+  const opening = h.send('PRIVACY_OPEN');
+  await started.promise;
+  failed(await h.send('SS_SAVE', { profile: PROFILE, key: KEY, model: 'gpt-4o-mini', file: FILE }), /operation is already running/);
+  pending.resolve({ id: 70 });
+  failed(await opening, /Privacy capture requires an idle extension/);
+  assert.equal(h.of('createWindow').length, 1);
+  assert.deepEqual(h.of('removeWindow').map(call => call.args), [[70]]);
+  const state = successful(await h.send('SS_GET'));
+  cleared(h, state);
+  cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+  assert.equal(h.timers.size, 0);
+  for (const name of ['fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
 });
 
 test('SS_SAVE and SS_GET return only file metadata and hasKey, while trusted session retains inputs', async () => {
