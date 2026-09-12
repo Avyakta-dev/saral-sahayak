@@ -7,8 +7,22 @@ import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
 import AnswerCard, { AnswerCard as NamedAnswerCard } from './AnswerCard';
 
 const sample = () => getWalkthrough('en');
-const renderCard = (response = sample(), onEdit = vi.fn(), mode: 'live' | 'sample' = 'sample') =>
-  render(<AnswerCard response={response} onEdit={onEdit} mode={mode} />);
+const renderCard = (
+  response = sample(),
+  onEdit = vi.fn(),
+  mode: 'live' | 'sample' = 'sample',
+  onRetry?: () => void,
+  retryLabel?: string,
+) =>
+  render(
+    <AnswerCard
+      response={response}
+      onEdit={onEdit}
+      mode={mode}
+      onRetry={onRetry}
+      retryLabel={retryLabel}
+    />,
+  );
 
 async function expectEvidence(container: HTMLElement, response: AnalyzeResponse, ids: string[]) {
   await userEvent.click(within(container).getByText(ids.length > 1 ? 'Sources' : 'Source'));
@@ -282,6 +296,50 @@ describe('AnswerCard', () => {
       expect(onEdit).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('shows live error code, warnings, and a bounded Try again action', async () => {
+    const onRetry = vi.fn();
+    const response = getDemoResponse('error', 'en');
+    const { container } = renderCard(response, vi.fn(), 'live', onRetry, 'Try again (2 left)');
+    expect(screen.getByText(response.error!.message)).toBeVisible();
+    expect(screen.getByText(response.error!.code)).toBeVisible();
+    const message = container.querySelector('.answer-message')!;
+    for (const warning of response.warnings) {
+      expect(within(message).getByText(warning)).toBeVisible();
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Try again (2 left)' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer Try again for sample errors or clarification/unsupported live states', () => {
+    const { unmount: unmountSample } = renderCard(
+      getDemoResponse('error', 'en'),
+      vi.fn(),
+      'sample',
+      vi.fn(),
+    );
+    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
+    unmountSample();
+    const { unmount: unmountUnsupported } = render(
+      <AnswerCard
+        response={getDemoResponse('unsupported', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
+    unmountUnsupported();
+    render(
+      <AnswerCard
+        response={getDemoResponse('needs_clarification', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
+  });
 
   it('suppresses accidentally retained guidance whenever the status is not success', () => {
     renderCard({

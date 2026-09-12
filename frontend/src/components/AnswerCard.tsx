@@ -8,6 +8,7 @@ import {
   ListChecks,
   MessageCircle,
   Pencil,
+  RefreshCw,
 } from 'lucide-react';
 import type { AnalyzeResponse } from '../lib/contracts';
 import { Evidence } from './Evidence';
@@ -18,6 +19,9 @@ type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
   mode?: AnswerMode;
+  /** Live error envelopes only — bounded user-initiated retry from the parent. */
+  onRetry?: () => void;
+  retryLabel?: string;
 };
 
 const sampleLabels = {
@@ -344,7 +348,13 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
   );
 }
 
-export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProps) {
+export function AnswerCard({
+  response,
+  onEdit,
+  mode = 'sample',
+  onRetry,
+  retryLabel = 'Try again',
+}: AnswerCardProps) {
   const text = labelsFor(mode);
   const id = useId();
   const title =
@@ -355,6 +365,7 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
         : response.status === 'unsupported'
           ? text.unsupportedTitle
           : text.errorTitle;
+  const showRetry = Boolean(onRetry) && response.status === 'error' && mode === 'live';
 
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
@@ -385,6 +396,11 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
                 ? text.unsupported
                 : response.error?.message || text.error}
           </p>
+          {response.status === 'error' && response.error?.code ? (
+            <p className="answer-error-code" lang="en">
+              Error code: <code>{response.error.code}</code>
+            </p>
+          ) : null}
           {response.status === 'needs_clarification' && (
             <ul className="answer-questions">
               {response.questions.map((question, index) => (
@@ -392,6 +408,23 @@ export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProp
               ))}
             </ul>
           )}
+          {(response.status === 'unsupported' || response.status === 'error') &&
+            response.warnings.length > 0 && (
+              <ul className="answer-state-warnings">
+                {response.warnings.map((warning, index) => (
+                  <li key={index} lang={/[ऀ-ॿ]/u.test(warning) ? 'hi' : 'en'}>
+                    {warning}
+                  </li>
+                ))}
+              </ul>
+            )}
+          {showRetry ? (
+            <div className="reply-actions answer-retry-actions">
+              <button className="light-button" type="button" onClick={onRetry}>
+                <RefreshCw size={16} aria-hidden="true" /> {retryLabel}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
       <details className="answer-disclosure">
