@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.images.config import SUPPORTED_IMAGE_TYPES, ImageConfig
 from backend.languages import LANGUAGES, LanguageCode
 from backend.llm import LLMConfig
 from backend.tools.budget import BudgetLimits
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     llm_base_url: str = ""
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = ""
+    llm_stream: bool = False
     llm_timeout_seconds: float = Field(default=25, gt=0, le=120)
     analysis_request_seconds: float = Field(default=30, gt=0, le=120)
     analysis_access_mode: Literal["local", "protected"] = "local"
@@ -33,6 +35,20 @@ class Settings(BaseSettings):
     llm_anthropic_version: str = "2023-06-01"
     cors_origins: list[str] = Field(default_factory=list)
     supported_languages: list[LanguageCode] = Field(default_factory=lambda: list(LANGUAGES))
+
+    # Private image input. Disabled by default and never inferred from the model name.
+    # Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY),
+    # so only the destination is configured here.
+    image_input_enabled: bool = False
+    image_lifecycle_configured: bool = False
+    image_r2_endpoint: str = ""
+    image_r2_bucket: str = ""
+    image_upload_ttl_seconds: int = Field(default=120, gt=0, le=900)
+    image_url_max_ttl_seconds: int = Field(default=120, gt=0, le=900)
+    image_max_bytes: int = Field(default=10 * 1024 * 1024, gt=0, le=10 * 1024 * 1024)
+    image_ocr_max_chars: int = Field(default=8000, gt=0)
+    image_ocr_max_output_tokens: int = Field(default=1000, gt=0, le=16000)
+    image_content_types: list[str] = Field(default_factory=lambda: list(SUPPORTED_IMAGE_TYPES))
 
     @model_validator(mode="after")
     def protected_access(self):
@@ -49,7 +65,7 @@ class Settings(BaseSettings):
             raise ValueError("Supported languages must be unique and include default English")
         return value
 
-    @field_validator("llm_base_url", "llm_model")
+    @field_validator("llm_base_url", "llm_model", "image_r2_endpoint", "image_r2_bucket")
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
@@ -76,6 +92,24 @@ class Settings(BaseSettings):
     def analysis_budget_limits(self) -> BudgetLimits:
         return BudgetLimits(request_seconds=self.analysis_request_seconds)
 
+    def image_config(self) -> ImageConfig | None:
+        """Fail closed: image input needs an explicit opt-in and an explicit destination."""
+        if not self.image_input_enabled or not self.image_lifecycle_configured:
+            return None
+        if not all((self.image_r2_endpoint, self.image_r2_bucket)):
+            return None
+        return ImageConfig(
+            endpoint=self.image_r2_endpoint,
+            bucket=self.image_r2_bucket,
+            lifecycle_configured=self.image_lifecycle_configured,
+            content_types=tuple(self.image_content_types),
+            upload_ttl_seconds=self.image_upload_ttl_seconds,
+            url_max_ttl_seconds=self.image_url_max_ttl_seconds,
+            max_bytes=self.image_max_bytes,
+            ocr_max_chars=self.image_ocr_max_chars,
+            ocr_max_output_tokens=self.image_ocr_max_output_tokens,
+        )
+
     def llm_config(self) -> LLMConfig | None:
         if not all(
             (self.llm_base_url, self.llm_model, self.llm_api_key.get_secret_value().strip())
@@ -86,6 +120,7 @@ class Settings(BaseSettings):
             base_url=self.llm_base_url,
             api_key=self.llm_api_key,
             model=self.llm_model,
+            stream=self.llm_stream,
             timeout_seconds=self.llm_timeout_seconds,
             connect_timeout_seconds=self.llm_connect_timeout_seconds,
             max_output_tokens=self.llm_max_output_tokens,

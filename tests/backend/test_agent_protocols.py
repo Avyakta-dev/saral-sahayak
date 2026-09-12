@@ -89,25 +89,45 @@ def evidence_id(payload, style):
     return json.loads(results[-1])["evidence_id"]
 
 
-@pytest.mark.parametrize("style", ["responses", "chat_completions", "messages"])
+@pytest.mark.parametrize(
+    "style,stream",
+    [
+        ("responses", False),
+        ("chat_completions", False),
+        ("messages", False),
+        ("responses", True),
+    ],
+)
 @pytest.mark.parametrize("repair", [False, True])
-async def test_actual_client_tool_roundtrip_and_repair(tmp_path, style, repair):
+async def test_actual_client_tool_roundtrip_and_repair(tmp_path, style, stream, repair):
     (tmp_path / "reasons").mkdir()
     (tmp_path / "README.md").write_text("# Index\nreasons/epfo-rr-001.md\n")
     (tmp_path / "reasons/epfo-rr-001.md").write_text("## Fix\nCheck details.\n" + URL + "\n")
     requests = []
 
+    def respond(body):
+        if not stream:
+            return httpx.Response(200, json=body)
+        from test_llm_streaming import Chunks, encode, events_for
+
+        return httpx.Response(
+            200,
+            stream=Chunks(encode(events_for(body)), size=5),
+            headers={"content-type": "text/event-stream"},
+        )
+
     def handler(request):
         value = json.loads(request.content)
+        assert value["stream"] is stream
         requests.append(value)
         assert len(value["tools"]) == 2  # Repair must retain historical tool definitions.
         if len(requests) == 1:
             assert "host-index" in request.content.decode()
-            return httpx.Response(200, json=wire_response(style))
+            return respond(wire_response(style))
         if style != "chat_completions":
             assert "opaque-replay-marker" in request.content.decode()
         if repair and len(requests) == 2:
-            return httpx.Response(200, json=wire_response(style, text="not json"))
+            return respond(wire_response(style, text="not json"))
         eid = evidence_id(value, style)
         final = {
             "status": "success",
@@ -121,7 +141,7 @@ async def test_actual_client_tool_roundtrip_and_repair(tmp_path, style, repair):
             "explanation": [{"text": "Check details.", "evidence_ids": [eid]}],
             "actions": [{"text": "Check details.", "evidence_ids": [eid]}],
         }
-        return httpx.Response(200, json=wire_response(style, text=json.dumps(final)))
+        return respond(wire_response(style, text=json.dumps(final)))
 
     config = LLMConfig(
         api_style=style,
@@ -129,6 +149,7 @@ async def test_actual_client_tool_roundtrip_and_repair(tmp_path, style, repair):
         api_key="synthetic-key",
         model="fake-model",
         max_output_tokens=2048,
+        stream=stream,
     )
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         client = LLMClient(config, http)

@@ -141,6 +141,7 @@ def test_main_settings_maps_all_environment_fields(monkeypatch, style):
         "LLM_BASE_URL": "https://gateway.example/custom/v1/",
         "LLM_API_KEY": "mapped-private-key",
         "LLM_MODEL": "mapped-model",
+        "LLM_STREAM": "false",
         "LLM_TIMEOUT_SECONDS": "19",
         "LLM_CONNECT_TIMEOUT_SECONDS": "3",
         "LLM_MAX_OUTPUT_TOKENS": "1500",

@@ -43,7 +43,13 @@ The shared `VITE_API_BASE_URL` convention is a server root, not an `/api/v1` pre
 
 With a configured client, the UI reads `GET /api/v1/capabilities`, derives enabled/default languages and native names from the response, and enables **Analyze text** only when the metadata permits text analysis. Availability indicates configuration/structural readiness, **not verified model connectivity, policy accuracy or language quality**.
 
-Only an explicit Analyze action submits text to `POST /api/v1/analyze`. Images, filenames, object URLs and image bytes are never included. Current capabilities support text only; paste the image's wording if you want to analyze it. A typed request uses the original text, chosen enabled language and schema-default null detail fields.
+Only an explicit Analyze action submits text to `POST /api/v1/analyze`. A typed request uses the original text, chosen enabled language and schema-default null detail fields. Set trusted public `VITE_ENABLE_STREAMING=true` (or the legacy local `VITE_ENABLE_ANALYSIS=true`) to use Review → Analyze with `/api/v1/analyze/stream`. Both transports share validated API roots, cancellation and deadlines; neither falls back to canned output.
+
+Optional images require an explicit `image` input in validated capabilities and backend image configuration. One image is an alternative to text, not additional context. Review shows the selected image and disclosures before a separate **Analyze reviewed image** action. The complete selected file, including embedded metadata, is uploaded by presigned PUT to service-controlled private storage; the backend processes it with its configured model (possibly remote). The browser does not automatically redact personal data. Remove identifiers manually before attaching. Upload tickets include exact byte length; PUT uses the original File and no manually set Content-Length header. Images do not receive automatic or blind same-message retries. Cancellation cannot recall data already received.
+
+The independent six-language Interface language selector changes local controls and disclosures, never user text, response prose, evidence metadata or the output language. Native-language review remains outstanding.
+
+When enabled, streaming uses `POST /api/v1/analyze/stream`. Its SSE reader accepts up to 128 strictly validated activity events plus one final result, handles split UTF-8/CRLF and comments, and fails closed on incomplete, excessive or unexpected events. The chat activity panel shows only host-reported phases and actual Markdown paths, headings and line ranges; it invents no timed steps, percentages or source checks. Activity history stays per turn in memory after completion/error, in a bounded scrollable list. Working animation respects reduced motion. Source files are not fetched by the browser. The final answer appears only after a validated result and complete stream; an error never becomes a partial draft.
 
 ## Use the interface
 
@@ -54,7 +60,7 @@ Only an explicit Analyze action submits text to `POST /api/v1/analyze`. Images, 
 - Transient failures permit at most two explicit same-message retries; retrying resends the text. Configuration, knowledge, validation and budget failures do not get blind retries. Metadata refreshes are also limited to two per connection, including an explicit return from examples to API mode.
 - **Use examples** or **Show me an example** is an explicit switch to labelled offline content. Failed API requests never substitute a sample answer. **Use API** explicitly returns to the configured connection.
 - Overview, Next steps and Draft remain compact keyboard-accessible tabs. Source disclosures preserve paths, record IDs, exact headings, lines, zero-based columns and URLs. Copying a draft retains its factual-block citations, limitations and missing-field placeholders.
-- Language selection affects future replies, not English interface controls or earlier responses. Preview options come from a validated six-language fixture; API options come only from live capabilities. Quality flags are reported metadata rather than fluency guarantees.
+- Output language selection affects future replies, not independent interface controls or earlier responses. Preview options come from a validated six-language fixture; API options come only from live capabilities. Quality flags are reported metadata rather than fluency guarantees.
 - Text and local images are kept in browser memory only; new chat/reload clears them. Only the latest six turns are retained. API mode intentionally sends reviewed text to the configured service, never silently in the background.
 
 ## Safety and limits
@@ -86,6 +92,7 @@ Original fixture warnings are historical test data, not current backend readines
 ```sh
 npm run check
 npm run test:e2e
+npm run test:e2e:live
 npm run test:api
 ```
 
@@ -115,3 +122,5 @@ The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull request
 Anish accepted issue 24 through merged PR 35. This follow-up implements issue 25 and requests review; issue 26 requires completed/reviewed issue 25 before advancing. Live draft Download is shown only when `capabilities.downloads_available` is true; with the backend flag still false, export stays copy-only. Real provider policy/translation quality, physical camera behavior, OCR and deployment are not certified by these tests.
 
 See [WEB_UI_ACCEPTANCE.md](WEB_UI_ACCEPTANCE.md) for coverage, exact test evidence and remaining gates. Coordinate backend/API/CORS settings with Anish and image/document services with Ajay. No automatic issue closure or merge is implied by this document.
+
+`test:e2e:live` is an offline browser suite despite its historical name: an isolated Vite server ignores .env files; analysis and image storage routes are mocked or loopback fixtures. It never contacts real model providers.

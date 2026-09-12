@@ -10,6 +10,13 @@ import {
 const fresh = (): Capabilities => capabilitiesSchema.parse(previewCapabilities);
 
 describe('capabilitiesSchema', () => {
+  it('accepts image only as an explicit optional input alongside text', () => {
+    expect(capabilitiesSchema.parse({ ...fresh(), inputs: ['text', 'image'] }).inputs).toEqual([
+      'text',
+      'image',
+    ]);
+    expect(capabilitiesSchema.safeParse({ ...fresh(), inputs: ['image'] }).success).toBe(false);
+  });
   it('validates the explicitly offline mock fixture, not actual service readiness', () => {
     expect(fresh()).toEqual({
       schema_version: '1.0',
@@ -105,7 +112,7 @@ describe('capabilitiesSchema', () => {
     { checks: null },
     { inputs: [] },
     { inputs: ['image'] },
-    { inputs: ['text', 'image'] },
+    { inputs: ['text', 'image', 'image'] },
     { inputs: ['text', 'text'] },
     { inputs: 'text' },
     { analysis_available: 'false' },

@@ -55,6 +55,8 @@ Be explicit with judges:
 - Extension privacy guarantees and browser acceptance remain partly open; do not demo them as finished unless the linked evidence says so.
 - Do **not** invent green live results for pitch day.
 
+For the longer room talk track, use [judge-demo-script.md](judge-demo-script.md).
+
 ## 60-second demo script (synthetic case only)
 
 Use only synthetic fixtures (for example the initials / name-mismatch style case in `references/reviews/epfo/cases.json`). Never paste real claimant identity, UAN, Aadhaar, or live portal screenshots into a public demo.

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { AnalyzeResponse, Language } from '../lib/contracts';
 import { downloadDraftText, draftDownloadFilename } from '../lib/draftExport';
+import { useLocale } from '../lib/i18n';
 import { Evidence } from './Evidence';
 
 type AnswerCardProps = {
@@ -19,6 +20,7 @@ type AnswerCardProps = {
   onEdit: () => void;
   mode?: 'live' | 'sample';
   isSample?: boolean;
+  sample?: boolean;
   qualityVerified?: boolean;
   /** The parent owns the manual retry budget. */
   onRetry?: () => void;
@@ -64,7 +66,7 @@ const labels = {
   error: 'Please edit the remark and try again.',
 };
 
-function answerLabels(isSample: boolean) {
+function englishAnswerLabels(isSample: boolean) {
   if (isSample) return labels;
   return {
     ...labels,
@@ -94,10 +96,59 @@ function sampleTextLanguage(text: string): Language {
   return 'en';
 }
 
-function highlightPlaceholders(text: string) {
+function useAnswerLabels(sample: boolean) {
+  const { t, locale } = useLocale();
+  if (locale === 'en')
+    return {
+      locale,
+      text: {
+        ...englishAnswerLabels(sample),
+        missingList: (fields: string) => t('missingList', { fields }),
+      },
+    };
+  return {
+    locale,
+    text: {
+      ...englishAnswerLabels(sample),
+      sample: t(sample ? 'sampleBanner' : 'liveBanner'),
+      title: t(sample ? 'sampleTitle' : 'liveTitle'),
+      edit: t('editRemark'),
+      tabs: [t('overview'), t('nextSteps'), t('draft')],
+      tablist: t(sample ? 'sampleTabs' : 'liveTabs'),
+      documents: t(sample ? 'documentPreview' : 'documents'),
+      noDocuments: t('noDocuments'),
+      noActions: t('noActions'),
+      noDraft: t('noDraft'),
+      progress: (done: number, total: number) => t('checked', { done, total }),
+      tracking: t('checklistNote'),
+      draftNotice: t(sample ? 'sampleDraftNotice' : 'liveDraftNotice'),
+      missing: t('missing'),
+      missingList: (fields: string) => t('missingList', { fields }),
+      copy: t(sample ? 'copySample' : 'copyDraft'),
+      copying: t('copying'),
+      copied: t(sample ? 'sampleCopied' : 'draftCopied'),
+      copyError: t(sample ? 'sampleCopyError' : 'draftCopyError'),
+      disclosure: t(sample ? 'sampleDisclosure' : 'liveDisclosure'),
+      disclosureNote: t(sample ? 'sampleDisclosureNote' : 'liveDisclosureNote'),
+      clarificationTitle: t('clarificationTitle'),
+      clarification: t('clarification'),
+      unsupportedTitle: t('unsupportedTitle'),
+      unsupported: t('unsupported'),
+      errorTitle: t('errorTitle'),
+      error: t('editRetry'),
+    },
+  };
+}
+
+const canonicalFields = new Set(['claimant_name', 'claim_id', 'claim_type']);
+function highlightPlaceholders(text: string, sample: boolean) {
   return text.split(/(\[[^\]\n]+\])/g).map((part, index) =>
     part.startsWith('[') && part.endsWith(']') ? (
-      <mark className="draft-placeholder" key={index}>
+      <mark
+        className="draft-placeholder"
+        key={index}
+        lang={!sample && canonicalFields.has(part.slice(1, -1)) ? 'en' : undefined}
+      >
         {part}
       </mark>
     ) : (
@@ -115,7 +166,7 @@ function ResponseTabs({
   isSample: boolean;
   downloadsAvailable?: boolean;
 }) {
-  const text = answerLabels(isSample);
+  const { text, locale } = useAnswerLabels(isSample);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -181,7 +232,7 @@ function ResponseTabs({
       response.draft.title,
       ...response.draft.blocks.map((block) => block.text),
       ...(response.draft.missing_fields.length
-        ? [`${text.missing}: ${response.draft.missing_fields.join(', ')}`]
+        ? [text.missingList(response.draft.missing_fields.join(', '))]
         : []),
       ...sourceNotes,
       text.disclosure,
@@ -217,7 +268,7 @@ function ResponseTabs({
 
   return (
     <>
-      <div className="answer-tabs" role="tablist" aria-label={text.tablist} lang="en">
+      <div className="answer-tabs" role="tablist" aria-label={text.tablist} lang={locale}>
         {text.tabs.map((tab, index) => {
           const Icon = icons[index];
           return (
@@ -234,7 +285,7 @@ function ResponseTabs({
               }}
               onClick={() => setSelected(index)}
               onKeyDown={(event) => navigateTabs(event, index)}
-              key={tab}
+              key={index}
             >
               <Icon size={16} aria-hidden="true" />
               {tab}
@@ -264,7 +315,7 @@ function ResponseTabs({
           ))}
         </div>
         <div className="answer-documents">
-          <h3 lang="en">{text.documents}</h3>
+          <h3 lang={locale}>{text.documents}</h3>
           {response.required_documents.length ? (
             response.required_documents.map((document, index) => (
               <div className="document-tile" key={index}>
@@ -280,7 +331,7 @@ function ResponseTabs({
               </div>
             ))
           ) : (
-            <p className="answer-empty" lang="en">
+            <p className="answer-empty" lang={locale}>
               {text.noDocuments}
             </p>
           )}
@@ -297,7 +348,7 @@ function ResponseTabs({
       >
         {response.actions.length ? (
           <>
-            <div className="steps-progress" lang="en">
+            <div className="steps-progress" lang={locale}>
               <span className="steps-progress-label" id={`${id}-progress`} aria-live="polite">
                 {text.progress(checked.size, response.actions.length)}
               </span>
@@ -307,7 +358,7 @@ function ResponseTabs({
                 aria-labelledby={`${id}-progress`}
               />
             </div>
-            <p className="steps-note" lang="en">
+            <p className="steps-note" lang={locale}>
               {text.tracking}
             </p>
             <ol className="steps-list">
@@ -339,7 +390,7 @@ function ResponseTabs({
             </ol>
           </>
         ) : (
-          <p className="answer-empty" lang="en">
+          <p className="answer-empty" lang={locale}>
             {text.noActions}
           </p>
         )}
@@ -355,7 +406,7 @@ function ResponseTabs({
       >
         {response.draft ? (
           <>
-            <div className="draft-toolbar" lang="en">
+            <div className="draft-toolbar" lang={locale}>
               <span>{text.draftNotice}</span>
               <div className="draft-toolbar-actions">
                 <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
@@ -386,7 +437,7 @@ function ResponseTabs({
               <h3 id={`${id}-draft-title`}>{response.draft.title}</h3>
               {response.draft.blocks.map((block, index) => (
                 <div className="draft-block" key={index}>
-                  <p>{highlightPlaceholders(block.text)}</p>
+                  <p>{highlightPlaceholders(block.text, isSample)}</p>
                   <Evidence
                     ids={block.citation_ids}
                     citations={response.citations}
@@ -396,12 +447,24 @@ function ResponseTabs({
               ))}
             </article>
             {response.draft.missing_fields.length > 0 && (
-              <p className="draft-missing" lang="en">
+              <p className="draft-missing" lang={locale}>
                 {text.missing}:{' '}
-                <span lang={response.language}>{response.draft.missing_fields.join(', ')}</span>
+                <span lang={response.language}>
+                  {isSample
+                    ? response.draft.missing_fields.join(', ')
+                    : response.draft.missing_fields.map((field, index) => (
+                        <span
+                          key={field}
+                          lang={!isSample && canonicalFields.has(field) ? 'en' : undefined}
+                        >
+                          {index > 0 ? ', ' : ''}
+                          {field}
+                        </span>
+                      ))}
+                </span>
               </p>
             )}
-            <p className="copy-feedback" role="status" aria-live="polite" lang="en">
+            <p className="copy-feedback" role="status" aria-live="polite" lang={locale}>
               {copyState === 'copied'
                 ? text.copied
                 : copyState === 'error'
@@ -414,7 +477,7 @@ function ResponseTabs({
             </p>
           </>
         ) : (
-          <p className="answer-empty" lang="en">
+          <p className="answer-empty" lang={locale}>
             {text.noDraft}
           </p>
         )}
@@ -427,14 +490,15 @@ export function AnswerCard({
   response,
   onEdit,
   mode,
-  isSample: sample = true,
+  isSample: legacySample,
+  sample = legacySample ?? true,
   qualityVerified = false,
   onRetry,
   retryLabel = 'Try again',
   downloadsAvailable = false,
 }: AnswerCardProps) {
   const isSample = mode === undefined ? sample : mode === 'sample';
-  const text = answerLabels(isSample);
+  const { text, locale } = useAnswerLabels(isSample);
   const id = useId();
   const title =
     response.status === 'success'
@@ -450,7 +514,7 @@ export function AnswerCard({
       <p className={isSample ? 'sample-banner' : 'sample-banner service-banner'} lang="en">
         <Info size={15} aria-hidden="true" /> {text.sample}
       </p>
-      <header className="answer-header" lang="en">
+      <header className="answer-header" lang={locale}>
         <span className="answer-icon">
           <MessageCircle size={22} aria-hidden="true" />
         </span>

@@ -283,7 +283,7 @@ test('landing is a single empty composer with no outcome selector, stepper or sa
   await expect(input(page)).toHaveCount(1);
   await expect(send(page)).toBeDisabled();
   await expect(language(page)).toHaveValue('en');
-  await expect(page.getByRole('combobox')).toHaveCount(1);
+  await expect(page.getByRole('combobox')).toHaveCount(2);
   await expect(page.getByRole('combobox', { name: /outcome|success/i })).toHaveCount(0);
   await expect(page.getByRole('navigation')).toHaveCount(0);
   await expect(

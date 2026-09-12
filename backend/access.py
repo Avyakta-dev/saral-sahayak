@@ -37,7 +37,8 @@ class AnalysisAccessMiddleware:
         if (
             scope["type"] != "http"
             or scope["method"] != "POST"
-            or scope["path"].rstrip("/") != "/api/v1/analyze"
+            or scope["path"].rstrip("/")
+            not in {"/api/v1/analyze", "/api/v1/analyze/stream", "/api/v1/images/uploads"}
         ):
             await self.app(scope, receive, send)
             return

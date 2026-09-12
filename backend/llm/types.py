@@ -36,6 +36,13 @@ class LLMConfig(BaseModel):
     max_output_tokens: int = Field(default=2048, ge=1, le=131072, strict=True)
     extra_headers: dict[str, SecretStr] = Field(default_factory=dict, repr=False)
     anthropic_version: str = "2023-06-01"
+    stream: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def supported_streaming(self) -> LLMConfig:
+        if self.stream and self.api_style != "responses":
+            raise ValueError("LLM_STREAM=true currently requires LLM_API_STYLE=responses")
+        return self
 
     @field_validator("base_url")
     @classmethod
@@ -150,6 +157,8 @@ class ToolCall(_Contract):
 class Message(_Contract):
     role: Literal["system", "user", "assistant", "tool"]
     content: str = Field(default="", repr=False)
+    # Host-admitted image URLs only. Never model-supplied, never replayed to the agent.
+    image_urls: tuple[str, ...] = Field(default=(), repr=False)
     tool_calls: tuple[ToolCall, ...] = Field(default=(), repr=False)
     tool_call_id: str | None = Field(default=None, repr=False)
     is_error: bool = False
@@ -165,6 +174,8 @@ class Message(_Contract):
                 raise ValueError("Tool results require a call ID and no assistant payload")
         elif self.tool_call_id is not None or self.is_error:
             raise ValueError("Only tool results can carry result metadata")
+        if self.image_urls and (self.role != "user" or len(self.image_urls) > 1):
+            raise ValueError("Only one image is allowed on a user message")
         if self.role != "assistant" and (self.tool_calls or self.provider_items or self.api_style):
             raise ValueError("Only assistant messages can carry continuation state")
         if self.provider_items and self.api_style is None:

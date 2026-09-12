@@ -20,6 +20,10 @@ import {
   Square,
   X,
 } from 'lucide-react';
+import { useLocale, locales, nativeNames, type UiLocale, type Message } from './lib/i18n';
+import { ActivityPanel } from './components/ActivityPanel';
+import { imageInputAvailable, type AnalysisActivity } from './lib/contracts';
+import { uploadImage } from './lib/api';
 import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
@@ -84,6 +88,7 @@ type Turn = {
   image: ImageAttachment | null;
   language: Language;
   sample: boolean;
+  activity?: AnalysisActivity[];
   response: AnalyzeResponse | null;
   api?: boolean;
   failure?: Failure;
@@ -151,6 +156,9 @@ export default function App({
   capabilities: suppliedCapabilities = previewCapabilities,
   apiClient,
 }: { capabilities?: Capabilities; apiClient?: ApiClient | null } = {}) {
+  const { locale, setLocale, t, message } = useLocale();
+  const consentDialog = useRef<HTMLDialogElement>(null);
+  const [consent, setConsent] = useState<Turn | null>(null);
   const offlineCapabilities = useMemo(
     () => capabilitiesSchema.parse(suppliedCapabilities),
     [suppliedCapabilities],
@@ -185,7 +193,7 @@ export default function App({
   const [attachment, setAttachment] = useState<ImageAttachment | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<string | Message>('');
   const [readingFile, setReadingFile] = useState(false);
   const [pending, setPending] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -214,7 +222,18 @@ export default function App({
     connectionState === 'ready' &&
     capabilities?.analysis_available === true &&
     capabilities.languages.some((item) => item.code === language);
-  const apiInputValid = validateInput(text, language) === null;
+  const imageEnabled =
+    mode === 'api' &&
+    imageInputAvailable(capabilities) &&
+    !!configuration.client?.createImageUpload &&
+    !!configuration.client?.analyzeImageStream;
+  const reviewedFlow = !!configuration.client?.analyzeStream;
+  const apiInputValid =
+    attachment && imageEnabled ? !text.trim() : validateInput(text, language) === null;
+  useEffect(() => {
+    if (consent) consentDialog.current?.showModal();
+    else consentDialog.current?.close();
+  }, [consent]);
 
   // One discovery on connection setup. Mode switches never trigger automatic discovery/retries.
   useEffect(() => {
@@ -315,6 +334,7 @@ export default function App({
   function removeAttachment() {
     fileVersion.current += 1;
     setReadingFile(false);
+    setConsent(null);
     if (currentAttachment.current) forgetImage(currentAttachment.current);
     updateAttachment(null);
     setNotice('Image removed.');
@@ -327,6 +347,7 @@ export default function App({
 
   async function addFile(file: File) {
     closeMenu();
+    setConsent(null);
     const version = ++fileVersion.current;
     setError('');
     setNotice('');
@@ -339,7 +360,7 @@ export default function App({
         const validation = validateInput(combined, language);
         if (validation) throw new Error(validation);
         setText(combined);
-        setNotice(`Text added from ${file.name}.`);
+        setNotice({ key: 'textAdded', params: { name: file.name } });
       } else {
         const image = await readImage(file);
         if (version !== fileVersion.current) {
@@ -349,7 +370,11 @@ export default function App({
         if (currentAttachment.current) forgetImage(currentAttachment.current);
         retainedImages.current.add(image);
         updateAttachment(image);
-        setNotice('Image added locally. Text extraction is not connected yet.');
+        setNotice(
+          imageInputAvailable(capabilities)
+            ? 'Image added locally. It is uploaded only if you approve analysis.'
+            : 'Image added locally. Image analysis is not enabled on this backend.',
+        );
       }
       textarea.current?.focus();
     } catch (cause) {
@@ -397,6 +422,7 @@ export default function App({
   }
 
   function cancelWork() {
+    setConsent(null);
     fileVersion.current += 1;
     setReadingFile(false);
     request.current?.abort();
@@ -517,6 +543,7 @@ export default function App({
         : null,
     );
     setText(turn.text);
+    if (capabilities) setLanguage(selectEnabledLanguage(capabilities, turn.language));
     if (currentAttachment.current && currentAttachment.current !== turn.image)
       forgetImage(currentAttachment.current);
     updateAttachment(turn.image);
@@ -546,11 +573,46 @@ export default function App({
     );
     closeMenu();
     try {
-      // Only editable text and the enabled output language cross the API boundary.
-      const response = await client.analyze(
-        { text: turn.text, language: turn.language },
-        controller.signal,
-      );
+      const onActivity = (activity: AnalysisActivity) => {
+        if (request.current !== controller || controller.signal.aborted) return;
+        setTurns((previous) =>
+          previous.map((item) =>
+            item.id === turn.id
+              ? { ...item, activity: [...(item.activity ?? []), activity].slice(-128) }
+              : item,
+          ),
+        );
+      };
+      let response: AnalyzeResponse;
+      if (turn.image) {
+        if (
+          !imageEnabled ||
+          !client.createImageUpload ||
+          !client.analyzeImageStream ||
+          turn.text.trim()
+        )
+          throw new ApiError('invalid_request', 'Review one enabled input before analysis.');
+        const ticket = await client.createImageUpload(
+          turn.language,
+          turn.image.file,
+          controller.signal,
+        );
+        await uploadImage(ticket, turn.image.file, controller.signal);
+        response = await client.analyzeImageStream(
+          ticket.object_key,
+          turn.language,
+          controller.signal,
+          onActivity,
+        );
+      } else {
+        response = await (client.analyzeStream
+          ? client.analyzeStream(
+              { text: turn.text, language: turn.language },
+              controller.signal,
+              onActivity,
+            )
+          : client.analyze({ text: turn.text, language: turn.language }, controller.signal));
+      }
       if (request.current !== controller || controller.signal.aborted) return;
       setTurns((previous) =>
         previous.map((item) => (item.id === turn.id ? { ...item, response } : item)),
@@ -559,8 +621,10 @@ export default function App({
         setConnectionState('unavailable');
         setConnectionFailure({ code: 'access_denied', retryable: false });
       }
-      if (response.status === 'success')
+      if (response.status === 'success') {
         setText((current) => (current === turn.text ? '' : current));
+        if (turn.image === currentAttachment.current) updateAttachment(null);
+      }
     } catch (cause) {
       if (request.current !== controller || controller.signal.aborted) return;
       const failure = transportFailure(cause);
@@ -582,15 +646,36 @@ export default function App({
 
   function canRetry(turn: Turn) {
     return (
-      turn.failure?.retryable === true ||
-      (turn.response?.status === 'error' && isRetryableCode(turn.response.error?.code ?? ''))
+      !turn.image &&
+      (turn.failure?.retryable === true ||
+        (turn.response?.status === 'error' && isRetryableCode(turn.response.error?.code ?? '')))
     );
   }
 
   function retryTurn(turn: Turn) {
     if (!canRetry(turn) || !canRetryAnalysis(1 + (turn.retries ?? 0)) || turn.language !== language)
       return;
-    void analyzeTurn({ ...turn, retries: (turn.retries ?? 0) + 1 });
+    const next = { ...turn, retries: (turn.retries ?? 0) + 1 };
+    if (reviewedFlow) {
+      setText(turn.text);
+      setConsent(next);
+    } else void analyzeTurn(next);
+  }
+
+  function confirmAnalysis() {
+    if (
+      !consent ||
+      !apiReady ||
+      pending ||
+      readingFile ||
+      consent.text !== text ||
+      consent.language !== language ||
+      (consent.image && consent.image !== attachment)
+    )
+      return;
+    const reviewed = consent;
+    setConsent(null);
+    void analyzeTurn(reviewed);
   }
 
   function send(event?: FormEvent<HTMLFormElement>) {
@@ -598,6 +683,14 @@ export default function App({
     if (pending || request.current || readingFile) return;
     if (mode === 'api') {
       if (!apiReady) return;
+      if (attachment && imageEnabled && text.trim()) {
+        setError(t('imageOnly'));
+        return;
+      }
+      if (attachment && reviewedFlow && !imageEnabled) {
+        setError(t('errorImageBlocked'));
+        return;
+      }
       if (!apiInputValid) {
         setError(
           attachment && !text.trim()
@@ -606,10 +699,10 @@ export default function App({
         );
         return;
       }
-      void analyzeTurn({
+      const next: Turn = {
         id: ++turnId.current,
         text,
-        image: null,
+        image: imageEnabled ? attachment : null,
         language,
         sample: false,
         api: true,
@@ -617,7 +710,9 @@ export default function App({
         retries: 0,
         qualityVerified:
           capabilities?.languages.find((item) => item.code === language)?.quality_verified ?? false,
-      });
+      };
+      if (reviewedFlow || next.image) setConsent(next);
+      else void analyzeTurn(next);
       return;
     }
     setClarification(null);
@@ -698,6 +793,7 @@ export default function App({
   }
 
   function changeLanguage(value: Language) {
+    setConsent(null);
     if (!capabilities) return;
     cancelWork();
     cancelMetadata();
@@ -791,13 +887,13 @@ export default function App({
           if (dragDepth.current <= 0) setDragging(false);
         }}
         onDrop={drop}
-        aria-label="Message composer"
+        aria-label={t('composer')}
       >
         {dragging && (
           <div className="drop-overlay">
             <ImagePlus size={28} aria-hidden="true" />
-            <strong>Drop your screenshot here</strong>
-            <span>PNG, JPG or WebP · up to 10 MB</span>
+            <strong>{t('dropImage')}</strong>
+            <span>{t('imageFormats')}</span>
           </div>
         )}
         {attachment && (
@@ -805,17 +901,19 @@ export default function App({
             <button
               type="button"
               className="attachment-thumb"
-              aria-label={`Enlarge ${attachment.name}`}
+              aria-label={t('enlarge', { name: attachment.name })}
               onClick={() => setZoomImage(attachment)}
             >
-              <img src={attachment.url} alt="Attached screenshot preview" />
+              <img src={attachment.url} alt={t('attachedPreview')} />
             </button>
             <div>
               <strong>{attachment.name}</strong>
-              <span>{(attachment.file.size / 1024).toFixed(0)} KB · local preview</span>
+              <span>{t('imageSize', { size: Math.round(attachment.file.size / 1024) })}</span>
               <small>
                 {mode === 'api'
-                  ? 'Image stays local. Paste its wording; only typed text is sent.'
+                  ? imageEnabled
+                    ? t('imageUploadNote')
+                    : 'Image stays local. Paste its wording; only typed text is sent.'
                   : 'OCR isn’t connected yet'}
               </small>
             </div>
@@ -823,30 +921,28 @@ export default function App({
               className="icon-button"
               type="button"
               onClick={removeAttachment}
-              aria-label="Remove attached image"
+              aria-label={t('removeImage')}
             >
               <X size={17} aria-hidden="true" />
             </button>
           </div>
         )}
         <label className="sr-only" htmlFor="message-input">
-          Your message
+          {t('yourMessage')}
         </label>
         <textarea
           ref={textarea}
           id="message-input"
+          lang=""
           value={text}
           onChange={(event) => {
+            setConsent(null);
             setText(event.target.value);
             setError('');
           }}
           onPaste={paste}
           onKeyDown={composerKey}
-          placeholder={
-            attachment
-              ? 'Add the rejection wording or a note about this image…'
-              : 'Paste your rejection remark, or add a screenshot…'
-          }
+          placeholder={attachment ? t('imagePlaceholder') : t('textPlaceholder')}
           rows={2}
           spellCheck={false}
           autoComplete="off"
@@ -864,9 +960,9 @@ export default function App({
                 if (event.key === 'Escape') closeMenu();
               }}
             >
-              <summary aria-label="Add a file">
+              <summary aria-label={t('addFile')}>
                 <Paperclip size={20} aria-hidden="true" />
-                <span>Attach</span>
+                <span>{t('attach')}</span>
                 <ChevronDown size={12} aria-hidden="true" />
               </summary>
               <div className="attachment-options">
@@ -880,7 +976,8 @@ export default function App({
                 >
                   <ImagePlus size={19} aria-hidden="true" />
                   <span>
-                    Upload an image<small>PNG, JPG, WebP · 10 MB</small>
+                    {t('uploadImage')}
+                    <small>{t('imageFormatsShort')}</small>
                   </span>
                 </button>
                 <button
@@ -893,7 +990,8 @@ export default function App({
                 >
                   <Camera size={19} aria-hidden="true" />
                   <span>
-                    Take a photo<small>Camera on supported devices</small>
+                    {t('photo')}
+                    <small>{t('cameraDevices')}</small>
                   </span>
                 </button>
                 <button
@@ -906,7 +1004,8 @@ export default function App({
                 >
                   <FileText size={19} aria-hidden="true" />
                   <span>
-                    Add a text file<small>Plain text .txt · 8,000 characters</small>
+                    {t('textFile')}
+                    <small>{t('textFileFormats')}</small>
                   </span>
                 </button>
               </div>
@@ -916,31 +1015,40 @@ export default function App({
               type="button"
               disabled={pending || readingFile}
               onClick={() => cameraInput.current?.click()}
-              aria-label="Take a photo"
-              title="Camera on supported phones; file picker on desktop"
+              aria-label={t('photo')}
+              title={t('cameraTitle')}
             >
               <Camera size={19} aria-hidden="true" />
             </button>
-            <span className="composer-formats">Text & images</span>
+            <span className="composer-formats">{t('textImages')}</span>
           </div>
           <div className="send-tools">
             {readingFile ? (
               <span className="file-loading" role="status">
-                <LoaderCircle className="spin" size={15} aria-hidden="true" /> Opening file
+                <LoaderCircle className="spin" size={15} aria-hidden="true" />
+                {t('openingFile')}
               </span>
             ) : count > 7000 ? (
               <span className={count > 8000 ? 'count invalid' : 'count'}>
-                {count.toLocaleString('en-IN')} / 8,000
+                {t('charCount', {
+                  count: count.toLocaleString(locale === 'en' ? 'en-IN' : locale),
+                })}
               </span>
             ) : (
-              <span className="keyboard-hint">Shift + Enter for a new line</span>
+              <span className="keyboard-hint">{t('newline')}</span>
             )}
             {pending ? (
               <button
                 className="send-button stop-button"
                 type="button"
                 onClick={cancelSample}
-                aria-label={mode === 'api' ? 'Cancel analysis' : 'Stop opening sample'}
+                aria-label={
+                  mode === 'api'
+                    ? reviewedFlow
+                      ? t('stopAnalysis')
+                      : 'Cancel analysis'
+                    : t('stopSample')
+                }
               >
                 <Square size={17} aria-hidden="true" />
               </button>
@@ -950,12 +1058,24 @@ export default function App({
                 type="submit"
                 disabled={
                   readingFile ||
-                  (mode === 'api' ? !apiReady || !apiInputValid : !text.trim() && !attachment)
+                  (mode === 'api'
+                    ? !apiReady || (!apiInputValid && (!attachment || !reviewedFlow))
+                    : !text.trim() && !attachment)
                 }
-                aria-label={mode === 'api' ? 'Analyze text' : 'Send message'}
+                aria-label={
+                  mode === 'api'
+                    ? reviewedFlow || (imageEnabled && attachment)
+                      ? t('reviewAnalysis')
+                      : 'Analyze text'
+                    : t('send')
+                }
               >
                 {mode === 'api' ? (
-                  'Analyze text'
+                  reviewedFlow || (imageEnabled && attachment) ? (
+                    t('review')
+                  ) : (
+                    'Analyze text'
+                  )
                 ) : (
                   <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />
                 )}
@@ -967,49 +1087,79 @@ export default function App({
       {error && (
         <p className="composer-error" id="composer-error" role="alert">
           <CircleAlert size={15} aria-hidden="true" />
-          {error}
+          {message(error)}
         </p>
       )}
       <p className="composer-notice" role="status">
-        {notice}
+        {typeof notice === 'string' && locale === 'en' ? notice : message(notice)}
       </p>
       <p className={`preview-limit${mode === 'api' ? ' api-privacy-note' : ''}`} id="preview-limit">
         <LockKeyhole size={12} aria-hidden="true" />{' '}
         {mode === 'api'
-          ? 'Analyze text sends your text to the configured analysis service. Omit personal IDs (Aadhaar, PAN, UAN, bank or claim numbers). Images are not sent or read.'
+          ? imageEnabled
+            ? t('imageUploadNote')
+            : 'Analyze text sends your text to the configured analysis service. Omit personal IDs (Aadhaar, PAN, UAN, bank or claim numbers). Images are not sent or read.'
           : 'Local preview. Analysis & image reading aren’t connected.'}{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
-          Details
+          {t('details')}
         </button>
       </p>
     </div>
   );
 
   return (
-    <div className="chat-app">
+    <div className="chat-app" lang={locale}>
       <a className="skip-link" href="#main">
-        Skip to content
+        {t('skip')}
       </a>
       <header className={hasConversation ? 'app-header has-conversation' : 'app-header'}>
-        <a className="wordmark" href="#main">
+        <a className="wordmark" href="#main" lang="en">
           Saral<span> Sahayak</span>
           <i aria-hidden="true">.</i>
         </a>
-        <span className="header-context">Your EPFO companion</span>
+        <span className="header-context">{t('companion')}</span>
         <div className="header-actions">
+          <div className="language-select ui-language-select">
+            <Globe2 size={16} aria-hidden="true" />
+            <label className="sr-only" htmlFor="ui-language">
+              {t('uiLanguage')}
+            </label>
+            <select
+              id="ui-language"
+              value={locale}
+              title={t('uiLanguage')}
+              onChange={(event) => {
+                setConsent(null);
+                setLocale(event.target.value as UiLocale);
+              }}
+            >
+              {locales.map((code) => (
+                <option key={code} value={code} lang={code}>
+                  {nativeNames[code]}
+                </option>
+              ))}
+            </select>
+          </div>
           {hasConversation && (
-            <button type="button" className="new-chat" onClick={newChat} aria-label="New chat">
+            <button type="button" className="new-chat" onClick={newChat} aria-label={t('newChat')}>
               <Plus size={17} aria-hidden="true" />
-              <span>New chat</span>
+              <span>{t('newChat')}</span>
             </button>
           )}
           <div className="language-select">
             <Globe2 size={16} aria-hidden="true" />
-            <label className="sr-only" htmlFor="language">
-              Output language
+            <label
+              className="sr-only"
+              htmlFor={mode === 'api' && reviewedFlow ? 'output-language' : 'language'}
+            >
+              {mode === 'api'
+                ? reviewedFlow
+                  ? t('analysisLanguage')
+                  : t('outputLanguage')
+                : t('outputLanguage')}
             </label>
             <select
-              id="language"
+              id={mode === 'api' && reviewedFlow ? 'output-language' : 'language'}
               value={capabilities ? language : ''}
               disabled={!capabilities || (mode === 'api' && connectionState !== 'ready')}
               onChange={(event) => changeLanguage(event.target.value as Language)}
@@ -1051,12 +1201,11 @@ export default function App({
           <div className="welcome-layout">
             <section className="welcome" aria-labelledby="welcome-title">
               <WelcomeVisual />
-              <p className="eyebrow">Less confusion. A clearer next step.</p>
-              <h1 id="welcome-title">
-                Let’s make sense
-                <br /> of your claim.
-              </h1>
-              <p className="welcome-caption">Paste a remark. Add a screenshot. Start here.</p>
+              <p className="eyebrow">{t('eyebrow')}</p>
+              <h1 id="welcome-title">{t('welcomeTitle')}</h1>
+              <p className="welcome-caption">
+                {mode === 'api' ? t('welcomeLive') : t('welcomePreview')}
+              </p>
               <p className="source-hint">
                 Grounded EPFO guidance with Markdown evidence and original source URLs. Ask for
                 clarification or abstain when evidence is insufficient.
@@ -1075,8 +1224,8 @@ export default function App({
                   <Check size={12} className="mini-check" aria-hidden="true" />
                 </span>
                 <span>
-                  <strong>Show me an example</strong>
-                  <small>A quick, visual walkthrough</small>
+                  <strong>{t('example')}</strong>
+                  <small>{t('exampleCaption')}</small>
                 </span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
@@ -1090,8 +1239,8 @@ export default function App({
                   <ImagePlus size={23} aria-hidden="true" />
                 </span>
                 <span>
-                  <strong>Add a screenshot</strong>
-                  <small>Or drag & drop it here</small>
+                  <strong>{t('addScreenshot')}</strong>
+                  <small>{t('dropCaption')}</small>
                 </span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
@@ -1105,28 +1254,34 @@ export default function App({
               <span aria-hidden="true">·</span>
               <span>{mode === 'api' ? 'Server-controlled access' : 'No account needed'}</span>
               <span aria-hidden="true">·</span>
-              <span>{mode === 'api' ? 'Text sent only on Analyze' : 'Nothing is sent'}</span>
+              <span>
+                {mode === 'api'
+                  ? imageEnabled
+                    ? t('approvedInput')
+                    : 'Text sent only on Analyze'
+                  : t('nothingSent')}
+              </span>
             </div>
           </div>
         ) : (
           <>
-            <h1 className="sr-only">Your conversation</h1>
-            <section className="conversation" aria-label="Conversation">
+            <h1 className="sr-only">{t('conversationTitle')}</h1>
+            <section className="conversation" aria-label={t('conversation')}>
               <div className="thread">
                 {turns.map((turn) => (
                   <article className="turn" key={turn.id}>
                     <div className="user-message">
                       {turn.sample && (
-                        <span className="sample-message-label">Illustrative example</span>
+                        <span className="sample-message-label">{t('illustrative')}</span>
                       )}
                       {turn.image && (
                         <button
                           className="message-image"
                           type="button"
                           onClick={() => setZoomImage(turn.image)}
-                          aria-label={`Enlarge ${turn.image.name}`}
+                          aria-label={t('enlarge', { name: turn.image.name })}
                         >
-                          <img src={turn.image.url} alt="Your attached image" />
+                          <img src={turn.image.url} alt={t('yourImage')} />
                           <span>
                             <ImagePlus size={13} aria-hidden="true" />
                             {turn.image.name}
@@ -1134,7 +1289,7 @@ export default function App({
                         </button>
                       )}
                       {turn.text && (
-                        <p dir="auto" lang={turn.sample ? turn.language : undefined}>
+                        <p dir="auto" lang={turn.sample ? turn.language : ''}>
                           {turn.text}
                         </p>
                       )}
@@ -1142,7 +1297,7 @@ export default function App({
                         className="edit-message"
                         type="button"
                         onClick={() => editTurn(turn)}
-                        aria-label="Edit this message"
+                        aria-label={t('editThis')}
                       >
                         <PenLine size={13} aria-hidden="true" />
                       </button>
@@ -1152,6 +1307,12 @@ export default function App({
                         <MessageCircle size={18} />
                       </span>
                       <div className="assistant-content">
+                        {turn.api && (reviewedFlow || turn.image) && (
+                          <ActivityPanel
+                            activity={turn.activity ?? []}
+                            working={!turn.response && !turn.failure}
+                          />
+                        )}
                         {turn.response ? (
                           <AnswerCard
                             response={turn.response}
@@ -1206,7 +1367,7 @@ export default function App({
                                 disabled={pending || readingFile}
                                 onClick={() => void openExample()}
                               >
-                                <MessageCircle size={16} aria-hidden="true" /> See an example{' '}
+                                <MessageCircle size={16} aria-hidden="true" /> {t('seeExample')}{' '}
                                 <ArrowUpRight size={14} aria-hidden="true" />
                               </button>
                               <button
@@ -1281,7 +1442,7 @@ export default function App({
         type="file"
         accept={IMAGE_ACCEPT}
         tabIndex={-1}
-        aria-label="Choose image file"
+        aria-label={t('chooseImage')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
@@ -1294,7 +1455,7 @@ export default function App({
         accept={IMAGE_ACCEPT}
         capture="environment"
         tabIndex={-1}
-        aria-label="Capture photo"
+        aria-label={t('capturePhoto')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
@@ -1306,18 +1467,58 @@ export default function App({
         type="file"
         accept=".txt,text/plain"
         tabIndex={-1}
-        aria-label="Choose text file"
+        aria-label={t('chooseText')}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
         }}
       />
+      {mode === 'api' && (
+        <dialog
+          className="info-dialog consent-dialog"
+          ref={consentDialog}
+          aria-labelledby="consent-title"
+          onCancel={() => setConsent(null)}
+          onClose={() => setConsent(null)}
+        >
+          <h2 id="consent-title">{t(consent?.image ? 'imageConsentTitle' : 'consentTitle')}</h2>
+          <p>{t(consent?.image ? 'imageConsentDestination' : 'consentDestination')}</p>
+          <p>{t('serviceDestination', { destination: configuration.client?.baseUrl ?? '' })}</p>
+          <p>{t(consent?.image ? 'imageConsentPrivacy' : 'consentPrivacy')}</p>
+          <p>{t('consentLanguage', { language: consent ? nativeNames[consent.language] : '' })}</p>
+          {consent?.image ? (
+            <img className="consent-image" src={consent.image.url} alt={t('attachedPreview')} />
+          ) : (
+            <pre className="consent-text" dir="auto" lang="">
+              {consent?.text}
+            </pre>
+          )}
+          <div className="reply-actions">
+            <button
+              type="button"
+              className="light-button"
+              autoFocus
+              onClick={() => {
+                consentDialog.current?.close();
+                setConsent(null);
+                requestAnimationFrame(() => textarea.current?.focus());
+              }}
+            >
+              {t('backEdit')}
+            </button>
+            <button type="button" className="light-button" onClick={() => void confirmAnalysis()}>
+              {t(consent?.image ? 'analyzeReviewedImage' : 'analyzeReviewed')}
+            </button>
+          </div>
+          <small>{t('consentScope')}</small>
+        </dialog>
+      )}
       <dialog className="info-dialog" ref={infoDialog} aria-labelledby="preview-info-title">
         <button
           className="dialog-close icon-button"
           type="button"
           onClick={() => infoDialog.current?.close()}
-          aria-label="Close preview details"
+          aria-label={t('closeDetails')}
         >
           <X size={20} aria-hidden="true" />
         </button>
@@ -1349,15 +1550,15 @@ export default function App({
         <ul className="capability-list">
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Type, paste, or import a text file</span>
+            <span>{t('capabilityText')}</span>
           </li>
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Add, paste, photograph or preview an image</span>
+            <span>{t('capabilityImage')}</span>
           </li>
           <li>
             <Check size={17} aria-hidden="true" />
-            <span>Explore a clearly labelled sample answer</span>
+            <span>{t('capabilityExample')}</span>
           </li>
         </ul>
         <section className="sample-gallery" aria-labelledby="sample-gallery-title">
@@ -1418,7 +1619,9 @@ export default function App({
           <strong>{mode === 'api' ? 'Text only' : 'Not connected yet'}</strong>
           <p>
             {mode === 'api'
-              ? 'Image extraction, voice and PDF reading are not connected. Images are local previews only.'
+              ? imageEnabled
+                ? t('imageUploadNote')
+                : 'Image extraction, voice and PDF reading are not connected. Images are local previews only.'
               : 'Live analysis, image text extraction, voice, PDF reading and document downloads. Sample answers are illustrative—not advice or a usable claim draft.'}
           </p>
           {mode === 'api' && (
@@ -1432,31 +1635,34 @@ export default function App({
         <p className="dialog-privacy">
           <LockKeyhole size={15} aria-hidden="true" />
           {mode === 'api'
-            ? 'Use fictional or redacted text without personal IDs. Analyze sends only your text and language to the configured service. Images stay local. This UI keeps no saved chat history.'
+            ? imageEnabled
+              ? t('imageConsentPrivacy')
+              : 'Use fictional or redacted text without personal IDs. Analyze sends only your text and language to the configured service. Images stay local. This UI keeps no saved chat history.'
             : 'Use fictional or redacted material. In example mode, images and text stay in memory, clear on reload, and are never sent to a server. Camera availability depends on your device.'}
         </p>
-        <small>Not an official EPFO service or legal advice.</small>
+        <small>{t('disclaimer')}</small>
+        <small>{t('uiReview')}</small>
       </dialog>
       <dialog
         className="image-dialog"
         ref={imageDialog}
-        aria-label="Image preview"
+        aria-label={t('imagePreview')}
         onClose={() => setZoomImage(null)}
       >
         <button
           className="dialog-close icon-button"
           type="button"
           onClick={() => imageDialog.current?.close()}
-          aria-label="Close image preview"
+          aria-label={t('closeImage')}
         >
           <X size={20} aria-hidden="true" />
         </button>
         {zoomImage && (
           <>
-            <img src={zoomImage.url} alt={`Full preview of ${zoomImage.name}`} />
+            <img src={zoomImage.url} alt={t('fullImage', { name: zoomImage.name })} />
             <p>
               {zoomImage.name}
-              <span>Local preview · no text has been extracted</span>
+              <span>{t('localImage')}</span>
             </p>
           </>
         )}

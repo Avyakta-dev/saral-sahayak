@@ -15,7 +15,15 @@ def build(
         if message.role == "assistant" and message.provider_items:
             wire.extend(deepcopy(message.provider_items))
             continue
-        item: dict[str, Any] = {"role": message.role, "content": message.content}
+        if message.image_urls:
+            content: Any = [
+                {"type": "image_url", "image_url": {"url": url}} for url in message.image_urls
+            ]
+            if message.content:
+                content.append({"type": "text", "text": message.content})
+        else:
+            content = message.content
+        item: dict[str, Any] = {"role": message.role, "content": content}
         if message.role == "tool":
             item["tool_call_id"] = message.tool_call_id
         if message.tool_calls:
