@@ -41,12 +41,16 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function jsonResponse(data, status = 200) {
-  const bytes = new TextEncoder().encode(JSON.stringify(data));
+function jsonResponse(data, status = 200, options = {}) {
+  const bytes = new TextEncoder().encode(options.raw === undefined ? JSON.stringify(data) : options.raw);
   let sent = false;
   return {
     ok: status >= 200 && status < 300, status,
-    headers: { get: name => name.toLowerCase() === 'content-type' ? 'application/json' : null },
+    headers: { get: name => {
+      if (name.toLowerCase() === 'content-type') return options.contentType === undefined ? 'application/json' : options.contentType;
+      if (name.toLowerCase() === 'retry-after') return options.retryAfter === undefined ? null : options.retryAfter;
+      return null;
+    } },
     body: { getReader: () => ({
       read: async () => sent ? { done: true } : (sent = true, { done: false, value: bytes }),
       cancel: async () => {}
@@ -306,6 +310,147 @@ test('EPFO capabilities survive worker suspension, while malformed cached metada
   assert.match(rejected.error, /Saved backend capabilities are invalid/);
   assert.equal(malformed.session().epfoConnection, undefined);
   assert.equal(malformed.of('fetch').length, 0);
+});
+
+// Exercise the real listener, capabilities discovery, transport and validators together.
+// Saving the unrelated form profile/key makes accidental EPFO credential reuse observable.
+async function epfoAnalyzed(data, status, options = {}) {
+  const h = harness();
+  await saved(h);
+  assert.equal(h.session().formAssistant.key, KEY);
+  assert.equal(h.of('fetch').length, 0);
+  h.hooks.epfoFetch = (url, init) => {
+    if (url === `${EPFO_BASE}/api/v1/capabilities`) {
+      assert.equal(init.method, 'GET');
+      return jsonResponse(EPFO_CAPABILITIES);
+    }
+    assert.equal(url, `${EPFO_BASE}/api/v1/analyze`);
+    assert.equal(init.method, 'POST');
+    return jsonResponse(data, status, options);
+  };
+  assert.deepEqual(await h.send('SS_EPFO_CAPABILITIES'), { ok: true, data: EPFO_CAPABILITIES, status: 200 });
+  assert.equal(h.of('fetch').length, 1, 'Connecting must not analyze');
+  const text = 'Synthetic rejection remark reviewed by the user';
+  const response = await h.send('SS_EPFO_ANALYZE', { text, language: 'en', consent: true });
+  assert.deepEqual(h.of('fetch').map(call => call.args[0]), [
+    `${EPFO_BASE}/api/v1/capabilities`, `${EPFO_BASE}/api/v1/analyze`
+  ], 'Exactly one capabilities GET and one analysis POST; no retries or provider fallback');
+  const get = h.of('fetch')[0].args[1];
+  const post = h.of('fetch')[1].args[1];
+  assert.equal(get.body, undefined);
+  assert.deepEqual(get.headers || {}, {});
+  assert.deepEqual(post.headers, { 'Content-Type': 'application/json' }, 'Saved provider keys must not become backend auth headers');
+  assert.deepEqual(JSON.parse(post.body), { text, language: 'en' }, 'Only reviewed text and language may be transmitted');
+  for (const init of [get, post]) {
+    assert.equal(init.credentials, 'omit');
+    assert.equal(init.redirect, 'error');
+    assert.equal(init.cache, 'no-store');
+    for (const secret of [KEY, PROFILE.name, PROFILE.email, FILE.data, SCREENSHOT, TAB.url]) {
+      assert.equal(JSON.stringify(init).includes(secret), false);
+    }
+  }
+  for (const name of ['query', 'executeScript', 'sendMessage', 'captureVisibleTab']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
+  assert.equal(h.timers.size, 0, 'No pending request timeout or automatic retry');
+  return response;
+}
+
+const HOSTILE_EPFO_MESSAGE = `<script>SECRET_BACKEND_BODY ${KEY} ${TAB.url}</script>`;
+const EPFO_CAPACITY_MESSAGE = 'Backend analysis capacity is limited (HTTP 429). Try again later only if you choose. No automatic retry was made.';
+
+test('EPFO small protected errors use HTTP-specific guidance, never server messages', async t => {
+  // 401/429/504 match backend/access.py; 403 is a gateway-style error in the same shape.
+  const cases = [
+    [401, 'access_denied', 'Analysis access denied.', 'Backend access denied (HTTP 401). Protected analysis requires an approved authenticated gateway. Do not enter the shared server token in this extension.'],
+    [403, 'access_forbidden', 'Analysis access forbidden.', 'Backend access forbidden (HTTP 403). Ask the operator to check the approved access path; do not add server credentials to the browser.'],
+    [429, 'analysis_capacity', 'Analysis capacity is limited.', EPFO_CAPACITY_MESSAGE],
+    [504, 'request_timeout', 'Analysis request timed out.', 'The backend request timed out (HTTP 504). No automatic retry was made; this is not a completed analysis.']
+  ];
+  for (const [status, code, message, expected] of cases) {
+    for (const hostile of [false, true]) await t.test(`HTTP ${status}, ${hostile ? 'hostile' : 'ordinary'} message`, async () => {
+      const response = await epfoAnalyzed({ error: { code, message: hostile ? HOSTILE_EPFO_MESSAGE : message } }, status);
+      assert.deepEqual(response, { ok: false, error: expected });
+      assert.equal(JSON.stringify(response).includes(HOSTILE_EPFO_MESSAGE), false);
+    });
+  }
+});
+
+test('EPFO 429 reflects only bounded positive Retry-After seconds without retrying', async t => {
+  for (const retryAfter of ['1', '60', '3600']) await t.test(`Retry-After ${retryAfter}`, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'analysis_capacity', message: HOSTILE_EPFO_MESSAGE } }, 429, { retryAfter });
+    assert.deepEqual(response, {
+      ok: false,
+      error: `Backend analysis capacity is limited (HTTP 429). Wait at least ${retryAfter} seconds before choosing to try again. No automatic retry was made.`
+    });
+  });
+});
+
+test('EPFO 429 ignores invalid Retry-After headers rather than echoing or retrying', async t => {
+  const cases = [
+    ['absent', null], ['empty', ''], ['HTML', '<img src=x onerror=alert(1)>'],
+    ['HTTP date', 'Wed, 21 Oct 2015 07:28:00 GMT'], ['negative', '-1'], ['zero', '0'],
+    ['above bound', '3601'], ['huge integer', '999999999999999999999999999999'],
+    ['fractional', '1.5'], ['exponent', '1e3'], ['signed', '+60'],
+    ['whitespace', ' 60 '], ['suffixed', '60 seconds']
+  ];
+  for (const [name, retryAfter] of cases) await t.test(name, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'analysis_capacity', message: HOSTILE_EPFO_MESSAGE } }, 429, { retryAfter });
+    assert.deepEqual(response, { ok: false, error: EPFO_CAPACITY_MESSAGE });
+  });
+});
+
+test('EPFO full 503 and 504 errors retain the validated analysis envelope and HTTP status', async t => {
+  const cases = [
+    [503, 'model_not_configured', 'Model configuration is unavailable.'],
+    [503, 'knowledge_unavailable', 'The Markdown knowledge corpus is missing or incomplete.'],
+    [504, 'analysis_timeout', 'Analysis timed out.']
+  ];
+  for (const [status, code, message] of cases) await t.test(`HTTP ${status}: ${code}`, async () => {
+    const data = { ...epfoErrorAnalysis(), error: { code, message } };
+    assert.deepEqual(await epfoAnalyzed(data, status), { ok: true, data, status });
+  });
+});
+
+test('EPFO full 503 and 504 envelopes cannot bypass analysis validation', async t => {
+  for (const status of [503, 504]) {
+    const cases = [
+      ['wrong language', { language: 'hi' }],
+      ['missing actions', { actions: undefined }],
+      ['invalid error', { error: { code: 'analysis_timeout', message: 42 } }],
+      ['unvalidated guidance', { explanation: [{ text: HOSTILE_EPFO_MESSAGE, citation_ids: [] }] }]
+    ];
+    for (const [name, overrides] of cases) await t.test(`HTTP ${status}: ${name}`, async () => {
+      assert.deepEqual(await epfoAnalyzed({ ...epfoErrorAnalysis(), ...overrides }, status), {
+        ok: false, error: 'The backend returned an invalid analysis envelope. No guidance is displayed.'
+      });
+    });
+  }
+});
+
+test('EPFO unexpected HTTP responses never echo small error bodies', async t => {
+  for (const status of [200, 418, 500, 502, 503]) await t.test(`HTTP ${status}`, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'unexpected', message: HOSTILE_EPFO_MESSAGE } }, status);
+    assert.deepEqual(response, { ok: false, error: `Backend returned an unexpected response (HTTP ${status}).` });
+  });
+});
+
+test('EPFO non-JSON content types fail before interpreting or echoing the body', async t => {
+  for (const status of [200, 401, 403, 429, 504]) await t.test(`HTTP ${status}: HTML`, async () => {
+    const response = await epfoAnalyzed(null, status, { contentType: 'text/html', raw: HOSTILE_EPFO_MESSAGE, retryAfter: '60' });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned a non-JSON response.' });
+  });
+  for (const contentType of [null, 'text/plain']) await t.test(`JSON body with ${contentType || 'missing'} content type`, async () => {
+    const response = await epfoAnalyzed(epfoErrorAnalysis(), 503, { contentType });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned a non-JSON response.' });
+  });
+  await t.test('JSON with charset retains the validated envelope', async () => {
+    const data = epfoErrorAnalysis();
+    assert.deepEqual(await epfoAnalyzed(data, 503, { contentType: 'application/json; charset=utf-8' }), { ok: true, data, status: 503 });
+  });
+  await t.test('invalid JSON does not echo the raw response', async () => {
+    const response = await epfoAnalyzed(null, 504, { raw: HOSTILE_EPFO_MESSAGE });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned invalid JSON.' });
+  });
 });
 
 test('PRIVACY_OPEN clears legacy inputs before opening only the trusted local preview', async () => {

@@ -260,7 +260,11 @@
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = false;
-        checkbox.addEventListener('change', () => { if (alive()) controls(); });
+        checkbox.addEventListener('change', () => {
+          if (!alive()) return;
+          ui['fill-confirmation'].checked = false;
+          controls();
+        });
         const text = document.createElement('span');
         text.textContent = `${slot.label} → ${slot.value}`;
         label.append(checkbox, text);
@@ -388,6 +392,7 @@
   ui['select-filled'].addEventListener('click', () => {
     if (!alive() || state !== 'restored') return;
     for (const item of fillChoices) item.checkbox.checked = true;
+    ui['fill-confirmation'].checked = false;
     controls();
   });
   ui['clear-filled'].addEventListener('click', () => {
