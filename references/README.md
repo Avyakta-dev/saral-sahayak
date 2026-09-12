@@ -4,6 +4,10 @@ This folder is the shared reference library for Saral Sahayak. Give your coding 
 
 **Current priority:** Anish's Level 2 implementation has explicitly resumed, not automatically completed. Changes remain local; no push or live provider requests in this round. Ajay independently starts the [extension guide](ajay-extension-guide.md) at Level 1 only, stopping and reporting after each requested level. His OCR/document downloads are deferred, not reassigned. Shravya retains web UI ownership and shared UI consistency; preserve existing tests.
 
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
+
+**Advanced extension handoff:** the [extension privacy and provider guide](extension-privacy-and-provider-guide.md) defines Ajay's (`Ajay-B-Acharya`) separate Extension Privacy Levels 1–5 and Avyakta's (`Avyakta-dev`) Extension UI Levels 1–3. It covers local pixel redaction, opaque placeholders/local restoration and opt-in backend/direct/local-companion modes as requirements only. Avyakta's knowledge work remains priority while its PR is pending; Shravya (`Shravya2820`) retains main web UI and Anish (`iotserver24`) approves shared contracts. No implementation, PR merge or completed level is implied; original Extension and Image Levels 1–5 remain separate.
+
 ## Copy-paste prompt
 
 > I am Anish [replace with your name]. Read AGENTS.md, references/README.md, CONTRIBUTING.md, my section of references/team-work-levels.md and references/planning/markdown-agent-design.md. Then read the implementation plan and relevant source references. Inspect the current code and working context within the task's permissions. Explain my responsibilities and the first unfinished level, distinguishing implemented code from plans. Only implement work when I ask, and stay within my assigned scope.
@@ -25,7 +29,9 @@ Supported team names: **Anish, Avyakta, Shravya, Ajay**. A name maps to a role, 
 references/
 ├── README.md
 ├── team-work-levels.md
-├── ajay-extension-guide.md         # five small levels and stop/report prompt
+├── ajay-extension-guide.md         # original five Extension levels
+├── ajay-image-input-guide.md       # separate five Image levels
+├── extension-privacy-and-provider-guide.md # Privacy 1–5; extension UI 1–3
 ├── planning/
 │   ├── markdown-agent-design.md
 │   └── hackathon-plan.md
@@ -55,9 +61,9 @@ The knowledge subtree is the agreed conversion target, not proof of completed ge
 ## Which sources to read for each role
 
 - **Anish:** current design tools/safety/citations, plan architecture/API/orchestration, source schema and generated headings, integration boundaries.
-- **Avyakta:** source records/catalog, glossary, claim-type overview and playbooks; review Markdown authoring/curation, index coverage, provenance, source authority/currency and uncertain evidence. No retriever implementation.
-- **Shravya:** plan screens/API examples, design citation and response contract, historical PRD/presentation for visual context. Build against agreed mocks before API integration.
-- **Ajay:** [five-level extension guide and copy-paste prompt](ajay-extension-guide.md), [implemented backend contract](../docs/backend-contract.md), four synthetic response fixtures and design security/citation cases. Extension first; OCR and downloads remain deferred. Stop and report after each requested level.
+- **Avyakta:** source records/catalog, glossary, claim-type overview and playbooks; review Markdown authoring/curation, index coverage, provenance, source authority/currency and uncertain evidence. No retriever implementation. Pending knowledge PR work remains priority; separately read [Extension UI Levels 1–3](extension-privacy-and-provider-guide.md#extension-ui-level-1--privacy-ux-mocks) for extension UI ownership.
+- **Shravya:** plan screens/API examples, design citation and response contract, historical PRD/presentation for visual context. Retain main web frontend; build against agreed mocks before API integration and coordinate shared presentation with Avyakta/Ajay.
+- **Ajay:** [five-level extension guide and copy-paste prompt](ajay-extension-guide.md), [implemented backend contract](../docs/backend-contract.md), four synthetic response fixtures and design security/citation cases. Read the separate [Extension Privacy Levels 1–5](extension-privacy-and-provider-guide.md#extension-privacy-level-1--threat-contract) before advanced capture/provider work. Extension first; OCR and downloads remain deferred. Stop and report after each requested level.
 
 ## Resolving conflicting documents
 

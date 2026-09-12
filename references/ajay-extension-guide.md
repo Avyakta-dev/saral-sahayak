@@ -12,10 +12,17 @@ Ajay's current priority is a **Chrome/Brave Manifest V3 (MV3) extension** using 
 | Existing backend | FastAPI routes, typed schemas, model adapters, bounded Markdown tools and evidence ledger now have an analysis service. Offline fake-model tests do not prove live provider compatibility or linguistic quality. |
 | API readiness | `/health/live` is liveness only. The production corpus is still absent: analysis returns 503 / `knowledge_unavailable` once model configuration exists, or `model_not_configured` first if it does not. `/health/ready` and capabilities availability check only configuration and corpus structure, not model connectivity or policy correctness. An index alone is insufficient. |
 | Language | Schemas accept `en`, `hi`, `kn`, `ta`, `te`, `ml`; `en` remains default. Read `GET /api/v1/capabilities` and offer **only its enabled languages**, using `name`/`native_name`; do not hardcode the six-code set as the live selector. Every `quality_verified` flag is false; API acceptance is not a translation-quality guarantee. |
-| Shravya | Web UI ownership and shared consistency: terminology, language controls, response states, citations, accessibility and demo/live labels. Ajay owns the extension UI, not a web UI rewrite. |
-| Ajay | Extension first, its synthetic fixtures, browser/security regression and handoff. Original OCR/image handling and document-download responsibilities are **deferred, not reassigned**. Existing backend tests stay intact. |
+| Shravya (`Shravya2820`) | Retains main web UI ownership and shared consistency: terminology, language controls, response states, citations, accessibility and demo/live labels. No web UI rewrite is assigned to extension owners. |
+| Avyakta (`Avyakta-dev`) | Owns extension UI controls, preview/renderer and accessibility in the separate three-level UI track. Knowledge/evidence work remains priority while its PR is pending; coordinate shell/UI changes with Ajay, not overlapping edits. |
+| Ajay (`Ajay-B-Acharya`) | Owns extension implementation/security, synthetic fixtures, browser regression and handoff; coordinates UI with Avyakta. Original OCR/image handling and document-download responsibilities are **deferred, not reassigned**. Existing backend tests stay intact. |
 
 Levels 1–3 remain independently offline. Level 4 can verify transport, read-only capabilities discovery and honest 503 handling when authorized; real success/clarification/unsupported acceptance still needs the absent corpus and authorized model/grounding evaluation. Resumed implementation is not permission to make live requests in this round. Level 5 can report a demo-only or transport-tested handoff without claiming live analysis. No extension level is completed or advanced automatically.
+
+## Separate advanced privacy/provider and UI requirements
+
+The [extension privacy and provider guide](extension-privacy-and-provider-guide.md) is the main handoff for future screenshot capture, local redaction/vault, opaque placeholder filling/local restoration and trusted custom API-base/model/key settings. It defines **Extension Privacy Levels 1–5** for Ajay and **Extension UI Levels 1–3** for Avyakta; Anish (`iotserver24`) approves shared backend/API/security/grounding contracts. Shravya retains main web UI. This does not renumber or expand the original Extension Levels 1–5 below or the separate [Image Levels 1–5](ajay-image-input-guide.md).
+
+Original levels remain backend-only with no provider keys, screenshots, uploads or page filling. Future direct/local provider modes are separately gated requirements, not an exception silently enabled in Level 4. The advanced flow requires user-triggered capture, locally flattened redacted pixels and manual preview before Analyze; no original screenshot/base64 is sent. AI sees opaque request-bound tokens, filled flags and safe labels, never private values, partial characters or length hints. Local restoration requires validated output and user review; eligible Fill is separate, never automatic submission. Image upload remains a future approved signed-URL dependency, not something this guide builds.
 
 ## Copy-paste prompt for your coding agent
 
@@ -126,9 +133,11 @@ No levels are marked complete by this guide. Report unperformed checks as **not 
 
 **Stop/report:** provide the structured status and handoff, plus any remaining Anish/Shravya decisions. Do not start OCR, downloads, deployment, ZIP packaging or store publishing without a new request.
 
-## Security and privacy rules across every level
+## Security and privacy rules across the original five Extension levels
 
-- No API/provider keys in extension files, config, storage or requests. Only the backend owns provider secrets and model calls. Do not inspect or copy `.env`.
+These baseline levels remain backend-only. The separate [advanced privacy/provider requirements](extension-privacy-and-provider-guide.md) define future opt-in modes and stricter redaction; they do not authorize those modes here. Coordinate extension controls/preview/rendering with Avyakta and shared web presentation with Shravya.
+
+- No API/provider keys in extension files, config, storage or requests in this baseline track. Only the backend owns provider secrets and model calls. Do not inspect or copy `.env`. Advanced trusted-options keys, if separately approved later, are session-default transport authentication only, never page data or model content.
 - No `<all_urls>`, wildcard-wide host access, broad scraping, cookies, history, page URLs/titles, uploads, automatic form filling or government submissions. `activeTab` is temporary, user-triggered selection access, not authority to collect the page.
 - No durable sensitive storage: keep rejection text, selected text, personal details and responses in transient memory only, not localStorage, IndexedDB, `chrome.storage`, logs or analytics. Clear explicitly and start fresh on reopen; do not retain sensitive worker state.
 - User and server text are untrusted. Never use `innerHTML`, evaluate returned code, load remote scripts or execute instructions embedded in content.
