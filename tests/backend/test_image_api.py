@@ -38,13 +38,13 @@ class FakePipeline:
         self.admitted = []
         self.extracted = []
 
-    def admit(self, content_type):
+    def admit(self, content_type, content_length, *, language="en"):
         if content_type not in ("image/png", "image/jpeg", "image/webp"):
             raise AnalysisError("image_not_admitted", "That image reference is not accepted.", 422)
         self.admitted.append(content_type)
         return KEY, UPLOAD_URL, 120
 
-    async def extract(self, image_key, budget):
+    async def extract(self, image_key, budget, *, language="en"):
         self.extracted.append((image_key, budget))
         if self.failure is not None:
             raise self.failure
@@ -60,6 +60,7 @@ def image_settings():
         llm_model="synthetic-private-model",
         llm_extra_headers={"X-Private-Token": SECRET},
         image_input_enabled=True,
+        image_lifecycle_configured=True,
         image_r2_endpoint=ENDPOINT,
         image_r2_bucket="synthetic-bucket",
     )
@@ -98,7 +99,8 @@ def test_capabilities_advertise_image_only_when_configured(
 def test_upload_route_is_unavailable_by_default(tmp_path, settings, model, readiness_bypass):
     with TestClient(app_for(settings, model, tmp_path)) as client:
         response = client.post(
-            "/api/v1/images/uploads", json={"language": "en", "content_type": "image/png"}
+            "/api/v1/images/uploads",
+            json={"language": "en", "content_type": "image/png", "content_length": 2048},
         )
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "image_input_unavailable"
@@ -110,7 +112,8 @@ def test_upload_route_issues_a_bounded_ticket(
 ):
     with TestClient(app_for(image_settings, model, tmp_path)) as client:
         response = client.post(
-            "/api/v1/images/uploads", json={"language": "en", "content_type": "image/png"}
+            "/api/v1/images/uploads",
+            json={"language": "en", "content_type": "image/png", "content_length": 2048},
         )
     assert response.status_code == 200
     body = response.json()
@@ -129,7 +132,8 @@ def test_upload_route_rejects_unsupported_types(
 ):
     with TestClient(app_for(image_settings, model, tmp_path)) as client:
         response = client.post(
-            "/api/v1/images/uploads", json={"language": "en", "content_type": content_type}
+            "/api/v1/images/uploads",
+            json={"language": "en", "content_type": content_type, "content_length": 2048},
         )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "image_not_admitted"
@@ -142,7 +146,8 @@ def test_upload_route_rejects_a_known_disabled_language(
     limited = image_settings.model_copy(update={"supported_languages": ["en"]})
     with TestClient(app_for(limited, model, tmp_path)) as client:
         response = client.post(
-            "/api/v1/images/uploads", json={"language": "hi", "content_type": "image/png"}
+            "/api/v1/images/uploads",
+            json={"language": "hi", "content_type": "image/png", "content_length": 2048},
         )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "language_disabled"
@@ -244,3 +249,61 @@ def test_image_analysis_streams_through_the_same_shared_budget(
     assert args[0].text == EXTRACTED and args[0].image_key is None
     assert kwargs["budget"] is pipeline.extracted[0][1]
     assert KEY not in response.text
+
+
+@pytest.mark.parametrize("length", [None, 0, -1, True, "123", 1.5, 10 * 1024 * 1024 + 1])
+def test_ticket_requires_exact_integer_byte_length(
+    tmp_path,
+    image_settings,
+    model,
+    readiness_bypass,
+    pipeline,
+    length,
+):
+    payload = {"content_type": "image/png"}
+    if length is not None:
+        payload["content_length"] = length
+    with TestClient(app_for(image_settings, model, tmp_path)) as client:
+        response = client.post("/api/v1/images/uploads", json=payload)
+    assert response.status_code == 422 and pipeline.admitted == []
+
+
+def test_storage_initialization_failure_preserves_text_service(
+    tmp_path,
+    image_settings,
+    model,
+    readiness_bypass,
+    service_factory,
+    monkeypatch,
+):
+    from backend.images.storage import StorageError
+
+    def unavailable(*args, **kwargs):
+        raise StorageError("synthetic-private-detail")
+
+    monkeypatch.setattr(main, "ImagePipeline", unavailable)
+    result = AnalyzeResponse.model_validate_json((EXAMPLES / "success.json").read_text("utf-8"))
+    service_factory.return_value.analyze.return_value = result
+    with TestClient(app_for(image_settings, model, tmp_path)) as client:
+        assert client.get("/api/v1/capabilities").json()["inputs"] == ["text"]
+        assert client.post("/api/v1/analyze", json={"text": "Name mismatch"}).status_code == 200
+        response = client.post(
+            "/api/v1/images/uploads", json={"content_type": "image/png", "content_length": 42}
+        )
+        assert response.status_code == 503 and "synthetic-private-detail" not in response.text
+
+
+def test_lifecycle_missing_keeps_images_unavailable(
+    tmp_path,
+    image_settings,
+    model,
+    readiness_bypass,
+    pipeline,
+):
+    disabled = image_settings.model_copy(update={"image_lifecycle_configured": False})
+    with TestClient(app_for(disabled, model, tmp_path)) as client:
+        assert client.get("/api/v1/capabilities").json()["inputs"] == ["text"]
+
+
+def test_image_key_is_hidden_from_repr():
+    assert KEY not in repr(AnalyzeRequest(image_key=KEY))

@@ -19,6 +19,39 @@ describe('evidence disclosure', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
+  it.each([
+    { start_line: 1, end_line: 1, start_column: 0, end_column: 0 },
+    { start_line: 2, end_line: 4, start_column: 17, end_column: 0 },
+    { start_line: 3, end_line: 3, start_column: 0, end_column: 12 },
+  ])(
+    'renders exact paired zero-based endpoints $start_line:$start_column to $end_line:$end_column',
+    async (coordinates) => {
+      const citation = {
+        ...success().citations[0],
+        ...coordinates,
+        record_id: 'epfo-rr-001',
+        path: 'references/knowledge/epfo/reasons/epfo-rr-001.md',
+      };
+      render(<Evidence ids={[citation.id]} citations={[citation]} />);
+      await userEvent.click(screen.getByText('Source', { exact: true }));
+      expect(screen.getByText('epfo-rr-001')).toBeVisible();
+      expect(screen.getByText('Column endpoints (zero-based)')).toBeVisible();
+      expect(
+        screen.getByText(
+          `Line ${citation.start_line}, column ${citation.start_column} → line ${citation.end_line}, column ${citation.end_column}`,
+        ),
+      ).toBeVisible();
+    },
+  );
+
+  it('omits absent column coordinates instead of fabricating zero endpoints', async () => {
+    const citation = { ...success().citations[0], start_column: null, end_column: null };
+    render(<Evidence ids={[citation.id]} citations={[citation]} />);
+    await userEvent.click(screen.getByText('Source', { exact: true }));
+    expect(screen.getByText(`${citation.start_line}–${citation.end_line}`)).toBeVisible();
+    expect(screen.queryByText(/Column endpoints|column 0/)).not.toBeInTheDocument();
+  });
+
   it('never makes an unsafe source URL clickable', async () => {
     const citation = {
       ...success().citations[0],
@@ -64,6 +97,27 @@ describe('result and draft edge cases', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
     expect(screen.getByText('No draft was supplied.')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Copy sample' })).not.toBeInTheDocument();
+  });
+
+  it('preserves long multiline response text exactly rather than trimming or collapsing it', async () => {
+    const text = `  Synthetic first line\n\n    Second line\n${'UNBROKEN'.repeat(80)}  `;
+    const response = success();
+    response.explanation[0].text = text;
+    response.actions[0].text = text;
+    response.required_documents[0].text = text;
+    response.classification!.rationale = text;
+    response.draft!.blocks[0].text = text;
+    response.warnings = [text];
+    const { container } = render(<AnswerCard response={response} onEdit={vi.fn()} />);
+    for (const selector of ['.answer-claim > p', '.document-tile p', '.answer-uncertainty p']) {
+      expect(container.querySelector(selector)?.textContent).toBe(text);
+    }
+    await userEvent.click(screen.getByRole('tab', { name: 'Next steps' }));
+    expect(container.querySelector('.step-content label')?.textContent).toBe(text);
+    await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
+    expect(container.querySelector('.draft-block p')?.textContent).toBe(text);
+    await userEvent.click(screen.getByText('About this sample'));
+    expect(container.querySelector('.answer-disclosure li')?.textContent).toBe(text);
   });
 
   it('renders untrusted answer markup as inert text', () => {

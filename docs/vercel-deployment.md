@@ -2,9 +2,9 @@
 
 ## Status and scope
 
-**Not deployed. Live integration remains blocked.** This prepares hosting for the existing React/Vite preview only. It does not implement Shravya's #25 API integration, complete Anish's #29 acceptance, or close #30. See the [frontend integration boundary](../frontend/README.md#integration-boundary) and [live acceptance status](live-acceptance-status.md).
+**Not deployed as an accepted live demo.** This prepares hosting for the React/Vite frontend. It does not complete Level 2/3 acceptance or close issue 30. See the [frontend README](../frontend/README.md), [demo runbook](demo-runbook.md) and [live acceptance status](live-acceptance-status.md).
 
-The frontend sends no analysis requests and reads no API-base environment variable. In particular, setting `VITE_API_BASE_URL` does not connect this app. User text/images stay in browser memory; only the explicit example action loads synthetic guidance. Hosting does not add OCR, provider access, accounts, downloads or live-government integration.
+Locally, the UI can call `GET /api/v1/capabilities` and `POST /api/v1/analyze` when `VITE_API_BASE_URL` (or same-origin) reaches a running backend. A Vercel static deployment still has **no** built-in API proxy: without a separately hosted HTTPS backend and approved `CORS_ORIGINS`, hosted pages cannot complete live analyze. User images stay in browser memory; only **Show me an example** loads labelled fixtures. Hosting does not add OCR, provider keys in the browser, accounts, downloads or live-government integration.
 
 Frontend hosting and backend Docker packaging are independent changes/PRs. This configuration neither packages nor deploys the backend, and does not depend on a Docker file from another branch. No deployment, domain binding, provider request, commit or push is authorized by this guide.
 
@@ -20,7 +20,7 @@ Import the Git repository, retaining its directory layout. Use these settings:
 | Install Command                   | `npm --prefix frontend ci`                          |
 | Build Command                     | `npm --prefix frontend run build`                   |
 | Output Directory                  | `frontend/dist`                                     |
-| Application environment variables | None required for this preview                      |
+| Application environment variables | None required for fixture-only preview; live analyze needs a separate backend + `VITE_API_BASE_URL` at build time (public URL only — never LLM keys) |
 
 The root [`vercel.json`](../vercel.json) supplies the framework, install/build commands, output directory, rewrite and headers. Keep project overrides consistent with it. Explicit commands avoid relying on root package-manager detection: the committed npm lockfile is in `frontend/`. Node version is a project setting, not a `vercel.json` field.
 
@@ -60,7 +60,7 @@ For manual local inspection after building, run `npm --prefix frontend run previ
 After a separately authorized Vercel deployment, record these currently **not-run** hosted checks before approval:
 
 1. `/` and a fresh nested-path reload render the preview, with working JavaScript/CSS assets and the four expected headers.
-2. Explicit sample guidance stays labelled synthetic; sending fictional text or selecting a synthetic image shows the honest disconnected behavior and sends no analysis/upload request.
+2. Explicit sample guidance stays labelled synthetic; image-only sends stay local (no OCR). Text submit may probe capabilities/analyze against the configured API base — record whether a backend was actually reachable.
 3. Mobile/keyboard interaction and source/copy controls still work. Do not treat the SPA fallback at `/api/...` as an API health check.
 4. Record the actual deployment URL, revision, access settings and results; do not invent a domain or claim deployment from a successful build.
 
@@ -70,5 +70,5 @@ After a separately authorized Vercel deployment, record these currently **not-ru
 - Before exposing provider-backed analysis publicly, require independently tested authentication/access protection and abuse controls (including rate/concurrency/cost limits) at the backend or approved gateway. Current CORS is not authentication. Protecting only the Vercel preview does not protect a separately reachable backend. Do not publish an unprotected provider-funded endpoint.
 - Anish must approve the **actual exact** HTTPS frontend origin(s) in backend `CORS_ORIGINS` (JSON array). Include only deliberately approved production/preview origins, with scheme and optional port but no path, query, fragment or trailing slash. No wildcard Vercel domains, `*`, reflected origins or automatic trust of every preview. Leave CORS unchanged until origins are known.
 - The current backend allows GET/POST and Content-Type with credentialed CORS disabled. Adding browser authentication or credentials requires an explicit shared contract/security review, not a CORS or auth bypass. See the [implemented backend contract](backend-contract.md#cors-and-remaining-integration).
-- Shravya's #25 must implement and test genuine transport, capabilities-driven languages, current citation columns and strict response/error handling. Agree the API-base configuration then; no existing environment-variable transport is assumed. Preserve missing-configuration/readiness failures, clarification and abstention; never silently replace failures with fixtures.
-- #29 still needs authorized, bounded live provider/grounding acceptance, followed by the required language/source review. Health/readiness or `analysis_available` proves configuration/structure only, not connectivity, successful guidance or fluent output. A Vercel build or Docker packaging pass does not satisfy these gates or close #30.
+- Live transport exists on `main` via `VITE_API_BASE_URL` (#48). Remaining UI polish (capabilities-driven language selector beyond en/hi samples, mobile/a11y demo hardening) stays with the web UI track. Preserve missing-configuration/readiness failures, clarification and abstention; never silently replace failures with fixtures.
+- Health/readiness or `analysis_available` proves configuration/structure only, not connectivity, successful guidance or fluent output. A Vercel build or Docker packaging pass does not satisfy Level 3 demo acceptance or close issue 30.

@@ -403,6 +403,7 @@ class AnalysisService:
                         budget.check()
                     if activity is not None:
                         activity.emit("thinking", turn=budget.usage.model_turns)
+                        budget.check()
                     result = await self.client.complete(
                         history, TOOLS, max_output_tokens=tokens, timeout_seconds=seconds
                     )

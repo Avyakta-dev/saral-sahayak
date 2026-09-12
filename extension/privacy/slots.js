@@ -27,7 +27,40 @@
   }
 
   function isToken(value) {
-    return typeof value === "string" && TOKEN.test(value);
+    return typeof value === "string" && value.length === 40 && TOKEN.test(value);
+  }
+
+  function isSlot(value) {
+    return typeof value === "string" && /^field-[0-9]{1,10}$(?![\s\S])/.test(value);
+  }
+
+  function denseArray(input) {
+    check(Array.isArray(input));
+    const descriptors = Object.getOwnPropertyDescriptors(input);
+    const length = descriptors.length.value;
+    check(Number.isSafeInteger(length) && length >= 0 && length <= 20);
+    check(Reflect.ownKeys(descriptors).length === length + 1);
+    const result = [];
+    for (let index = 0; index < length; index += 1) {
+      const descriptor = descriptors[index];
+      check(descriptor && Object.hasOwn(descriptor, "value") && descriptor.enumerable);
+      result.push(descriptor.value);
+    }
+    return result;
+  }
+
+  function registrySlots(input) {
+    const ids = new Set();
+    const tokens = new Set();
+    return denseArray(input).map(item => {
+      const slot = plainRecord(item, ["slot", "label", "token", "filled", "mask"]);
+      check(isSlot(slot.slot) && isSafeLabel(slot.label) && isToken(slot.token));
+      check(typeof slot.filled === "boolean" && slot.mask === "***");
+      check(!ids.has(slot.slot) && !tokens.has(slot.token));
+      ids.add(slot.slot);
+      tokens.add(slot.token);
+      return slot;
+    });
   }
 
   function isSafeLabel(value) {
@@ -36,18 +69,18 @@
 
   // Model-visible outbound fragment: tokens, filled flags and constant labels only.
   function outboundEnvelope(snapshot) {
-    check(snapshot && typeof snapshot.requestId === "string" && Array.isArray(snapshot.slots));
-    check(snapshot.slots.length <= 20);
-    const slots = snapshot.slots.map((item) => {
-      const slot = plainRecord(item, ["slot", "label", "token", "filled", "mask"]);
-      check(SLOT.test(slot.slot) && isSafeLabel(slot.label) && isToken(slot.token));
-      check(typeof slot.filled === "boolean" && slot.mask === "***");
-      return Object.freeze({ slot: slot.slot, label: slot.label, token: slot.token, filled: slot.filled });
-    });
+    check(snapshot && typeof snapshot === "object" && !Array.isArray(snapshot));
+    const descriptors = Object.getOwnPropertyDescriptors(snapshot);
+    check(descriptors.requestId && Object.hasOwn(descriptors.requestId, "value") &&
+      descriptors.slots && Object.hasOwn(descriptors.slots, "value"));
+    const requestId = descriptors.requestId.value;
+    check(typeof requestId === "string" && requestId.length === 32 && /^[0-9A-F]{32}$/.test(requestId));
+    const slots = registrySlots(descriptors.slots.value).map(slot =>
+      Object.freeze({ slot: slot.slot, label: slot.label, token: slot.token, filled: slot.filled }));
     return Object.freeze({
       schema_version: SCHEMA,
       template_id: TEMPLATE_ID,
-      request_id: snapshot.requestId,
+      request_id: requestId,
       slots: Object.freeze(slots)
     });
   }
@@ -84,18 +117,16 @@
     check(response !== null && typeof response === "object" && !Array.isArray(response));
     const body = plainRecord(response, ["schema_version", "template_id", "slots"]);
     check(body.schema_version === SCHEMA && body.template_id === TEMPLATE_ID);
-    check(Array.isArray(body.slots) && body.slots.length === registry.length && body.slots.length <= 20);
-    const expected = new Map(registry.map((item) => {
-      check(SLOT.test(item.slot) && isSafeLabel(item.label) && isToken(item.token) && typeof item.filled === "boolean");
-      return [item.slot, item];
-    }));
-    check(expected.size === registry.length);
+    const entries = denseArray(body.slots);
+    const registered = registrySlots(registry);
+    check(entries.length === registered.length);
+    const expected = new Map(registered.map(item => [item.slot, item]));
     const seen = new Set();
     const tokens = new Set();
     const normalized = [];
-    for (let index = 0; index < body.slots.length; index += 1) {
-      const entry = plainRecord(body.slots[index], ["slot", "label", "token"]);
-      check(SLOT.test(entry.slot) && !seen.has(entry.slot));
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = plainRecord(entries[index], ["slot", "label", "token"]);
+      check(isSlot(entry.slot) && !seen.has(entry.slot));
       seen.add(entry.slot);
       const match = expected.get(entry.slot);
       check(match && entry.label === match.label);
@@ -114,8 +145,20 @@
 
   // One-pass local restoration: exact token lookup only. Never recursive, never regex over free text.
   function restoreLocal(validatedSlots, valueByToken) {
-    check(Array.isArray(validatedSlots) && valueByToken instanceof Map);
-    const restored = validatedSlots.map((item) => {
+    check(valueByToken instanceof Map);
+    const ids = new Set();
+    const tokens = new Set();
+    const entries = denseArray(validatedSlots).map(item => {
+      const entry = plainRecord(item, ["slot", "label", "token"]);
+      check(isSlot(entry.slot) && isSafeLabel(entry.label) && !ids.has(entry.slot));
+      check(entry.token === null || (isToken(entry.token) && !tokens.has(entry.token)));
+      ids.add(entry.slot);
+      if (entry.token !== null) tokens.add(entry.token);
+      return entry;
+    });
+    // Validate the complete structure before consulting the private value map.
+    for (const token of tokens) check(valueByToken.has(token));
+    const restored = entries.map((item) => {
       if (item.token === null) {
         return Object.freeze({ slot: item.slot, label: item.label, filled: false, value: null });
       }

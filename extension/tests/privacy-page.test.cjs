@@ -24,7 +24,7 @@ class Events {
     assert.equal(capture, true);
     this.listeners.set(type, (this.listeners.get(type) || []).filter(item => item !== fn));
   }
-  fire(type) { for (const fn of [...(this.listeners.get(type) || [])]) fn({ type }); }
+  fire(type, event = { type }) { for (const fn of [...(this.listeners.get(type) || [])]) fn(event); }
   count() { return [...this.listeners.values()].reduce((total, list) => total + list.length, 0); }
 }
 class Element {
@@ -88,7 +88,21 @@ function fixture(fields = [new Input({ autocomplete: 'name' })], options = {}) {
     querySelectorAll(selector) { queries++; assert.equal(selector, 'input, textarea'); return fields; },
     get textContent() { assert.fail('No document text'); },
     get cookie() { assert.fail('No cookies'); },
-    createElement() { assert.fail('No DOM creation'); }
+    createElement(tag) {
+      assert.ok(options.inputClass || options.probes, 'No DOM creation outside explicit Fill fixtures');
+      assert.ok(tag === 'input' || tag === 'textarea', 'Only a detached validity probe');
+      const probe = tag === 'input' ? new (options.inputClass || Input)() : new (options.textareaClass || Textarea)();
+      probe.isConnected = false;
+      probe.setAttribute = (key, value) => { probe.attributes[key] = value; };
+      // Small validity facsimile, not browser constraint-validation evidence.
+      Object.defineProperty(probe, 'validity', { get() {
+        const pattern = probe.getAttribute('pattern');
+        return { valid: (!probe.hasAttribute('required') || probe.raw !== '') &&
+          (!pattern || new RegExp(`^(?:${pattern})$`, 'u').test(probe.raw)) &&
+          (probe.type !== 'email' || /^[^\s@]+@[^\s@]+$/.test(probe.raw)) };
+      } });
+      return probe;
+    }
   };
   body.ownerDocument = document;
   for (const field of fields) { field.ownerDocument = document; field.parentElement = body; }
@@ -105,7 +119,7 @@ function fixture(fields = [new Input({ autocomplete: 'name' })], options = {}) {
       onMessage: { addListener(fn) { listeners.push(fn); } },
       sendMessage(message, callback) { messages.push(plain(message)); callback?.(); }
     } },
-    crypto: webcrypto, TextEncoder, HTMLInputElement: Input, HTMLTextAreaElement: Textarea,
+    crypto: webcrypto, TextEncoder, HTMLInputElement: options.inputClass || Input, HTMLTextAreaElement: options.textareaClass || Textarea,
     MutationObserver: Observer, performance: { now: () => clock },
     location: { protocol: 'https:', href: 'https://example.test/private?token=NEVER_EXPORT' },
     innerWidth: 900, innerHeight: 600, devicePixelRatio: 2, scrollX: 0, scrollY: 0,
@@ -323,13 +337,14 @@ test('strict messages reject extra fields and non-string generations using fixed
   }
 });
 
-test('pending and delivered mutations invalidate with a data-free notification', async () => {
+test('pending and delivered mutations notify only the exact retired generation', async () => {
   for (const deliver of [false, true]) {
     const f = fixture(); const scan = await f.inspect(); const observer = f.observers[0];
     observer.queue(); if (deliver) observer.deliver();
     const check = await f.check(scan.generation);
     assert.equal(check.valid, false); assert.notEqual(check.generation, scan.generation);
-    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED' }]);
+    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
+    assert.notEqual(f.messages[0].generation, check.generation);
     assert.equal(observer.active, false); assert.equal(f.timers.size, 0); assert.equal(f.events.count(), 0);
     assert.deepEqual(await f.read(scan.generation), { error: 'PRIVACY_STALE' });
     assert.equal(f.fields[0].reads, 0);
@@ -343,7 +358,7 @@ test('lifecycle, capture-phase field/scroll events and navigation invalidate, ne
     assert.equal((await f.check(scan.generation)).valid, false, event);
     assert.equal(f.queries(), queries); assert.equal(f.fields[0].reads, 0);
     assert.equal(f.timers.size, 0); assert.equal(f.events.count(), 0);
-    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED' }]);
+    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
   }
   for (const [target, event] of [['visualViewport', 'resize'], ['visualViewport', 'scroll'], ['navigation', 'navigate'], ['navigation', 'currententrychange']]) {
     const f = fixture(); const scan = await f.inspect(); f.env[target].fire(event);
@@ -404,8 +419,12 @@ test('absolute TTL checked on operations and pure timer cleanup does not inspect
 });
 
 test('RESET disconnects and clears, INSPECT reinstalls monitors with a fresh generation', async () => {
-  const f = fixture(); const first = await f.inspect();
+  const field = new Input({ autocomplete: 'name', id: 'private-person-123', title: 'PRIVATE_TITLE' });
+  field.raw = 'PRIVATE_VALUE';
+  const f = fixture([field]); const first = await f.inspect();
+  assert.deepEqual(f.messages, []);
   assert.deepEqual(await f.send({ type: 'PRIVACY_RESET' }), { reset: true });
+  assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: first.generation }]);
   assert.equal(f.observers[0].active, false); assert.equal(f.events.count(), 0); assert.equal(f.timers.size, 0);
   assert.equal((await f.check(first.generation)).valid, false);
   const second = await f.inspect();
@@ -414,6 +433,16 @@ test('RESET disconnects and clears, INSPECT reinstalls monitors with a fresh gen
   const third = await f.inspect();
   assert.notEqual(third.generation, second.generation);
   assert.equal(f.observers[1].active, false); assert.equal(f.observers[2].active, true); assert.equal(f.timers.size, 1);
+  assert.deepEqual(f.messages, [
+    { type: 'PRIVACY_INVALIDATED', generation: first.generation },
+    { type: 'PRIVACY_INVALIDATED', generation: second.generation }
+  ]);
+  assert.notEqual(f.messages[1].generation, third.generation);
+  assert.deepEqual(await f.check(second.generation), { valid: false, generation: third.generation });
+  assert.deepEqual(await f.check(third.generation), { valid: true, generation: third.generation });
+  for (const privateData of [field.raw, field.attributes.id, field.attributes.title, f.env.location.href, 'NEVER_EXPORT']) {
+    assert.ok(!JSON.stringify(f.messages).includes(privateData));
+  }
   assert.deepEqual(await f.read(first.generation), { error: 'PRIVACY_STALE' });
   assert.equal(f.fields[0].reads, 0);
 });
@@ -471,7 +500,7 @@ test('explicit PRIVACY_FILL writes .value only, never submit/click, and consumes
   };
   Element.prototype.click = function click() { assert.fail('No click'); };
   try {
-    const f = fixture([field]);
+    const f = fixture([field], { probes: true });
     f.env.Event = class Event {
       constructor(type, init = {}) { this.type = type; this.bubbles = Boolean(init.bubbles); }
     };
@@ -509,7 +538,7 @@ test('PRIVACY_FILL aborts when a newer non-empty edit differs from the approved 
     configurable: true
   });
   try {
-    const f = fixture([field]);
+    const f = fixture([field], { probes: true });
     f.env.Event = class Event {
       constructor(type, init = {}) { this.type = type; this.bubbles = Boolean(init.bubbles); }
     };
@@ -527,6 +556,277 @@ test('PRIVACY_FILL aborts when a newer non-empty edit differs from the approved 
   } finally {
     Object.defineProperty(Input.prototype, 'value', originalSet);
   }
+});
+
+// Fill-only native prototypes keep the original no-write fixtures unchanged.
+function fillFixture(kinds = ['name'], options = {}) {
+  const dispatch = function (event) {
+    assert.ok(this.isConnected, 'No events on detached validity probes');
+    this.events.push(event.type);
+    // Window capture runs before the site's target handler, as in the page.
+    f.events.fire(event.type, event);
+    this.onEvent?.(event);
+    return true;
+  };
+  class FillInput extends Input {
+    get value() { this.reads++; return this.raw; }
+    set value(value) { this.writes++; this.raw = value; this.onWrite?.(value); }
+    dispatchEvent(event) { return dispatch.call(this, event); }
+  }
+  class FillTextarea extends Textarea {
+    get value() { this.reads++; return this.raw; }
+    set value(value) { this.writes++; this.raw = value; this.onWrite?.(value); }
+    dispatchEvent(event) { return dispatch.call(this, event); }
+  }
+  const fields = kinds.map(kind => {
+    const field = kind === 'street-address' ? new FillTextarea({ autocomplete: kind }) : new FillInput({ autocomplete: kind });
+    field.writes = 0; field.events = [];
+    field.click = field.submit = field.requestSubmit = () => assert.fail('No click or submit');
+    return field;
+  });
+  const f = fixture(fields, { ...options, inputClass: FillInput, textareaClass: FillTextarea });
+  f.env.Event = class Event {
+    constructor(type, init) { this.type = type; this.bubbles = Boolean(init.bubbles); this.isTrusted = false; }
+  };
+  f.ready = async () => {
+    const scan = await f.inspect();
+    assert.ok(scan.generation);
+    await f.read(scan.generation, scan.candidates.map(item => item.id));
+    f.entries = scan.candidates.map((item, index) => ({ ...item,
+      value: item.label === 'contact email' ? 'synthetic@example.test' : `Synthetic approved ${index}` }));
+    f.fill = () => f.send({ type: 'PRIVACY_FILL', generation: scan.generation, entries: f.entries });
+    return scan;
+  };
+  return f;
+}
+
+function digestHooks() {
+  let count = 0;
+  let hook = () => {};
+  const payloads = [];
+  return {
+    crypto: { getRandomValues: bytes => webcrypto.getRandomValues(bytes), subtle: {
+      async digest(algorithm, bytes) {
+        payloads.push(Buffer.from(bytes).toString('utf8'));
+        const digest = await webcrypto.subtle.digest(algorithm, bytes);
+        await hook(++count);
+        return digest;
+      }
+    } },
+    arm(fn) { count = 0; hook = fn; }, payloads
+  };
+}
+
+function assertClean(f) {
+  assert.equal(f.timers.size, 0);
+  assert.equal(f.events.count(), 0);
+  assert.ok(f.observers.every(observer => !observer.active));
+  for (const message of f.messages) {
+    assert.deepEqual(Object.keys(message).sort(), ['generation', 'type']);
+    assert.equal(message.type, 'PRIVACY_INVALIDATED');
+    assert.match(message.generation, /^[a-f0-9]{32}-\d+$/);
+  }
+}
+
+test('Fill exempts only its own capture-phase notifications and fills all exact input/textarea fields', async () => {
+  const f = fillFixture(['name', 'street-address']);
+  const scan = await f.ready();
+  Object.defineProperty(f.fields[0], 'value', { get() { assert.fail('Own getter'); }, set() { assert.fail('Own setter'); } });
+  const result = await f.fill();
+  assert.deepEqual(result.results.map(item => item.status), ['filled', 'filled']);
+  assert.deepEqual(f.fields.map(field => field.writes), [1, 1]);
+  assert.deepEqual(f.fields.map(field => field.events), [['input', 'change'], ['input', 'change']]);
+  assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
+  assertClean(f);
+  assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
+  assert.equal((await f.check(scan.generation)).valid, false);
+});
+
+test('concurrent Fill replay is consumed before the first asynchronous validation', async () => {
+  const hooks = digestHooks();
+  const f = fillFixture(['name'], { crypto: hooks.crypto });
+  await f.ready();
+  let release, reached;
+  const paused = new Promise(resolve => { reached = resolve; });
+  hooks.arm(async count => {
+    if (count === 1) { reached(); await new Promise(resolve => { release = resolve; }); }
+  });
+  const first = f.fill();
+  await paused;
+  assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
+  release();
+  assert.deepEqual(await first, { error: 'PRIVACY_STALE' });
+  assert.equal(f.fields[0].writes, 0);
+  assertClean(f);
+});
+
+test('Fill rechecks generation after per-field hashing before the setter', async t => {
+  for (const [name, change] of Object.entries({
+    cancel: f => f.send({ type: 'PRIVACY_RESET' }),
+    navigation: f => { f.env.navigation.fire('navigate'); },
+    url: f => { f.env.location.href += '#new'; },
+    mutation: f => { f.observers.at(-1).queue(); },
+    expiry: f => { f.setClock(120000); }
+  })) await t.test(name, async () => {
+    const hooks = digestHooks();
+    const f = fillFixture(['name', 'email'], { crypto: hooks.crypto });
+    await f.ready();
+    hooks.arm(count => { if (count === 5) return change(f); });
+    const result = await f.fill();
+    assert.deepEqual(result.results.map(item => item.status), ['skipped', 'skipped']);
+    assert.deepEqual(f.fields.map(field => field.writes), [0, 0]);
+    assertClean(f);
+  });
+});
+
+test('Fill rechecks metadata, eligibility and exact form identity on the far side of hashing', async t => {
+  for (const [name, change] of Object.entries({
+    form: field => { field.form = new Element('form'); },
+    metadata: field => { field.attributes.title = 'changed'; },
+    sensitive: field => { field.attributes.placeholder = 'OTP'; },
+    detached: field => { field.isConnected = false; },
+    readonly: field => { field.attributes.readonly = ''; },
+    hidden: field => { field.style.visibility = 'hidden'; }
+  })) await t.test(name, async () => {
+    const hooks = digestHooks();
+    const f = fillFixture(['name'], { crypto: hooks.crypto });
+    // Identical form metadata must not authorize a different form node.
+    f.fields[0].form = new Element('form');
+    await f.ready();
+    hooks.arm(count => { if (count === 3) change(f.fields[0]); });
+    assert.equal((await f.fill()).results[0].status, 'skipped');
+    assert.equal(f.fields[0].writes, 0);
+    assertClean(f);
+  });
+});
+
+test('Fill preserves empty-field preflight policy but refuses every intervening value change', async t => {
+  for (const [name, initialApproved, replacement] of [
+    ['approved to empty', true, ''], ['empty to different', false, 'Synthetic newer edit'],
+    ['empty to approved', false, 'Synthetic approved 0'], ['approved to different', true, 'Synthetic newer edit']
+  ]) await t.test(name, async () => {
+    const hooks = digestHooks();
+    const f = fillFixture(['name'], { crypto: hooks.crypto });
+    await f.ready();
+    if (initialApproved) f.fields[0].raw = f.entries[0].value;
+    hooks.arm(count => { if (count === 3) f.fields[0].raw = replacement; });
+    const result = await f.fill();
+    assert.equal(result.results[0].status, 'skipped');
+    assert.equal(f.fields[0].writes, 0);
+    assert.equal(f.fields[0].raw, replacement);
+    assertClean(f);
+  });
+});
+
+test('a later field changing during batch preflight prevents every page write', async () => {
+  const hooks = digestHooks();
+  const f = fillFixture(['name', 'email'], { crypto: hooks.crypto });
+  await f.ready();
+  hooks.arm(count => { if (count === 4) f.fields[1].raw = 'newer@example.test'; });
+  assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
+  assert.deepEqual(f.fields.map(field => field.writes), [0, 0]);
+  assertClean(f);
+});
+
+test('Fill binds changed constraints and rejects invalid approved values before all setters', async t => {
+  for (const [key, value] of [['maxlength', '3'], ['minlength', '100'], ['pattern', '[0-9]+'], ['pattern', ''], ['required', ''], ['multiple', '']]) {
+    await t.test(`changed ${key}`, async () => {
+      const hooks = digestHooks();
+      const f = fillFixture(['name', 'email'], { crypto: hooks.crypto });
+      await f.ready();
+      hooks.arm(count => { if (count === 4) f.fields[1].attributes[key] = value; });
+      assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
+      assert.deepEqual(f.fields.map(field => field.writes), [0, 0]);
+      assertClean(f);
+    });
+  }
+  for (const [key, value] of [['maxlength', '3'], ['minlength', '100'], ['pattern', '[0-9]+'], ['type', 'email']]) {
+    await t.test(`invalid ${key}`, async () => {
+      const f = fillFixture(['name', 'email']);
+      f.fields[1].attributes[key] = value;
+      await f.ready();
+      if (key === 'type') f.entries[1].value = 'not an email';
+      assert.deepEqual(await f.fill(), { error: 'PRIVACY_VALUE_REJECTED' });
+      assert.deepEqual(f.fields.map(field => field.writes), [0, 0]);
+      assertClean(f);
+    });
+  }
+});
+
+test('Fill reports failure when a setter or input/change handler rejects its value', async t => {
+  for (const phase of ['setter', 'input', 'change']) await t.test(phase, async () => {
+    const f = fillFixture();
+    await f.ready();
+    if (phase === 'setter') f.fields[0].onWrite = () => { f.fields[0].raw = ''; };
+    else f.fields[0].onEvent = event => { if (event.type === phase) f.fields[0].raw = ''; };
+    const result = await f.fill();
+    assert.equal(result.results[0].status, 'failed');
+    assert.equal(f.fields[0].writes, 1);
+    assertClean(f);
+  });
+});
+
+test('later field handlers and later verification hashes cannot leave an earlier false success', async t => {
+  for (const phase of ['handler', 'hash']) await t.test(phase, async () => {
+    const hooks = digestHooks();
+    const f = fillFixture(['name', 'email'], { crypto: hooks.crypto });
+    await f.ready();
+    if (phase === 'handler') f.fields[1].onEvent = () => { f.fields[0].raw = ''; };
+    // 4 preflight hashes + 2 write hashes + 2 final verification hashes.
+    else hooks.arm(count => { if (count === 8) f.fields[0].raw = ''; });
+    const result = await f.fill();
+    assert.deepEqual(result.results.map(item => item.status), ['failed', 'filled']);
+    assertClean(f);
+  });
+});
+
+test('site events, queued DOM mutations and navigation during Fill still revoke all later writes', async t => {
+  for (const [name, change] of Object.entries({
+    input: f => f.events.fire('input'),
+    change: f => f.events.fire('change'),
+    navigation: f => f.env.navigation.fire('navigate'),
+    mutation: f => f.observers.at(-1).queue(),
+    cancel: f => f.send({ type: 'PRIVACY_RESET' })
+  })) await t.test(name, async () => {
+    const f = fillFixture(['name', 'email']);
+    await f.ready();
+    f.fields[0].onEvent = event => { if (event.type === 'input') change(f); };
+    const result = await f.fill();
+    assert.deepEqual(result.results.map(item => item.status), ['failed', 'skipped']);
+    assert.deepEqual(f.fields.map(field => field.writes), [1, 0]);
+    assert.deepEqual(f.fields[0].events, ['input']);
+    assertClean(f);
+  });
+});
+
+test('completion notification can reset the page without discarding verified Fill outcomes', async () => {
+  const hooks = digestHooks();
+  const f = fillFixture(['name'], { crypto: hooks.crypto });
+  await f.ready();
+  const sendMessage = f.env.chrome.runtime.sendMessage;
+  f.env.chrome.runtime.sendMessage = (message, callback) => {
+    sendMessage(message, callback);
+    void f.send({ type: 'PRIVACY_RESET' });
+  };
+  const result = await f.fill();
+  assert.equal(result.results[0].status, 'filled');
+  assert.equal(f.fields[0].writes, 1);
+  for (const value of [f.entries[0].value, 'NEVER_EXPORT']) {
+    assert.ok(!hooks.payloads.some(payload => payload.includes(value)));
+    assert.ok(!JSON.stringify(f.messages).includes(value));
+    assert.ok(!JSON.stringify(result).includes(value));
+  }
+  assertClean(f);
+});
+
+test('invalid Fill entries consume approval and clean up without a setter', async () => {
+  const f = fillFixture();
+  await f.ready();
+  f.entries[0].value = '';
+  assert.deepEqual(await f.fill(), { error: 'PRIVACY_INVALID_REQUEST' });
+  assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
+  assert.equal(f.fields[0].writes, 0);
+  assertClean(f);
 });
 
 test('PRIVACY_FILL rejects submit-like message shapes and unknown operations', async () => {

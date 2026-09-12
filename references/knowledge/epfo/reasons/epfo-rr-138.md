@@ -60,16 +60,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, news, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Edge case combining dual-employment compliance with EDLI; ET break-in-service clarification may help contiguous jobs but not true concurrent dual employment.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
-- https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
-- https://cleartax.in/s/edli
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://kustodian.life/resources/provident-fund/edli-claim-process
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+- [official] https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+
+### Secondary (news / blog / forum)
+
+- [news] https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
+- [blog] https://cleartax.in/s/edli
+- [blog] https://kustodian.life/resources/provident-fund/edli-claim-process
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

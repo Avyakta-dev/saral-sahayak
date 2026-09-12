@@ -57,16 +57,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** DigiLocker is widely used by members; EPFO still keys off OTP e-KYC per OCS FAQ.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
-- https://uidai.gov.in
-- https://www.taxbuddy.com/blog/how-incorrect-kyc-details-affect-pf-withdrawal-approval
-- https://cleartax.in/c/pf-withdrawal-online
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- [official] https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+- [official] https://uidai.gov.in
+
+### Secondary (news / blog / forum)
+
+- [blog] https://www.taxbuddy.com/blog/how-incorrect-kyc-details-affect-pf-withdrawal-approval
+- [blog] https://cleartax.in/c/pf-withdrawal-online
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

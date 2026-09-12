@@ -10,10 +10,10 @@ The [issue #29 offline acceptance report](issue-29-offline-acceptance.md) adds a
 
 On 2026-09-12, Anish's configured Responses-compatible model was called with the synthetic initials/name-mismatch case from `references/reviews/epfo/cases.json` and the actual Markdown corpus. No real claimant identity, API key or endpoint is included in this report. Raw provider traces remain outside Git.
 
-| Attempt | Calls | Duration | Result |
-| --- | --- | --- | --- |
-| Initial supported case | 2 | 16.21 seconds | `budget_exhausted`: explicit large file read consumed too much evidence allowance |
-| Same case after initial read-cap fix | 3 | 30.02 seconds | `analysis_timeout` while awaiting final generation |
+| Attempt                              | Calls | Duration      | Result                                                                            |
+| ------------------------------------ | ----- | ------------- | --------------------------------------------------------------------------------- |
+| Initial supported case               | 2     | 16.21 seconds | `budget_exhausted`: explicit large file read consumed too much evidence allowance |
+| Same case after initial read-cap fix | 3     | 30.02 seconds | `analysis_timeout` while awaiting final generation                                |
 
 Total for those early attempts: **5 provider calls**. Remaining English cases and multilingual live checks were not run then.
 
@@ -21,10 +21,10 @@ Total for those early attempts: **5 provider calls**. Remaining English cases an
 
 Runtime synced to `main` at merge commit of [#52](https://github.com/iotserver24/saral-sahayak/pull/52) (`285d637`). Synthetic case only: `epfo-case-001-initials-paraphrase`. Operator env: Responses-style Azure endpoint, model label omitted here, `ANALYSIS_REQUEST_SECONDS=120`, `LLM_TIMEOUT_SECONDS=90`. No API keys, endpoints or claimant PII are recorded.
 
-| Path | Calls / HTTP | Duration | Result |
-| --- | --- | --- | --- |
+| Path                                                                                                                      | Calls / HTTP  | Duration      | Result                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Opt-in `python -m scripts.run_agent_acceptance --allow-live --case epfo-case-001-initials-paraphrase --max-model-calls 8` | 7 model calls | ~22.8 seconds | `observed_status=success`, `contract_status_match=true`, one host validation → repair turn, then terminal `success`. Not `budget_exhausted` / `invalid_model_output`. |
-| Direct `POST /api/v1/analyze` (same synthetic text, `language=en`) | HTTP **200** | ~15.6 seconds | `status=success`, `classification.reason_id=epfo-rr-001`, **3** host citations (incl. same-file Sources), explanation/actions/draft present. |
+| Direct `POST /api/v1/analyze` (same synthetic text, `language=en`)                                                        | HTTP **200**  | ~15.6 seconds | `status=success`, `classification.reason_id=epfo-rr-001`, **3** host citations (incl. same-file Sources), explanation/actions/draft present.                          |
 
 **Honesty limits (do not over-claim):**
 
@@ -46,19 +46,19 @@ Merged deliverables: backend foundation/agent, output-security fixes, corpus gen
 **No additional level issue is marked complete by this audit beyond explicitly closed L1 contracts/UI.** The open issues include acceptance beyond those merges: browser checks, privacy guarantees, real agent outcomes or authoritative source verification. Closing them just because code was merged would hide unfinished work.
 
 - Extension #6–#10: implementation overlaps these levels but does not prove the original permission-free/mock/browser acceptance; use the **revised evidence acceptance** on issue 6. Advanced raw-data privacy gaps also remain. Ajay should supply missing evidence or follow that revised scope, not retroactively label all levels complete.
-- Image #11–#15: #11 L1 contract closed; #12+ still needs host/name agreement. Privacy #16–#20: #16 L1 approved/closed; #17+ implementation remains. Extension UI #21–#23: planned mocks/integration, not finished.
-- Web UI #24–#26: #24 L1 mock UI closed; #25 API integration is next. Frontend preview merges do not by themselves close higher levels.
+- Image #11–#15: #11 L1 contract closed; #12+ still needs host/name agreement. Privacy #16–#20: #16 L1 approved/closed; #17+ implementation remains. Extension UI #21–#23: #21 Level 1 synthetic mocks are on `main` under `extension/mocks/privacy-ux-level-1/` (issue stays open until acceptance is evidenced). #22 has partial controls/preview/renderer UI (outbound-vs-local disclosure + fail-closed blocked/stale/unavailable terminal labels; headless Chromium synthetic-Port browser checks for blocked/stale/unavailable exist; Analyze/provider/first-last remain disabled; **unpacked** Chrome/Brave interactive evidence still not run); issue stays open. #23 has partial a11y/browser evidence; full matrix open.
+- Web UI #24–#26: #24 L1 mock UI closed; #48/#51/#57/#63/#69/#71/#73 landed live analyze, status UX, bounded retries, capabilities languages, gated draft-download wiring and bounded API acceptance harness toward #25/#26. Remaining #25 honesty: reviewer Level 2 Done-when acceptance (no false ready draft; downloads stay gated while `downloads_available` is false). Preview merges do not by themselves close higher levels.
 - Knowledge #27–#28: offline artifacts are merged; actual agent trace/outcome review and six authoritative-source verification gaps remain. Offline `not_run`/`not_attempted` markers are not completed live checks.
-- Backend #29–#30: #29 has a post-#52 single-case live success with real citations; Level 2 matrix and semantic/language review remain open. Integration/demo readiness (#30) remains open.
+- Backend #29–#30: post-#52 single-case live success with real citations is recorded; broader matrix/semantic/language review and Level 3 reproducible demo acceptance (#30) remain open. A local [demo runbook](demo-runbook.md) (including rehearsal checklist with `not_run` rows) + readiness probe with `failure_mode`/`operator_hints` advance #30 without claiming closure.
 
 ## What each person should work on next
 
 | Person | Next issue | Concrete next deliverable |
 | --- | --- | --- |
-| Anish | [#29](https://github.com/iotserver24/saral-sahayak/issues/29) | Expand the **bounded** live matrix (remaining English expected states + separately authorized languages) after the post-#52 single-case success; keep call ceilings explicit; do not close #29 until checklist evidence exists. |
+| Anish | [#30](https://github.com/iotserver24/saral-sahayak/issues/30) / [#29](https://github.com/iotserver24/saral-sahayak/issues/29) | Rehearse the local integrated demo via [demo-runbook.md](demo-runbook.md); expand the **bounded** live matrix when authorized; do not treat packaging or a single-case success as Level 3 done. |
 | Ajay | [#6](https://github.com/iotserver24/saral-sahayak/issues/6) / [#17](https://github.com/iotserver24/saral-sahayak/issues/17) | Attach revised browser evidence for #6–#10 (see issue 6 comment); implement privacy #17+ against approved #16. Image #12+ needs host name before coding. |
-| Avyakta | [#21](https://github.com/iotserver24/saral-sahayak/issues/21) | Extension privacy/settings UI mocks in parallel with Ajay's privacy track, not Shravya's main web UI. Continue evidence/source gaps in #27–#28 as a separate knowledge track. |
-| Shravya | [#25](https://github.com/iotserver24/saral-sahayak/issues/25) | Real API integration for the main web UI (#24 L1 mocks closed). Keep provider keys out of the frontend. |
+| Avyakta | [#22](https://github.com/iotserver24/saral-sahayak/issues/22) / [#21](https://github.com/iotserver24/saral-sahayak/issues/21) | Review partial UI Level 2 disclosure + blocked/stale fail-closed terminals + synthetic Chromium browser checks toward #22 (keep issue open; unpacked Chrome/Brave still NOT RUN); #21 mocks remain labelled. Continue evidence/source gaps in #27–#28 as a separate knowledge track. Not Shravya's main web UI. |
+| Shravya | [#25](https://github.com/iotserver24/saral-sahayak/issues/25) / [#26](https://github.com/iotserver24/saral-sahayak/issues/26) | Live analyze + retries + gated draft-download wiring toward #25; remaining is reviewer Level 2 acceptance, then Level 3 a11y/demo polish. Keep provider keys out of the frontend. |
 
 Note: #16 / #11 / #24 are closed as L1 contracts/UI only; dependent higher levels stay open.
 
@@ -66,4 +66,4 @@ Each person should read their issue and the linked reference guide, inspect curr
 
 ## Pitch / differentiation
 
-For hackathon judges asking how this differs from ChatGPT, see [Why not ChatGPT?](why-not-chatgpt.md). That note does not change the live results above—Level 2 live acceptance remains open until the authorized matrix and independent review criteria are met.
+For hackathon judges asking how this differs from ChatGPT, see [Why not ChatGPT?](why-not-chatgpt.md). For running the local UI→API path, see [demo-runbook.md](demo-runbook.md). Those notes do not close issue 29 or 30 by themselves.

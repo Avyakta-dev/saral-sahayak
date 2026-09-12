@@ -64,7 +64,7 @@ async function prepare(
   await page.route('**/api/v1/capabilities', (route) => route.fulfill({ json: caps }));
   await page.route('**/api/v1/analyze/stream', handler);
   await page.goto('/');
-  await expect(page.getByRole('combobox', { name: 'Analysis output language' })).toBeEnabled();
+  await expect(page.getByRole('combobox', { name: 'Analysis output language' })).toHaveCount(1);
 }
 async function submit(page: Page) {
   await input(page).fill(remark);
@@ -94,8 +94,16 @@ test('consent gates transmission; success citations/draft are not labelled as sa
   await input(page).fill(remark + ' Reviewed.');
   await review(page).click();
   await approve(page).click();
-  await expect(page.getByRole('heading', { name: 'Your analysis', exact: true })).toBeVisible();
-  expect(requests).toEqual([{ text: remark + ' Reviewed.', language: 'en' }]);
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toBeVisible();
+  expect(requests).toEqual([
+    {
+      text: remark + ' Reviewed.',
+      language: 'en',
+      details: { claimant_name: null, claim_id: null, claim_type: null },
+    },
+  ]);
   await page.getByText('Actual backend events (2)', { exact: true }).click();
   await expect(page.getByText(reading.path, { exact: true })).toBeVisible();
   await expect(page.getByText('Synthetic section · lines 1–4', { exact: true })).toBeVisible();
@@ -103,8 +111,12 @@ test('consent gates transmission; success citations/draft are not labelled as sa
     0,
   );
   await page.locator('details.evidence:visible > summary').first().click();
-  await expect(page.getByText('Columns (zero-based)', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('0–8', { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText('Column endpoints (zero-based)', { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Line 1, column 0 → line 1, column 8', { exact: true }).first(),
+  ).toBeVisible();
   await page.screenshot({ path: info.outputPath('live-evidence.png'), fullPage: true });
   await page.getByRole('tab', { name: 'Draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Copy draft', exact: true })).toBeVisible();
@@ -139,19 +151,23 @@ test('pending host activity animates only while working and stops without late r
     const panel = page.getByRole('region', { name: 'Backend reading activity' });
     await expect(panel.getByText(reading.path, { exact: true })).toBeVisible();
     await expect(panel.locator('.spin')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Your analysis', exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+    ).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('pending-activity.png'), fullPage: true });
     await page.getByRole('button', { name: 'Stop analysis' }).click();
     active?.end(`event: result\ndata: ${JSON.stringify(liveSuccess)}\n\n`);
     await expect(panel.locator('.spin')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Your analysis', exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+    ).toHaveCount(0);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
 
-test('capabilities drive six output languages independently of the sample selector', async ({
+test('capabilities drive six output languages independently of the interface selector', async ({
   page,
 }) => {
   const requests: { language: string }[] = [];
@@ -170,7 +186,7 @@ test('capabilities drive six output languages independently of the sample select
     ).toBeVisible();
     expect(requests.at(-1)?.language).toBe(code);
   }
-  await expect(page.getByRole('combobox', { name: 'Sample language' })).toHaveValue('en');
+  await expect(page.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');
 });
 
 for (const [name, json, status, heading] of [
@@ -180,9 +196,9 @@ for (const [name, json, status, heading] of [
     'provider failure',
     { ...failure, error: { code: 'model_unavailable', message: 'PRIVATE_PROVIDER_SECRET' } },
     502,
-    'Analysis not completed',
+    'Could not reach an answer',
   ],
-  ['invalid response', { ...liveSuccess, language: 'hi' }, 200, 'Analysis not completed'],
+  ['invalid response', { ...liveSuccess, language: 'hi' }, 200, 'Could not reach an answer'],
 ] as const) {
   test(`${name} is honest with no usable draft or raw provider errors`, async ({ page }, info) => {
     await prepare(page, async (route) => {
@@ -227,7 +243,13 @@ test('images never transmit; removing one requires fresh text approval and strip
   expect(requests).toHaveLength(0);
   await approve(page).click();
   await expect(page.getByRole('heading', { name: 'Not enough evidence' })).toBeVisible();
-  expect(requests).toEqual([{ text: remark, language: 'en' }]);
+  expect(requests).toEqual([
+    {
+      text: remark,
+      language: 'en',
+      details: { claimant_name: null, claim_id: null, claim_type: null },
+    },
+  ]);
 });
 
 for (const action of ['stop', 'edit', 'new chat', 'language'] as const) {
@@ -239,15 +261,21 @@ for (const action of ['stop', 'edit', 'new chat', 'language'] as const) {
       held = route;
     });
     await submit(page);
-    await expect(page.getByRole('heading', { name: 'Analyzing reviewed text…' })).toBeVisible();
+    await expect(
+      page.getByText('Waiting for the analysis service…', { exact: true }),
+    ).toBeVisible();
     if (action === 'stop') await page.getByRole('button', { name: 'Stop analysis' }).click();
     if (action === 'edit') await page.getByRole('button', { name: 'Edit this message' }).click();
     if (action === 'new chat') await page.getByRole('button', { name: 'New chat' }).click();
     if (action === 'language')
       await page.getByRole('combobox', { name: 'Analysis output language' }).selectOption('kn');
     await held?.fulfill(sse(liveSuccess)).catch(() => {});
-    await expect(page.getByRole('heading', { name: 'Your analysis', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Analyzing reviewed text…' })).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByText('Waiting for the analysis service…', { exact: true })).toHaveCount(
+      0,
+    );
     if (action === 'edit') await expect(input(page)).toHaveValue(remark);
   });
 }
@@ -269,8 +297,10 @@ test('unavailable capabilities block POST and explicit fictional sample stays se
     },
   );
   await input(page).fill(remark);
-  await review(page).click();
-  await expect(page.getByRole('alert')).toContainText('Analysis is unavailable');
+  await expect(review(page)).toBeDisabled();
+  await expect(
+    page.getByText('Text analysis is unavailable. Refresh the connection or use examples.'),
+  ).toBeVisible();
   await page.getByRole('button', { name: /Show me an example/ }).click();
   await expect(page.getByRole('heading', { name: 'Your sample answer' })).toBeVisible();
   expect(posts).toBe(0);
