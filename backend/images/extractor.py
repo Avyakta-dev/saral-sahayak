@@ -88,6 +88,7 @@ async def extract_rejection_text(
     max_chars: int,
     max_output_tokens: int,
     allowed_host: str,
+    allowed_port: int | None = None,
 ) -> str:
     """Charge one tool-free model turn to the caller's budget and return transcribed text.
 
@@ -95,10 +96,14 @@ async def extract_rejection_text(
     presigned GET URL to this deployment's own configured bucket, never client input),
     so this check should never fail in practice. It exists as defense in depth: this is
     the boundary that actually sends a URL to a third-party LLM provider, and it must
-    never forward an arbitrary scheme/host even if a future caller changes.
+    never forward an arbitrary scheme/host/port even if a future caller changes. Both
+    sides of the host comparison are normalized (case, trailing dot) so a variant
+    spelling of the same allowed host can never slip past a literal ``!=``.
     """
     parsed_url = urlsplit(image_url)
-    if parsed_url.scheme != "https" or parsed_url.hostname != allowed_host:
+    host = (parsed_url.hostname or "").lower().rstrip(".")
+    allowed = allowed_host.lower().rstrip(".")
+    if parsed_url.scheme != "https" or host != allowed or parsed_url.port != allowed_port:
         raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
     try:
         budget.begin_model_turn()

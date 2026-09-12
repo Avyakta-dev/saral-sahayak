@@ -30,7 +30,10 @@ class CaseRecord(BaseModel):
     language: LanguageCode
     fingerprint: str = Field(min_length=1, max_length=64)
     status: CaseStatus
-    reason_id: str | None = None
+    # Mirrors Classification.reason_id (backend/api/schemas.py); record.reason_id is
+    # only ever assigned from that already-validated field, but binding it here too
+    # means this model doesn't have to trust that assignment forever.
+    reason_id: str | None = Field(default=None, pattern=r"^epfo-rr-\d{3}$")
     outcome: CaseOutcome | None = None
     from_cache: bool = False
     created_at: float = Field(allow_inf_nan=False)

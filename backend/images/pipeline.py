@@ -108,7 +108,9 @@ class ImagePipeline:
         self.config = config
         self.client = client
         self.storage = storage if storage is not None else R2Storage(config)
-        self._image_host = urlsplit(config.endpoint).hostname
+        _endpoint = urlsplit(config.endpoint)
+        self._image_host = _endpoint.hostname
+        self._image_port = _endpoint.port
         if not self._image_host:
             # ImageConfig.https_origin already guarantees a truthy hostname, so this
             # should never fire; it exists so a broken invariant fails loud here rather
@@ -184,6 +186,7 @@ class ImagePipeline:
                     max_chars=self.config.ocr_max_chars,
                     max_output_tokens=self.config.ocr_max_output_tokens,
                     allowed_host=self._image_host,
+                    allowed_port=self._image_port,
                 )
         except InvalidImage:
             raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422) from None

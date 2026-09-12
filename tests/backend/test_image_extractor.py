@@ -44,7 +44,15 @@ def unreadable():
     return reply(json.dumps({"status": "unreadable", "text": ""}))
 
 
-def run(client, budget=None, *, max_chars=MAX_CHARS, max_output_tokens=1000, allowed_host=HOST):
+def run(
+    client,
+    budget=None,
+    *,
+    max_chars=MAX_CHARS,
+    max_output_tokens=1000,
+    allowed_host=HOST,
+    allowed_port=None,
+):
     return extract_rejection_text(
         client,
         URL,
@@ -52,6 +60,7 @@ def run(client, budget=None, *, max_chars=MAX_CHARS, max_output_tokens=1000, all
         max_chars=max_chars,
         max_output_tokens=max_output_tokens,
         allowed_host=allowed_host,
+        allowed_port=allowed_port,
     )
 
 
@@ -76,6 +85,45 @@ async def test_rejects_a_url_scheme_or_host_other_than_the_configured_endpoint()
         )
     assert wrong_scheme.value.code == "image_input_unavailable"
     assert len(client.calls) == 0
+
+
+async def test_rejects_a_port_other_than_the_configured_endpoints():
+    """A URL on an unexpected port must never pass just because the hostname matches -
+    port is part of the origin the guard is meant to pin."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as wrong_port:
+        await run(client, allowed_port=8443)
+    assert wrong_port.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+    ported_url = URL.replace(f"https://{HOST}", f"https://{HOST}:8443")
+    with pytest.raises(AnalysisError) as unexpected_port:
+        await extract_rejection_text(
+            client,
+            ported_url,
+            Budget(BudgetLimits()),
+            max_chars=MAX_CHARS,
+            max_output_tokens=1000,
+            allowed_host=HOST,
+        )
+    assert unexpected_port.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+
+async def test_a_trailing_dot_or_case_variant_host_is_still_recognized_as_the_same_host():
+    """DNS treats "host" and "host." as the same name; normalizing both sides of the
+    comparison means a caller can't dodge the allowlist with an equivalent spelling,
+    and a differently-cased configured host still matches the URL's lowercase one."""
+    dotted_url = URL.replace(f"https://{HOST}", f"https://{HOST}.")
+    text = await extract_rejection_text(
+        FakeClient(extracted("Name does not match Aadhaar.")),
+        dotted_url,
+        Budget(BudgetLimits()),
+        max_chars=MAX_CHARS,
+        max_output_tokens=1000,
+        allowed_host=HOST.upper(),
+    )
+    assert text == "Name does not match Aadhaar."
 
 
 async def test_one_tool_free_user_message_carries_the_transient_url():
