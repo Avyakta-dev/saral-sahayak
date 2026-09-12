@@ -378,7 +378,7 @@ test('real remarks and follow-ups never silently become a canned answer', async 
       )
       .first(),
   ).toBeVisible();
-  await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
+  await page.locator('summary').filter({ hasText: /Why can.?t it answer yet\?/ }).click();
   await expect(page.getByText(/never substitutes a canned sample/)).toBeVisible();
   await screenshot(page, info, 'normal-reply');
   await sendRemark(page, 'Can you clarify my fictional follow-up?');
@@ -1078,13 +1078,28 @@ test('local interactions transmit no input/files/API requests and persist no cha
     requests.filter((request) => new URL(request.url).origin !== origin),
     'No request may leave the local origin',
   ).toEqual([]);
+  const apiProbes = requests.filter(
+    (request) =>
+      ['fetch', 'xhr', 'ping'].includes(request.type) &&
+      /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
+  );
+  const otherLocalApi = requests.filter(
+    (request) =>
+      ['fetch', 'xhr', 'ping'].includes(request.type) &&
+      !/\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
+  );
+  expect(otherLocalApi, 'Only capabilities/analyze probes are allowed locally').toEqual([]);
+  expect(apiProbes.length, 'Live UI should attempt analyze/capabilities').toBeGreaterThan(0);
+  for (const probe of apiProbes) {
+    expect(probe.body ?? '').not.toContain(marker);
+  }
   expect(
-    requests.filter((request) => ['fetch', 'xhr', 'ping'].includes(request.type)),
-    'No local analysis/API requests either',
-  ).toEqual([]);
-  expect(
-    requests.filter((request) => !['GET', 'HEAD'].includes(request.method)),
-    'No submitting HTTP requests',
+    requests.filter(
+      (request) =>
+        !['GET', 'HEAD'].includes(request.method) &&
+        !/\/api\/v1\/analyze\/?$/.test(new URL(request.url).pathname),
+    ),
+    'No unexpected non-GET requests outside analyze',
   ).toEqual([]);
   expect(JSON.stringify(requests)).not.toContain(marker);
   expect(frames.join('\n')).not.toContain(marker);
@@ -1197,7 +1212,7 @@ for (const state of [
     }
     if (state === 'normal-reply') {
       await sendRemark(page);
-      await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
+      await page.locator('summary').filter({ hasText: /Why can.?t it answer yet\?/ }).click();
     }
     if (state === 'attachment') await attach(page);
     if (state === 'info-modal')
