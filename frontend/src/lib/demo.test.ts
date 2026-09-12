@@ -62,6 +62,11 @@ describe('synthetic demo fixtures', () => {
     });
   });
 
+  it.each(['kn', 'ta', 'te', 'ml'])('does not relabel English fixtures as %s', (language) => {
+    // @ts-expect-error Runtime callers must also respect the en/hi fixture boundary.
+    expect(() => getDemoResponse('success', language)).toThrow();
+  });
+
   it('preserves the intentionally skeletal English success fixture', () => {
     const response = getDemoResponse('success', 'en');
     for (const field of [

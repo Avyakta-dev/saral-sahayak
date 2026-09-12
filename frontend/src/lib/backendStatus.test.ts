@@ -7,6 +7,8 @@ import {
   unreachableStatus,
 } from './backendStatus';
 
+import { testCapabilities } from '../test/languages';
+
 const originalEnv = import.meta.env.VITE_API_BASE_URL;
 
 afterEach(() => {
@@ -16,11 +18,12 @@ afterEach(() => {
 
 describe('statusFromCapabilities', () => {
   it('marks ready when analysis_available is true', () => {
-    expect(statusFromCapabilities({ analysis_available: true }).kind).toBe('ready');
+    expect(statusFromCapabilities(testCapabilities).kind).toBe('ready');
   });
 
   it('lists missing gates when not ready', () => {
     const status = statusFromCapabilities({
+      ...testCapabilities,
       analysis_available: false,
       checks: { model_configured: false, knowledge_structure_ready: true },
     });
@@ -45,6 +48,7 @@ describe('unavailableFailureMessage', () => {
   it('includes concrete gates when present', () => {
     expect(
       unavailableFailureMessage({
+        ...testCapabilities,
         analysis_available: false,
         checks: { model_configured: false, knowledge_structure_ready: false },
       }),
@@ -64,7 +68,7 @@ describe('probeBackendStatus', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ analysis_available: true, checks: {} }), {
+        new Response(JSON.stringify(testCapabilities), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),

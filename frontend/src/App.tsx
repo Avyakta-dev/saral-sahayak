@@ -24,11 +24,12 @@ import {
 import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
-import { analyzeRemark, fetchCapabilities } from './lib/api';
+import { analyzeRemark, fetchCapabilities, type Capabilities } from './lib/api';
 import { canRetryAnalysis, retriesRemaining } from './lib/analysisRetry';
 import {
+  statusFromCapabilities,
+  unreachableStatus,
   liveTransportFailureMessage,
-  probeBackendStatus,
   unavailableFailureMessage,
   type BackendStatus,
 } from './lib/backendStatus';
@@ -109,6 +110,11 @@ function WelcomeVisual() {
 export default function App() {
   const [text, setText] = useState('');
   const [language, setLanguage] = useState<Language>('en');
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const capabilityVersion = useRef(0);
+  const languageOptions = capabilities?.languages ?? [
+    { code: 'en' as const, name: 'English', native_name: 'English', quality_verified: false },
+  ];
   const [attachment, setAttachment] = useState<ImageAttachment | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState('');
@@ -150,19 +156,17 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const version = ++capabilityVersion.current;
     void (async () => {
       try {
-        const status = await probeBackendStatus(controller.signal);
-        if (!controller.signal.aborted) setBackendStatus(status);
+        const metadata = await fetchCapabilities(controller.signal);
+        if (!controller.signal.aborted && version === capabilityVersion.current) {
+          setCapabilities(metadata);
+          setBackendStatus(statusFromCapabilities(metadata));
+        }
       } catch (cause) {
-        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-          return;
-        if (!controller.signal.aborted) {
-          setBackendStatus({
-            kind: 'unreachable',
-            label: 'Analysis backend unreachable',
-            detail: 'Could not complete the readiness probe.',
-          });
+        if (!controller.signal.aborted && version === capabilityVersion.current) {
+          setBackendStatus(unreachableStatus(cause));
         }
       }
     })();
@@ -355,38 +359,46 @@ export default function App() {
 
     void (async () => {
       try {
+        let metadata: Capabilities | null = null;
+        ++capabilityVersion.current;
         try {
-          const capabilities = await fetchCapabilities(controller.signal);
-          if (!capabilities.analysis_available) {
+          metadata = await fetchCapabilities(controller.signal);
+        } catch (cause) {
+          if (controller.signal.aborted || request.current !== controller) return;
+          setBackendStatus(unreachableStatus(cause));
+        }
+        if (request.current !== controller || controller.signal.aborted) return;
+        setCapabilities(metadata);
+        const enabled = metadata?.languages ?? [{ code: 'en' }];
+        setLanguage((current) => (enabled.some(({ code }) => code === current) ? current : 'en'));
+        if (!enabled.some(({ code }) => code === selectedLanguage)) {
+          throw new Error(
+            'The requested language is no longer available or could not be verified. English is selected for new replies; edit and send again.',
+          );
+        }
+        if (metadata) {
+          setBackendStatus(statusFromCapabilities(metadata));
+          if (!metadata.analysis_available) {
             if (request.current !== controller || controller.signal.aborted) return;
             setBackendStatus({
               kind: 'not_ready',
               label: 'Backend reachable — analysis not ready',
-              detail: unavailableFailureMessage(capabilities),
+              detail: unavailableFailureMessage(metadata),
             });
             setTurns((previous) =>
               previous.map((turn) =>
                 turn.id === id
                   ? {
                       ...turn,
-                      failure: unavailableFailureMessage(capabilities),
+                      failure: unavailableFailureMessage(metadata),
                     }
                   : turn,
               ),
             );
             return;
           }
-          setBackendStatus({
-            kind: 'ready',
-            label: 'Analysis available (config + structure only)',
-            detail:
-              'Not a policy, connectivity, or language-quality certificate. Synthetic inputs only.',
-          });
-        } catch (cause) {
-          if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
-            return;
-          // Fall through to analyze; a missing capabilities route still allows a direct analyze attempt.
         }
+        // Preserve the existing direct attempt when discovery fails, but only in English.
 
         const response = await analyzeRemark({
           text: remark,
@@ -499,17 +511,21 @@ export default function App() {
     const controller = new AbortController();
     request.current = controller;
     const id = ++turnId.current;
-    const selectedLanguage = language;
+    const selectedLanguage = language === 'hi' ? 'hi' : 'en';
     setPending(true);
     setError('');
-    setNotice('');
+    setNotice(
+      language !== 'en' && language !== 'hi'
+        ? 'Examples are available only in English and Hindi. Showing an English sample; your live language selection is unchanged.'
+        : '',
+    );
     const next: Turn = {
       id,
-      text: walkthroughRemark(language),
+      text: walkthroughRemark(selectedLanguage),
       image: null,
       sample: true,
       response: null,
-      language,
+      language: selectedLanguage,
     };
     setTurns((previous) => trimThread(previous, next));
     try {
@@ -533,6 +549,7 @@ export default function App() {
   }
 
   function changeLanguage(value: Language) {
+    if (!languageOptions.some(({ code }) => code === value)) return;
     if (pending) cancelRequest('Request cancelled.');
     setLanguage(value);
     setNotice(hasConversation ? 'Language updated for new replies.' : '');
@@ -727,6 +744,11 @@ export default function App() {
       <p className="composer-notice" role="status">
         {notice}
       </p>
+      <p className="preview-limit" id="language-help" role="status">
+        {capabilities
+          ? 'Languages listed by this backend; language quality is unverified. Controls remain in English.'
+          : 'Language availability could not yet be verified. English fallback only; analysis may be unavailable.'}
+      </p>
       <p
         className={`preview-limit backend-status backend-status-${backendStatus.kind}`}
         id="preview-limit"
@@ -769,9 +791,13 @@ export default function App() {
               value={language}
               onChange={(event) => changeLanguage(event.target.value as Language)}
               title="Language for new replies"
+              aria-describedby="language-help"
             >
-              <option value="en">English</option>
-              <option value="hi">हिन्दी</option>
+              {languageOptions.map(({ code, name, native_name }) => (
+                <option key={code} value={code} lang={code} label={native_name} title={name}>
+                  {native_name}
+                </option>
+              ))}
             </select>
             <ChevronDown size={12} aria-hidden="true" />
           </div>
@@ -836,7 +862,7 @@ export default function App() {
               </button>
             </div>
             <div className="welcome-footer">
-              <span>English & हिन्दी</span>
+              <span>Choose your output language</span>
               <span aria-hidden="true">·</span>
               <span>No account needed</span>
               <span aria-hidden="true">·</span>

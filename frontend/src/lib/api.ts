@@ -1,4 +1,11 @@
-import { responseSchema, type AnalyzeResponse, type Language } from './contracts';
+import {
+  capabilitiesSchema,
+  responseSchema,
+  type AnalyzeResponse,
+  type Capabilities,
+  type Language,
+} from './contracts';
+export type { Capabilities } from './contracts';
 
 export type AnalyzeRemarkInput = {
   text: string;
@@ -9,16 +16,6 @@ export type AnalyzeRemarkInput = {
     claim_type?: string | null;
   };
   signal?: AbortSignal;
-};
-
-export type Capabilities = {
-  schema_version?: string;
-  analysis_available: boolean;
-  default_language?: string;
-  languages?: unknown;
-  checks?: Record<string, boolean>;
-  inputs?: string[];
-  downloads_available?: boolean;
 };
 
 function trimTrailingSlashes(value: string): string {
@@ -98,14 +95,13 @@ export async function fetchCapabilities(signal?: AbortSignal): Promise<Capabilit
       transportErrorMessage(data, `Capabilities request failed with HTTP ${response.status}.`),
     );
   }
-  if (
-    !data ||
-    typeof data !== 'object' ||
-    typeof (data as Capabilities).analysis_available !== 'boolean'
-  ) {
-    throw new Error('Capabilities response was missing analysis_available.');
+  const parsed = capabilitiesSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(
+      'Capabilities response did not contain valid availability and language metadata.',
+    );
   }
-  return data as Capabilities;
+  return parsed.data;
 }
 
 /**

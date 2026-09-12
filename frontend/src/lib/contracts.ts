@@ -1,8 +1,47 @@
 import { z } from 'zod';
 
-export type Language = 'en' | 'hi';
+export const languageSchema = z.enum(['en', 'hi', 'kn', 'ta', 'te', 'ml']);
+export type Language = z.infer<typeof languageSchema>;
+// Preset examples are not translations for every accepted API language.
+export const demoLanguageSchema = z.enum(['en', 'hi']);
+export type DemoLanguage = z.infer<typeof demoLanguageSchema>;
 
-const languageSchema = z.enum(['en', 'hi']);
+const languageNameSchema = z
+  .string()
+  .min(1)
+  .max(60)
+  .refine((name) => name === name.trim() && /^[\p{L}\p{M}]+(?:[ -][\p{L}\p{M}]+)*$/u.test(name), {
+    message: 'Language names must contain only letters, marks, spaces or hyphens.',
+  });
+
+export const capabilitiesSchema = z.object({
+  schema_version: z.literal('1.0').optional(),
+  analysis_available: z.boolean(),
+  default_language: z.literal('en'),
+  languages: z
+    .array(
+      z
+        .object({
+          code: languageSchema,
+          name: languageNameSchema,
+          native_name: languageNameSchema,
+          quality_verified: z.literal(false),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(6)
+    .refine((languages) => new Set(languages.map(({ code }) => code)).size === languages.length, {
+      message: 'Language codes must be unique.',
+    })
+    .refine((languages) => languages.some(({ code }) => code === 'en'), {
+      message: 'English must be enabled.',
+    }),
+  checks: z.record(z.boolean()).optional(),
+  inputs: z.array(z.string()).optional(),
+  downloads_available: z.boolean().optional(),
+});
+export type Capabilities = z.infer<typeof capabilitiesSchema>;
 const recordIdSchema = z
   .string()
   .length(11)
@@ -227,7 +266,7 @@ export function validateInput(text: string, language: Language): string | null {
   if (!trimmed || /^[\p{White_Space}\u001c-\u001f]*$/u.test(text)) {
     return 'Enter some text; whitespace alone is not enough.';
   }
-  if (!languageSchema.safeParse(language).success) return 'Choose English or Hindi.';
+  if (!languageSchema.safeParse(language).success) return 'Choose a supported output language.';
   const body = JSON.stringify({ text: trimmed, language });
   if (new TextEncoder().encode(body).byteLength > 32768) {
     return 'The serialized request exceeds 32,768 UTF-8 bytes. Shorten the text.';

@@ -1,4 +1,4 @@
-import { responseSchema, type AnalyzeResponse, type Language } from './contracts';
+import { responseSchema, type AnalyzeResponse, type DemoLanguage } from './contracts';
 import { getDemoResponse } from './demo';
 
 const content = {
@@ -40,13 +40,13 @@ const content = {
     warning:
       'केवल काल्पनिक प्रदर्शन: सूचना, दिखाई गई कार्रवाइयाँ और अनुरोध काल्पनिक हैं। इस्तेमाल किया गया उद्धरण नकली साक्ष्य है, वास्तविक दावे का आधार नहीं। कोई साक्ष्य पढ़ा या सत्यापित नहीं किया गया है।',
   },
-} satisfies Record<Language, unknown>;
+} satisfies Record<DemoLanguage, unknown>;
 
-export function walkthroughRemark(language: Language): string {
+export function walkthroughRemark(language: DemoLanguage): string {
   return content[language].remark;
 }
 
-export function getWalkthrough(language: Language): AnalyzeResponse {
+export function getWalkthrough(language: DemoLanguage): AnalyzeResponse {
   const base = getDemoResponse('success', language);
   const sample = content[language];
   // Keep the original synthetic provenance intact; it is not evidence for policy advice.

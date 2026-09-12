@@ -237,6 +237,33 @@ describe('responseSchema', () => {
     ).toBe(false);
   });
 
+  it.each([
+    {},
+    { start_column: null, end_column: null },
+    { start_line: 1, end_line: 1, start_column: 0, end_column: 12 },
+    { start_line: 1, end_line: 2, start_column: 12, end_column: 0 },
+  ])('accepts optional citation columns %#', (patch) => {
+    const response = freshSuccess();
+    Object.assign(response.citations[0], patch);
+    expect(responseSchema.safeParse(response).success).toBe(true);
+  });
+
+  it.each([
+    { start_column: 0 },
+    { end_column: 1 },
+    { start_column: 0, end_column: null },
+    { start_column: -1, end_column: 1 },
+    { start_column: 0.5, end_column: 1 },
+    { start_column: '0', end_column: 1 },
+    { start_column: 0, end_column: Infinity },
+    { start_column: 0, end_column: Number.MAX_SAFE_INTEGER + 1 },
+    { start_line: 1, end_line: 1, start_column: 2, end_column: 1 },
+  ])('rejects malformed citation columns %#', (patch) => {
+    const response = freshSuccess();
+    Object.assign(response.citations[0], patch);
+    expect(responseSchema.safeParse(response).success).toBe(false);
+  });
+
   it('permits supporting documents without record IDs or source URLs, without asserting fidelity', () => {
     const response = freshSuccess();
     response.citations[0].path = 'references/knowledge/epfo/glossary.md';
@@ -331,12 +358,15 @@ describe('validateInput', () => {
     expect(validateInput(text, 'en')).toMatch(/text|whitespace/i);
   });
 
-  it.each(['en', 'hi'] as const)('accepts text in %s without echoing it in errors', (language) => {
-    expect(validateInput('  SYNTHETIC DEMO only.  ', language)).toBeNull();
-    expect(validateInput('काल्पनिक परीक्षण', language)).toBeNull();
-    const text = 'SYNTHETIC_SECRET'.repeat(8000);
-    expect(validateInput(text, language)).not.toContain('SYNTHETIC_SECRET');
-  });
+  it.each(['en', 'hi', 'kn', 'ta', 'te', 'ml'] as const)(
+    'accepts text in %s without echoing it in errors',
+    (language) => {
+      expect(validateInput('  SYNTHETIC DEMO only.  ', language)).toBeNull();
+      expect(validateInput('काल्पनिक परीक्षण', language)).toBeNull();
+      const text = 'SYNTHETIC_SECRET'.repeat(8000);
+      expect(validateInput(text, language)).not.toContain('SYNTHETIC_SECRET');
+    },
+  );
 
   it('enforces the original codepoint length before trimming', () => {
     expect(validateInput('x'.repeat(8000), 'en')).toBeNull();
@@ -350,7 +380,7 @@ describe('validateInput', () => {
     expect(validateInput('e\u0301'.repeat(4001), 'en')).toMatch(/8,000/);
   });
 
-  it.each(['en', 'hi'] as const)(
+  it.each(['en', 'hi', 'kn', 'ta', 'te', 'ml'] as const)(
     'enforces inclusive serialized UTF-8 byte limits in %s',
     (language) => {
       const overhead = new TextEncoder().encode(JSON.stringify({ text: '', language })).byteLength;
@@ -372,6 +402,6 @@ describe('validateInput', () => {
   });
 
   it('rejects unsupported runtime language values', () => {
-    expect(validateInput('Synthetic text.', 'fr' as Language)).toMatch(/English or Hindi/);
+    expect(validateInput('Synthetic text.', 'fr' as Language)).toMatch(/supported output language/);
   });
 });
