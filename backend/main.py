@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections import deque
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -23,12 +24,7 @@ from backend.api.schemas import (
     UploadTicketRequest,
 )
 from backend.config import PUBLIC_KNOWLEDGE_ROOT, Settings
-from backend.history import (
-    DEFAULT_SESSION_ID,
-    HistoryCase,
-    HistoryResponse,
-    HistoryTrackingService,
-)
+from backend.history import HistoryCase, HistoryResponse, HistoryTrackingService
 from backend.images.pipeline import ImagePipeline
 from backend.images.storage import StorageError
 from backend.knowledge_readiness import check_corpus
@@ -45,9 +41,13 @@ def _session_id(request: Request) -> str:
 
     There is no login system yet; this only lets one browser's own repeat questions
     share history/cache with each other. Never trust it as an identity claim.
+
+    A missing/blank header must never collapse into one shared bucket - that would let
+    every caller who omits the header read each other's case history. Mint a private,
+    unguessable id instead, scoped to this one request only.
     """
     raw = request.headers.get("X-Session-Id", "").strip()
-    return raw[:_MAX_SESSION_ID_LENGTH] if raw else DEFAULT_SESSION_ID
+    return raw[:_MAX_SESSION_ID_LENGTH] if raw else uuid.uuid4().hex
 
 
 class BodyLimitMiddleware:

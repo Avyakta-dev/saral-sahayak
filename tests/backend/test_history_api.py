@@ -148,6 +148,29 @@ def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call
         asyncio.run(http.aclose())
 
 
+def test_callers_who_omit_the_session_header_never_share_one_bucket(complete_corpus, monkeypatch):
+    """A missing X-Session-Id must never collapse every anonymous caller into one bucket."""
+    app, http, calls = _client(complete_corpus, monkeypatch)
+    try:
+        with TestClient(app) as client:
+            first = client.post(
+                "/api/v1/analyze", json={"text": "Synthetic test only", "language": "en"}
+            )
+            assert first.status_code == 200, first.json()
+            assert len(calls) == 2
+
+            first_history = client.get("/api/v1/history")
+            second_history = client.get("/api/v1/history")
+            assert first_history.json()["session_id"] != second_history.json()["session_id"]
+            # Neither header-less caller's own just-recorded case is visible to the other.
+            assert first_history.json()["cases"] == []
+            assert second_history.json()["cases"] == []
+    finally:
+        import asyncio
+
+        asyncio.run(http.aclose())
+
+
 def test_history_disabled_still_serves_analysis(complete_corpus, monkeypatch):
     monkeypatch.setattr(os, "environ", {})
     settings = Settings(
@@ -160,4 +183,6 @@ def test_history_disabled_still_serves_analysis(complete_corpus, monkeypatch):
     app = create_app(settings, knowledge_root=complete_corpus, model_client=object())
     with TestClient(app) as client:
         assert client.get("/api/v1/capabilities").json()["history_available"] is False
-        assert client.get("/api/v1/history").json() == {"session_id": "anonymous", "cases": []}
+        body = client.get("/api/v1/history").json()
+        assert body["cases"] == []
+        assert isinstance(body["session_id"], str) and body["session_id"]

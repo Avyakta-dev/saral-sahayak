@@ -42,7 +42,12 @@ export const capabilitiesSchema = z
     downloads_available: z.boolean(),
     history_available: z.boolean(),
   })
-  .strict()
+  // Passthrough (not .strict()) at the top level only: an older frontend build talking
+  // to a newer backend must tolerate an additive capability flag it doesn't know about
+  // yet, rather than fail closed and disable the whole app. This is exactly the failure
+  // this PR already hit once (a new history_available field breaking .strict()).
+  // Nested objects stay .strict() - those are not meant to gain fields independently.
+  .passthrough()
   .superRefine((capabilities, context) => {
     const codes = capabilities.languages.map(({ code }) => code);
     if (new Set(codes).size !== codes.length) {

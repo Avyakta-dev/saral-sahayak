@@ -74,12 +74,35 @@ class Settings(BaseSettings):
             raise ValueError("Supported languages must be unique and include default English")
         return value
 
+    @field_validator("image_content_types")
+    @classmethod
+    def image_content_type_set(cls, value: list[str]) -> list[str]:
+        if (
+            not value
+            or len(value) != len(set(value))
+            or any(item not in SUPPORTED_IMAGE_TYPES for item in value)
+        ):
+            raise ValueError("Image content types must be unique and one of the supported types")
+        return value
+
     @field_validator(
         "llm_base_url", "llm_model", "image_r2_endpoint", "image_r2_bucket", "history_persist_path"
     )
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("history_persist_path")
+    @classmethod
+    def history_persist_path_is_a_plausible_file(cls, value: str) -> str:
+        if not value:
+            return value
+        path = Path(value).expanduser()
+        if path.exists() and path.is_dir():
+            raise ValueError("history_persist_path must be a file path, not a directory")
+        if not path.parent.is_dir():
+            raise ValueError(f"history_persist_path's parent directory does not exist: {path.parent}")
+        return value
 
     @field_validator("cors_origins")
     @classmethod

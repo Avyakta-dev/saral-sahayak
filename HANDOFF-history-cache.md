@@ -70,8 +70,12 @@ New module: `backend/history/`
   Deliberately holds no raw claim text and no user-supplied personal details.
 - `store.py` — `CaseHistoryStore`: bounded in-process store.
   - `start()` / `mark_processing()` / `complete()` / `fail()` drive the lifecycle.
-  - `fingerprint(language, text)` = sha256 of `language + normalized(text)`. Never
-    reversible to the original text.
+  - `fingerprint(language, text)` = HMAC-SHA256 of `language + normalized(text)`, keyed
+    by a random secret generated per process (never persisted or logged). The EPFO
+    question domain is small and enumerable, so a *bare* hash would be dictionary-
+    attackable by anyone who later read a persisted fingerprint; the per-process key
+    means a leaked log cannot be matched back to a question without also holding that
+    key, and the key never survives a restart.
   - Only `success` and `unsupported` outcomes get cached (`needs_clarification` and
     `error` are request-specific and never cached).
   - The cached `AnalyzeResponse` has its `draft` stripped before storage (the draft

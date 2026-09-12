@@ -13,6 +13,8 @@ except for a freshly rebuilt draft (see HistoryTrackingService).
 """
 
 import hashlib
+import hmac
+import secrets
 import threading
 import time
 from collections import OrderedDict
@@ -29,10 +31,22 @@ from .models import CaseRecord
 _CACHEABLE_STATUSES = frozenset({"success", "unsupported"})
 
 
-def fingerprint(language: str, text: str) -> str:
-    """One-way, stable key for a (language, text) pair. Never reversible to the text."""
+def fingerprint(language: str, text: str, *, key: bytes | None = None) -> str:
+    """Stable key for a (language, text) pair.
+
+    The EPFO question domain is small and enumerable (~181 canonical reasons across a
+    few languages), so a bare hash is dictionary-attackable by anyone who later reads a
+    persisted fingerprint - it is a stable identifier, not a secrecy guarantee on its
+    own. CaseHistoryStore always supplies its own per-process key so an offline reader
+    of a persisted log cannot reconstruct which question was asked without also holding
+    that key. ``key=None`` (bare sha256) exists only for direct callers that need a pure,
+    unkeyed identifier.
+    """
     normalized = " ".join(text.strip().split()).casefold()
-    return hashlib.sha256(f"{language}\n{normalized}".encode("utf-8")).hexdigest()
+    message = f"{language}\n{normalized}".encode("utf-8")
+    if key is None:
+        return hashlib.sha256(message).hexdigest()
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
 class CaseHistoryStore:
@@ -53,6 +67,10 @@ class CaseHistoryStore:
         self._max_per_session = max_per_session
         self._persist_path = persist_path
         self._sequence = 0
+        # Never persisted or logged; process-lifetime only. Nothing reads a persisted
+        # fingerprint back into the live cache, so a fresh key per process is safe and
+        # additionally makes any leaked log unusable once this process has restarted.
+        self._fingerprint_key = secrets.token_bytes(32)
 
     def start(self, session_id: str, language: str, text: str) -> CaseRecord:
         now = time.time()
@@ -63,7 +81,7 @@ class CaseHistoryStore:
                 case_id=case_id,
                 session_id=session_id,
                 language=language,
-                fingerprint=fingerprint(language, text),
+                fingerprint=fingerprint(language, text, key=self._fingerprint_key),
                 status="started",
                 created_at=now,
                 updated_at=now,
@@ -117,7 +135,7 @@ class CaseHistoryStore:
         self._persist(snapshot)
 
     def find_cached(self, language: str, text: str) -> AnalyzeResponse | None:
-        key = (language, fingerprint(language, text))
+        key = (language, fingerprint(language, text, key=self._fingerprint_key))
         with self._lock:
             cached = self._cache.get(key)
             if cached is not None:
