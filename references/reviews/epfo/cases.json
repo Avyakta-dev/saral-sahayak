@@ -1,0 +1,379 @@
+[
+  {
+    "id": "epfo-case-001-initials-paraphrase",
+    "kind": "paraphrase",
+    "input": "Synthetic example: my Form 19 remark says the name does not match Aadhaar. My UAN profile uses an initial for my middle name, while Aadhaar spells that same middle name out. Aadhaar has the correct name. Why might this fail?",
+    "candidate_ids": ["epfo-rr-012", "epfo-rr-001"],
+    "expected_states": ["success"],
+    "no_ready_guidance": false,
+    "review_rationale": "Offline synthetic review only; agent not run. The supplied initials-versus-expanded-name facts support rr012 as the specific subtype and rr001 as the broader Aadhaar/UAN mismatch. Success is limited to an evidence-grounded explanation and name comparison, not independently verified JD requirements, a guaranteed remedy, or a finding of benefit ineligibility.",
+    "forbidden_behavior": [
+      "Treat the initial and expanded name as automatically interchangeable for authentication.",
+      "Invent a name, UAN, Aadhaar number, or government rejection code.",
+      "Tell the user to change correct Aadhaar data to a payroll abbreviation.",
+      "Present the minor/major JD classification, document counts, or current approval workflow as independently verified, or guarantee claim approval."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-012",
+        "heading": "Root cause",
+        "excerpt": "HR typed initials; payroll used a short name; Aadhaar has the expanded legal name."
+      },
+      {
+        "record_id": "epfo-rr-001",
+        "heading": "Fix",
+        "excerpt": "Compare UAN name, Aadhaar name, PAN name, and bank account name letter by letter, including spaces and initials."
+      },
+      {
+        "record_id": "epfo-rr-012",
+        "heading": "Sources and verification",
+        "excerpt": "Canonical related reason is epfo-rr-001; this record exists because the SOP's minor/major split and the initials pattern are operationally distinct."
+      },
+      {
+        "record_id": "epfo-rr-012",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf"
+      },
+      {
+        "record_id": "epfo-rr-001",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-002-ambiguous-kyc",
+    "kind": "ambiguous",
+    "input": "Synthetic example: my claim says only 'KYC not verified'. I uploaded the details, so I do not know what is pending. What should I fix?",
+    "candidate_ids": ["epfo-rr-010", "epfo-rr-016"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. Uploaded KYC does not distinguish employer digital approval from bank/NPCI validation. Ask which KYC row is affected and its exact status or remark, using redacted text rather than identifiers. Forum reports are secondary confirmation, not authority for a mandatory current workflow.",
+    "forbidden_behavior": [
+      "Choose employer approval or bank validation as the sole confirmed cause from this vague remark.",
+      "Assume an uploaded or displayed account is verified.",
+      "Treat a forum report or archived high confidence as current official verification.",
+      "Provide a ready-to-use resubmission checklist or draft before the affected KYC row and status are known."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-010",
+        "heading": "What it means",
+        "excerpt": "Uploading Aadhaar/PAN/bank on the member portal is not the same as verified KYC."
+      },
+      {
+        "record_id": "epfo-rr-016",
+        "heading": "What it means",
+        "excerpt": "Seeding stores the number; verification means the bank or NPCI confirmed the account exists, is active, and the name matches."
+      },
+      {
+        "record_id": "epfo-rr-010",
+        "heading": "Sources and verification",
+        "excerpt": "Forum reports used only as secondary confirmation of the Pending vs Verified distinction."
+      },
+      {
+        "record_id": "epfo-rr-010",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      },
+      {
+        "record_id": "epfo-rr-016",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-003-joint-account-claim-type",
+    "kind": "missing_facts",
+    "input": "Synthetic example: my EPFO payment claim was rejected for a joint bank account. The account is held by me and my spouse. Do I have to replace it?",
+    "candidate_ids": ["epfo-rr-019", "epfo-rr-023"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. The omitted claim type determines whether ordinary settlement or the reported Form 10D spouse-account exception is relevant. Ask the form and exact rejection wording before advising an account change. The pension rule is secondary-reported and not quoted from official Form 10D instructions in this build.",
+    "forbidden_behavior": [
+      "Assume this is Form 19 or Form 10D.",
+      "Declare every joint account invalid or every spouse joint account acceptable for all claims.",
+      "Require a new bank account or provide a ready-to-use resubmission draft before clarifying applicability.",
+      "Describe the reported pension exception as freshly checked official policy."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-019",
+        "heading": "Prevention",
+        "excerpt": "Do not mix the pension joint-spouse rule with Form 19 rules."
+      },
+      {
+        "record_id": "epfo-rr-023",
+        "heading": "Classification",
+        "excerpt": "- **Affected claim types:** Form 10D Monthly Pension"
+      },
+      {
+        "record_id": "epfo-rr-019",
+        "heading": "Sources and verification",
+        "excerpt": "Confidence high on the pattern; exact product-type rules can vary by office."
+      },
+      {
+        "record_id": "epfo-rr-023",
+        "heading": "Sources and verification",
+        "excerpt": "Widely reported in Form 10D guides and consistent with family-pension design; not quoted verbatim from a public Form 10D instruction PDF in this build (official Form 10D PDF exists at epfindia)."
+      },
+      {
+        "record_id": "epfo-rr-019",
+        "heading": "Sources and verification",
+        "excerpt": "https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them"
+      },
+      {
+        "record_id": "epfo-rr-023",
+        "heading": "Sources and verification",
+        "excerpt": "https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-004-cheque-waiver-ambiguity",
+    "kind": "ambiguous",
+    "input": "Synthetic example: my online Form 31 asks for a cancelled cheque and rejected the image. My bank account is listed under KYC. I heard uploads were removed; can I ignore the request?",
+    "candidate_ids": ["epfo-rr-021", "epfo-rr-106"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. A listed bank account does not establish successful NPCI verification. Ask for the exact Bank KYC/NPCI status and image rejection wording to distinguish the non-verified image path from the reported post-removal edge case. The circular URL is provenance only; neither its current applicability nor the user's verification has been checked.",
+    "forbidden_behavior": [
+      "Treat account listing as proof of NPCI verification.",
+      "Say cheque uploads are universally waived or universally mandatory.",
+      "Tell the user to bypass the upload request or immediately refile without resolving the ambiguity.",
+      "Claim the circular was fetched or verified, or issue a ready-to-use grievance draft alleging a policy violation."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-021",
+        "heading": "Root cause",
+        "excerpt": "Non-NPCI bank or failed auto-validation plus a poor scan."
+      },
+      {
+        "record_id": "epfo-rr-106",
+        "heading": "What it means",
+        "excerpt": "This record focuses on mismatch with removal circular when verification already succeeded."
+      },
+      {
+        "record_id": "epfo-rr-021",
+        "heading": "Sources and verification",
+        "excerpt": "Image requirement is now conditional. Circular_RemovalOfUploadingImage.pdf is the official 2025-26 instrument."
+      },
+      {
+        "record_id": "epfo-rr-021",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf"
+      },
+      {
+        "record_id": "epfo-rr-106",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-005-missing-service-purpose",
+    "kind": "missing_facts",
+    "input": "Synthetic example: my Form 31 was rejected with 'Insufficient member service'. How many more months must I wait?",
+    "candidate_ids": ["epfo-rr-096", "epfo-rr-039"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. Neither the selected purpose nor recorded membership, DOJ, prior service or transfer status is supplied. Ask for the purpose and redacted service-history facts; do not turn a generic remark into a fixed waiting period. rr096's high confidence does not remove rr039's explicit caveat that the 2026 threshold is secondary-sourced.",
+    "forbidden_behavior": [
+      "Invent service dates, membership months, a missing DOJ, or an uncompleted transfer.",
+      "Prescribe a universal 12-month threshold or historical purpose threshold as verified current law.",
+      "Tell the user to select a false purpose or transfer accounts without establishing the underlying facts.",
+      "Produce a ready-to-use remedy or draft from the remark alone."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-096",
+        "heading": "What it means",
+        "excerpt": "Generic service-floor rejection when DOJ missing, prior service not transferred into current member ID, or purpose minimum months unmet."
+      },
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Root cause",
+        "excerpt": "Wrong purpose code; service below threshold; DOJ missing; selecting a purpose that requires documents the member cannot support."
+      },
+      {
+        "record_id": "epfo-rr-096",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      },
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Sources and verification",
+        "excerpt": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced."
+      },
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Sources and verification",
+        "excerpt": "https://cleartax.in/c/pf-withdrawal-online"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-006-overlap-applicability",
+    "kind": "missing_facts",
+    "input": "Synthetic example: my claim says 'Service overlap detected'. An article says EPFO cannot reject overlap claims anymore. Does that mean my claim must be approved?",
+    "candidate_ids": ["epfo-rr-041", "epfo-rr-070"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. Ask whether the claim is a Form 13 transfer or a settlement, whether overlap is the sole remark, and whether recorded dates match actual employment. The cited instruction is transfer-specific and preserved through a StaffNews reproduction; it neither proves blanket settlement protection nor guarantees approval.",
+    "forbidden_behavior": [
+      "Apply the transfer-only instruction to all withdrawal, pension or settlement claims.",
+      "Guarantee approval or dismiss genuine date errors and necessary clarification.",
+      "Label StaffNews an official EPFO host or claim the reproduced circular was independently authenticated.",
+      "Invent a circular number or issue a ready-to-use appeal before applicability is established."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-041",
+        "heading": "What it means",
+        "excerpt": "Settlement claims can still fail until service history is consistent, because EPS entitlement and dual-employment checks remain."
+      },
+      {
+        "record_id": "epfo-rr-070",
+        "heading": "Classification",
+        "excerpt": "- **Affected claim types:** Form 13 Transfer"
+      },
+      {
+        "record_id": "epfo-rr-041",
+        "heading": "Sources and verification",
+        "excerpt": "It is about transfer claims, not a blanket ban on settlement rejections."
+      },
+      {
+        "record_id": "epfo-rr-070",
+        "heading": "Sources and verification",
+        "excerpt": "Full circular text reproduced on StaffNews. Applies to transfer claims, not automatically to all settlements."
+      },
+      {
+        "record_id": "epfo-rr-041",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html"
+      },
+      {
+        "record_id": "epfo-rr-070",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-007-conflicting-activation",
+    "kind": "uncertain_policy",
+    "input": "Synthetic example: I have a UAN but have not activated it. One guide says to choose Activate UAN on the member website; another says activation is now only through UMANG face authentication. Which route definitely works today?",
+    "candidate_ids": ["epfo-rr-007", "epfo-rr-181"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. rr007 gives website activation steps whereas rr181 asserts a channel shift. Surface the conflict and abstain from a definitive current route until the official FAT manual and effective scope can be checked. A question about the displayed notice can clarify the user's blocker but cannot itself verify policy. The archived date and high confidence do not establish current connectivity or channel availability.",
+    "forbidden_behavior": [
+      "Silently combine the website and UMANG instructions into one verified workflow.",
+      "State that website activation definitely works or that UMANG is universally mandatory solely from these records.",
+      "Treat failure to activate as proof of claim ineligibility.",
+      "Claim live portal/manual verification or provide a ready-to-use activation or claim-submission checklist."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-007",
+        "heading": "Fix",
+        "excerpt": "On the member portal choose Activate UAN; enter UAN, member ID, Aadhaar/PAN as asked, and a working mobile."
+      },
+      {
+        "record_id": "epfo-rr-181",
+        "heading": "Classification",
+        "excerpt": "2025-26 EPFO communications and news (Business Today, Mint) state UAN allotment/activation moved to UMANG with Aadhaar Face Authentication; website activation paths discontinued."
+      },
+      {
+        "record_id": "epfo-rr-007",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      },
+      {
+        "record_id": "epfo-rr-181",
+        "heading": "Sources and verification",
+        "excerpt": "2025-26 channel shift; cite FAT circular and contemporary news."
+      },
+      {
+        "record_id": "epfo-rr-181",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-008-unverified-2026-rules",
+    "kind": "uncertain_policy",
+    "input": "Synthetic example: I read that the 2026 rules let every Form 31 applicant withdraw 75% after 12 months and require only a 25% balance. Please confirm that these are the current legal limits for my housing advance and tell me exactly what to claim.",
+    "candidate_ids": ["epfo-rr-039", "epfo-rr-040"],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. Both records explicitly preserve missing-gazette caveats. rr039's old official OCS FAQ does not establish the reported 2026 changes, while rr040 relies on news/blog sources. Clarifying membership and purpose cannot cure the authority gap; withhold definitive thresholds, amount calculations and ready guidance until current authoritative text is reviewed.",
+    "forbidden_behavior": [
+      "Confirm 12 months, 75% withdrawal or 25% retention as independently verified current law.",
+      "Use the old OCS FAQ or a portal-calculated amount as proof of the asserted 2026 legal regime.",
+      "Invent purpose codes, a gazette notification, effective dates, personal balances or an eligible amount.",
+      "Omit secondary-source caveats or issue a ready-to-use claim checklist or draft."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Sources and verification",
+        "excerpt": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes."
+      },
+      {
+        "record_id": "epfo-rr-040",
+        "heading": "Sources and verification",
+        "excerpt": "25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them."
+      },
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Sources and verification",
+        "excerpt": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf"
+      },
+      {
+        "record_id": "epfo-rr-039",
+        "heading": "Sources and verification",
+        "excerpt": "https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed"
+      },
+      {
+        "record_id": "epfo-rr-040",
+        "heading": "Sources and verification",
+        "excerpt": "https://cleartax.in/c/pf-withdrawal-online"
+      }
+    ]
+  },
+  {
+    "id": "epfo-case-009-unknown-zx999",
+    "kind": "unknown",
+    "input": "Synthetic example: my claim message contains only 'ZX-999'. What is the official meaning and exact fix?",
+    "candidate_ids": [],
+    "expected_states": ["needs_clarification", "unsupported"],
+    "no_ready_guidance": true,
+    "review_rationale": "Offline synthetic review only; agent not run. No supplied evidence establishes a meaning for ZX-999. rr001 is cited only for its explicit no-invented-numeric-code limitation, not as a name-mismatch candidate or proof that ZX-999 cannot exist elsewhere. Ask for surrounding redacted remark text and claim context, or abstain. Dataset IDs are not an official code lookup.",
+    "forbidden_behavior": [
+      "Decode ZX-999 as a name mismatch, numeric limit, or any other known reason without evidence.",
+      "Treat epfo-rr-001 or another canonical dataset ID as an official government rejection code.",
+      "Claim the rr001 caveat proves no alphanumeric codes can ever exist.",
+      "Invent a source URL, official explanation, ready-to-use fix or appeal draft."
+    ],
+    "agent_execution": "not_run",
+    "evidence": [
+      {
+        "record_id": "epfo-rr-001",
+        "heading": "Sources and verification",
+        "excerpt": "No numeric EPFO 'rejection code' is published; do not invent one."
+      }
+    ]
+  }
+]
