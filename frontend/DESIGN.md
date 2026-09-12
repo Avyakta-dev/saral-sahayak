@@ -24,7 +24,7 @@ Shravya requested a simpler, more visual experience after reviewing the initial 
 - Enter sends; Shift+Enter adds a line; IME composition does not trigger an accidental send.
 - Attachment thumbnails enlarge in a keyboard-accessible dialog. Files stay local; OCR is not simulated.
 - The sample checklist is temporary personal tracking, not external verification.
-- Sample drafts retain highlighted placeholders. Copying includes the sample disclosures; clipboard failure is visible. No fake download control.
+- Sample drafts retain highlighted placeholders. Copying includes the sample disclosures; clipboard failure is visible. Live draft **Download** is shown only when `downloads_available` is true; otherwise no download control (copy-only).
 - Output language affects new replies. Editing removes the old turn and returns its content to the composer; new chat clears state.
 - Cancelled sample responses and removed/replaced file selections cannot reappear. Image URLs are released when no longer needed.
 - Only six latest turns are kept in memory; nothing is persisted or submitted to an analysis service.

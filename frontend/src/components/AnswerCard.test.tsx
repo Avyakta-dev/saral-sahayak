@@ -1,6 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { responseSchema, type AnalyzeResponse, type DemoLanguage } from '../lib/contracts';
 import { getDemoResponse } from '../lib/demo';
 import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
@@ -13,6 +13,7 @@ const renderCard = (
   mode: 'live' | 'sample' = 'sample',
   onRetry?: () => void,
   retryLabel?: string,
+  downloadsAvailable = false,
 ) =>
   render(
     <AnswerCard
@@ -21,6 +22,7 @@ const renderCard = (
       mode={mode}
       onRetry={onRetry}
       retryLabel={retryLabel}
+      downloadsAvailable={downloadsAvailable}
     />,
   );
 
@@ -102,6 +104,11 @@ describe('illustrative walkthrough', () => {
 });
 
 describe('AnswerCard', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('exports both forms and defaults to one compact overview with collapsed disclosures', async () => {
     expect(AnswerCard).toBe(NamedAnswerCard);
     const response = sample();
@@ -240,6 +247,67 @@ describe('AnswerCard', () => {
     response.draft!.blocks.forEach((block) => expect(copied).toContain(block.text));
     response.warnings.forEach((warning) => expect(copied).toContain(warning));
     expect(copied).toContain('[recipient]');
+  });
+
+  it('hides download while capabilities.downloads_available is false', async () => {
+    const user = userEvent.setup();
+    const response = getDemoResponse('success', 'en');
+    renderCard(response, vi.fn(), 'live', undefined, undefined, false);
+    await user.click(screen.getByRole('tab', { name: 'Draft' }));
+    expect(screen.getByRole('button', { name: 'Copy draft' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+  });
+
+  it('downloads a local draft .txt only when downloads_available is true', async () => {
+    const user = userEvent.setup();
+    const response = getDemoResponse('success', 'en');
+    renderCard(response, vi.fn(), 'live', undefined, undefined, true);
+    await user.click(screen.getByRole('tab', { name: 'Draft' }));
+
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:synthetic-draft');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    const click = vi.fn();
+    const remove = vi.fn();
+    const anchor = {
+      href: '',
+      download: '',
+      rel: '',
+      style: { display: '' },
+      click,
+      remove,
+    } as unknown as HTMLAnchorElement;
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tag: string, options?: any) => {
+      if (tag === 'a') return anchor;
+      return realCreate(tag, options);
+    }) as typeof document.createElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+
+    await user.click(screen.getByRole('button', { name: 'Download draft' }));
+
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    const blobArg = createObjectURL.mock.calls[0]![0]!;
+    expect(blobArg).toBeInstanceOf(Blob);
+    expect(blobArg.type).toContain('text/plain');
+    const body = await blobArg.text();
+    expect(body).toContain(response.draft!.title);
+    response.draft!.blocks.forEach((block) => expect(body).toContain(block.text));
+    expect(body).toContain('Educational guidance only');
+    expect(anchor.download).toBe('saral-sahayak-draft-en.txt');
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-draft');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Draft downloaded, including disclosures.',
+    );
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('never offers download for unsupported cases without a draft', async () => {
+    renderCard(getDemoResponse('unsupported', 'en'), vi.fn(), 'live', undefined, undefined, true);
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument();
   });
 
   it('reports denied clipboard access honestly and allows a retry', async () => {

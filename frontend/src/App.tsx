@@ -931,6 +931,7 @@ export default function App() {
                             mode="live"
                             response={turn.response}
                             onEdit={() => editTurn(turn)}
+                            downloadsAvailable={capabilities?.downloads_available === true}
                             onRetry={
                               turn.response.status === 'error' &&
                               turn.text.trim() &&

@@ -1304,6 +1304,12 @@ mark {
   font-size: 10px;
   color: #846632;
 }
+.draft-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .draft-toolbar button {
   display: inline-flex;
   align-items: center;
