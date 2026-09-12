@@ -416,7 +416,9 @@ describe('AnswerCard', () => {
     expect(screen.getByText(/Abstains or asks for clarification/)).toBeVisible();
     expect(screen.getByText(/Checklists and drafts come from cited blocks/)).toBeVisible();
     await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    await userEvent.click(screen.getByText('Source', { exact: true }));
+    const sourceSummaries = screen.getAllByText('Source', { exact: true });
+    expect(sourceSummaries.length).toBeGreaterThan(0);
+    await userEvent.click(sourceSummaries[0]);
     expect(screen.getByText(/Evidence cited by the analysis service/)).toBeVisible();
     expect(screen.queryByText(/Synthetic evidence only/)).not.toBeInTheDocument();
   });
