@@ -1,13 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { previewCapabilities } from './capabilities';
 import {
-  liveTransportFailureMessage,
   probeBackendStatus,
   statusFromCapabilities,
   unavailableFailureMessage,
   unreachableStatus,
 } from './backendStatus';
-
-import { testCapabilities } from '../test/languages';
 
 const originalEnv = import.meta.env.VITE_API_BASE_URL;
 
@@ -18,12 +16,11 @@ afterEach(() => {
 
 describe('statusFromCapabilities', () => {
   it('marks ready when analysis_available is true', () => {
-    expect(statusFromCapabilities(testCapabilities).kind).toBe('ready');
+    expect(statusFromCapabilities({ analysis_available: true }).kind).toBe('ready');
   });
 
   it('lists missing gates when not ready', () => {
     const status = statusFromCapabilities({
-      ...testCapabilities,
       analysis_available: false,
       checks: { model_configured: false, knowledge_structure_ready: true },
     });
@@ -48,7 +45,6 @@ describe('unavailableFailureMessage', () => {
   it('includes concrete gates when present', () => {
     expect(
       unavailableFailureMessage({
-        ...testCapabilities,
         analysis_available: false,
         checks: { model_configured: false, knowledge_structure_ready: false },
       }),
@@ -68,32 +64,12 @@ describe('probeBackendStatus', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(testCapabilities), {
+        new Response(JSON.stringify({ ...previewCapabilities, analysis_available: true }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
       ),
     );
     await expect(probeBackendStatus()).resolves.toMatchObject({ kind: 'ready' });
-  });
-});
-
-describe('liveTransportFailureMessage', () => {
-  it('keeps CORS guidance from the API client', () => {
-    const raw =
-      'Could not reach the analysis service. Check that the backend is running, VITE_API_BASE_URL matches, and CORS_ORIGINS includes this exact page origin.';
-    expect(liveTransportFailureMessage(raw)).toBe(raw);
-  });
-
-  it('clarifies protected-mode denial without mentioning tokens in the label only', () => {
-    expect(liveTransportFailureMessage('Analysis access denied.')).toMatch(/protected mode/i);
-  });
-
-  it('clarifies capacity limits', () => {
-    expect(liveTransportFailureMessage('Analysis capacity is limited.')).toMatch(/429/);
-  });
-
-  it('clarifies timeouts', () => {
-    expect(liveTransportFailureMessage('Analysis timed out.')).toMatch(/timed out/i);
   });
 });

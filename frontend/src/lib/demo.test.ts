@@ -3,7 +3,8 @@ import successExample from '../../../docs/examples/success.json';
 import clarificationExample from '../../../docs/examples/needs_clarification.json';
 import unsupportedExample from '../../../docs/examples/unsupported.json';
 import errorExample from '../../../docs/examples/error.json';
-import { responseSchema } from './contracts';
+import { responseSchema, type Language } from './contracts';
+import { historicalWarning, mockContent, qualityWarning } from './mockContent';
 import {
   demoScenarios,
   getDemoResponse,
@@ -19,10 +20,26 @@ const examples = {
   error: errorExample,
 };
 const scenarios: DemoScenario[] = ['success', 'needs_clarification', 'unsupported', 'error'];
+const languages: Language[] = ['en', 'hi', 'kn', 'ta', 'te', 'ml'];
+const scripts: Record<Language, RegExp> = {
+  en: /[A-Za-z]/u,
+  hi: /\p{Script=Devanagari}/u,
+  kn: /\p{Script=Kannada}/u,
+  ta: /\p{Script=Tamil}/u,
+  te: /\p{Script=Telugu}/u,
+  ml: /\p{Script=Malayalam}/u,
+};
+const originalSuccess = responseSchema.parse(successExample);
 
 describe('synthetic demo fixtures', () => {
   it('provides four English UI labels and a clearly fictional sample', () => {
     expect(demoScenarios.map((scenario) => scenario.value)).toEqual(scenarios);
+    expect(demoScenarios.map((scenario) => scenario.label)).toEqual([
+      'A detail needs review',
+      'More context needed',
+      'Insufficient evidence',
+      'Service unavailable',
+    ]);
     for (const scenario of demoScenarios) {
       expect(scenario.label).toMatch(/[A-Za-z]/);
       expect(scenario.description).toMatch(/[A-Za-z]/);
@@ -34,14 +51,33 @@ describe('synthetic demo fixtures', () => {
     expect(sampleText.split('.').filter((sentence) => sentence.trim())).toHaveLength(2);
   });
 
-  describe.each(['en', 'hi'] as const)('%s output', (language) => {
+  describe.each(languages)('%s output', (language) => {
     it.each(scenarios)('validates the %s fixture and retains original warnings', (scenario) => {
       const response = getDemoResponse(scenario, language);
       expect(responseSchema.safeParse(response).success).toBe(true);
       expect(response.status).toBe(scenario);
       expect(response.language).toBe(language);
       expect(response.warnings).toEqual(expect.arrayContaining(examples[scenario].warnings));
-      expect(response.citations).toEqual(examples[scenario].citations);
+      expect(response.citations).toEqual(responseSchema.parse(examples[scenario]).citations);
+      expect(response.warnings).toContain(historicalWarning);
+      expect(response.warnings).toContain(qualityWarning);
+      expect(response.warnings).toContain(mockContent[language].quality);
+      const prose = [
+        ...response.explanation.map((item) => item.text),
+        ...response.actions.map((item) => item.text),
+        ...response.required_documents.map((item) => item.text),
+        ...(response.draft?.blocks.map((item) => item.text) ?? []),
+        ...response.questions,
+      ];
+      if (response.classification)
+        prose.push(response.classification.rationale, response.classification.category);
+      if (response.error) prose.push(response.error.message);
+      if (scenario === 'unsupported') {
+        expect(response.warnings[0]).toBe(mockContent[language].unsupported);
+        prose.push(response.warnings[0]);
+      }
+      for (const text of prose) expect(text).toMatch(scripts[language]);
+      if (scenario === 'needs_clarification') expect(response.questions).toHaveLength(1);
       if (scenario !== 'success') {
         expect(response.classification).toBeNull();
         expect(response.explanation).toEqual([]);
@@ -62,10 +98,17 @@ describe('synthetic demo fixtures', () => {
     });
   });
 
-  it.each(['kn', 'ta', 'te', 'ml'])('does not relabel English fixtures as %s', (language) => {
-    // @ts-expect-error Runtime callers must also respect the en/hi fixture boundary.
-    expect(() => getDemoResponse('success', language)).toThrow();
-  });
+  it.each(['kn', 'ta', 'te', 'ml'] as const)(
+    'uses authored %s sample copy instead of the English fixture wording',
+    (language) => {
+      const response = getDemoResponse('success', language);
+      const sample = mockContent[language];
+      expect(response.language).toBe(language);
+      expect(response.explanation[0].text).toBe(sample.explanation);
+      expect(response.classification?.category).toBe(sample.category);
+      expect(response.explanation[0].text).not.toBe(originalSuccess.explanation[0].text);
+    },
+  );
 
   it('preserves the intentionally skeletal English success fixture', () => {
     const response = getDemoResponse('success', 'en');
@@ -77,7 +120,7 @@ describe('synthetic demo fixtures', () => {
       'draft',
       'citations',
     ] as const) {
-      expect(response[field]).toEqual(successExample[field]);
+      expect(response[field]).toEqual(originalSuccess[field]);
     }
     expect(response.warnings.join(' ')).toContain('not policy confidence');
     expect(response.classification?.rationale).toContain('does not assert a real classification');
@@ -104,7 +147,7 @@ describe('synthetic demo fixtures', () => {
     expect(response.draft?.blocks.every((block) => /[\u0900-\u097f]/.test(block.text))).toBe(true);
     expect(response.draft?.blocks[1].text).toContain('CLAIMANT_NAME');
     expect(response.draft?.missing_fields).toEqual(['claimant_name']);
-    expect(response.citations).toEqual(successExample.citations);
+    expect(response.citations).toEqual(originalSuccess.citations);
   });
 
   it('uses the requested question language and preserves the error code', () => {
@@ -132,7 +175,7 @@ describe('synthetic demo fixtures', () => {
     expect(second.warnings).not.toContain('Mutation');
     expect(second.explanation[0].text).not.toBe('Mutation');
     expect(second.draft?.blocks[0].text).not.toBe('Mutation');
-    expect(second.citations).toEqual(successExample.citations);
+    expect(second.citations).toEqual(originalSuccess.citations);
     expect(getDemoResponse('success', 'en').explanation).toEqual(successExample.explanation);
     expect(JSON.stringify(examples)).toBe(before);
   });
@@ -157,17 +200,19 @@ describe('loadDemoResponse', () => {
     vi.restoreAllMocks();
   });
 
-  it.each(scenarios)('returns the preset %s response after exactly 700ms', async (scenario) => {
-    const controller = new AbortController();
-    const settled = vi.fn();
-    const promise = loadDemoResponse(scenario, 'en', controller.signal);
-    void promise.then(settled);
-    await vi.advanceTimersByTimeAsync(699);
-    expect(settled).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(promise).resolves.toEqual(getDemoResponse(scenario, 'en'));
-    expect(settled).toHaveBeenCalledOnce();
-    expect(vi.getTimerCount()).toBe(0);
+  describe.each(languages)('%s output', (language) => {
+    it.each(scenarios)('returns the preset %s response after exactly 700ms', async (scenario) => {
+      const controller = new AbortController();
+      const settled = vi.fn();
+      const promise = loadDemoResponse(scenario, language, controller.signal);
+      void promise.then(settled);
+      await vi.advanceTimersByTimeAsync(699);
+      expect(settled).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(promise).resolves.toEqual(getDemoResponse(scenario, language));
+      expect(settled).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it('supports Hindi output without a translation service', async () => {

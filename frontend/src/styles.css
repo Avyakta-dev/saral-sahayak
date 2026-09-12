@@ -1738,6 +1738,328 @@ mark {
     margin-top: 16px;
   }
 }
+.sample-quality-note {
+  margin: -8px 0 17px;
+  color: #687355;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.answer-uncertainty {
+  padding: 13px 15px;
+  margin-bottom: 17px;
+  border: 1px solid #e5dac1;
+  border-radius: 9px;
+  background: #faf4e8;
+  color: #735b32;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.answer-uncertainty > span {
+  display: block;
+}
+.answer-uncertainty p {
+  margin-top: 5px;
+  font-size: 12px;
+}
+.answer-uncertainty small {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+}
+.answer-claim > p,
+.document-tile p,
+.step-content label,
+.answer-message p,
+.answer-questions li,
+.answer-disclosure p,
+.answer-disclosure li,
+.answer-uncertainty p,
+.citation dd,
+.draft-paper h3,
+.draft-missing {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.info-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.sample-gallery {
+  margin: 22px 0;
+}
+.sample-gallery h3 {
+  font-size: 14px;
+  letter-spacing: -0.2px;
+}
+.sample-gallery > p {
+  margin-top: 7px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #647355;
+}
+.sample-gallery-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sample-gallery-options button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  min-height: 48px;
+  border: 1px solid #dce5d2;
+  border-radius: 8px;
+  background: #f5f8ee;
+  color: #436035;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.sample-gallery-options button svg {
+  flex-shrink: 0;
+}
+.sample-gallery-options button:hover {
+  background: #eaf1e1;
+}
+.sample-gallery-options button:disabled {
+  opacity: 0.65;
+}
+.capabilities-details {
+  margin: 18px 0;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #627451;
+}
+.capabilities-details summary {
+  cursor: pointer;
+  padding: 5px 0;
+  font-weight: 600;
+}
+.capabilities-details p {
+  margin-top: 10px;
+}
+.capabilities-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 13px 0;
+}
+.capabilities-details li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid #e5eadc;
+}
+.capabilities-details small {
+  font-size: 10px;
+  color: #816333;
+}
+.language-select select {
+  max-width: 140px;
+}
+@media (max-width: 600px) {
+  .language-select select {
+    max-width: 110px;
+  }
+  .sample-gallery-options {
+    grid-template-columns: 1fr;
+  }
+  .sample-gallery-options button {
+    min-height: 43px;
+  }
+  .answer-uncertainty {
+    padding: 11px 12px;
+  }
+}
+.service-banner {
+  background: #eef5e9;
+  border-color: #d7e5cc;
+  color: #3c6130;
+}
+.api-connection {
+  padding: 12px 15px;
+  margin-bottom: 13px;
+  border: 1px solid #d8e3cf;
+  border-radius: 11px;
+  background: #f1f6eb;
+  color: #3e5c32;
+}
+.api-connection > p {
+  font-size: 12px;
+  line-height: 1.75;
+}
+.api-connection[data-state='error'],
+.api-connection[data-state='unavailable'] {
+  background: #fbf4e8;
+  border-color: #e8d9bd;
+  color: #775528;
+}
+.api-connection-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+}
+.api-connection-actions .text-button {
+  font-size: 11px;
+  min-height: 32px;
+  padding-block: 6px;
+}
+.api-connection-actions .text-button:disabled {
+  color: #68735e;
+  text-decoration: none;
+}
+.api-connection small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.7;
+  margin-top: 5px;
+}
+.api-privacy-note {
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.analyze-button {
+  width: auto;
+  min-width: 104px;
+  padding-inline: 15px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.api-transport-error {
+  padding: 18px;
+  border: 1px solid #ead6c4;
+  border-radius: 11px;
+  background: #fcf5ed;
+}
+.api-transport-error h2 {
+  font-size: 21px;
+  line-height: 1.4;
+  letter-spacing: -0.5px;
+}
+.api-transport-error p {
+  margin-top: 11px;
+  font-size: 13px;
+  line-height: 1.85;
+  color: #745942;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.api-transport-error .text-button {
+  margin-top: 9px;
+}
+.api-retry-actions {
+  margin-top: 15px;
+}
+.api-retry-actions > p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #6b735d;
+  margin-bottom: 10px;
+}
+.api-waiting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 33px;
+  font-size: 13px;
+  color: #527341;
+}
+.clarification-context {
+  border: 1px solid #e4d7b7;
+  border-radius: 10px;
+  background: #fbf5e7;
+  padding: 14px;
+  margin-bottom: 12px;
+  color: #75582c;
+}
+.clarification-context strong {
+  font-size: 12px;
+}
+.clarification-context ul {
+  padding-left: 20px;
+  margin: 9px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mode-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+.mode-actions button {
+  min-height: 40px;
+  border: 1px solid #d6e2cd;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  background: #eef4e6;
+  color: #3c602e;
+}
+.mode-actions button:disabled {
+  background: #f1f2eb;
+  color: #737a68;
+}
+@media (max-width: 600px) {
+  .api-connection {
+    padding: 10px 12px;
+  }
+  .api-connection > p {
+    font-size: 11px;
+  }
+  .api-connection-actions {
+    gap: 13px;
+  }
+  .analyze-button {
+    min-width: 94px;
+    padding-inline: 11px;
+    font-size: 11px;
+  }
+  .conversation-composer .api-privacy-note {
+    font-size: 10px;
+  }
+  .clarification-context {
+    padding: 12px;
+  }
+  .clarification-context ul {
+    font-size: 12px;
+  }
+  .api-transport-error h2 {
+    font-size: 20px;
+  }
+}
+.source-hint {
+  max-width: 530px;
+  margin: 10px auto 0;
+  color: #617355;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.demo-readiness {
+  font-size: 11px;
+  line-height: 1.7;
+  margin-bottom: 9px;
+}
+.demo-readiness > p + p {
+  margin-top: 5px;
+}
+.demo-readiness .backend-status {
+  margin: 0 0 7px;
+  font-size: 11px;
+}
+.conversation-composer .demo-readiness > p:not(.backend-status) {
+  display: none;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -2,35 +2,31 @@ import successExample from '../../../docs/examples/success.json';
 import clarificationExample from '../../../docs/examples/needs_clarification.json';
 import unsupportedExample from '../../../docs/examples/unsupported.json';
 import errorExample from '../../../docs/examples/error.json';
-import {
-  demoLanguageSchema,
-  responseSchema,
-  type AnalyzeResponse,
-  type DemoLanguage,
-} from './contracts';
+import { responseSchema, type AnalyzeResponse, type Language } from './contracts';
+import { historicalWarning, mockContent, qualityWarning } from './mockContent';
 
 export type DemoScenario = 'success' | 'needs_clarification' | 'unsupported' | 'error';
 
 export const demoScenarios: { value: DemoScenario; label: string; description: string }[] = [
   {
     value: 'success',
-    label: 'Success preview',
+    label: 'A detail needs review',
     description: 'Synthetic explanation, citations and a non-submittable draft.',
   },
   {
     value: 'needs_clarification',
-    label: 'Needs clarification',
+    label: 'More context needed',
     description: 'An imaginary question, without guidance or a draft.',
   },
   {
     value: 'unsupported',
-    label: 'Unsupported',
+    label: 'Insufficient evidence',
     description: 'A limitation notice, without unsupported advice.',
   },
   {
     value: 'error',
-    label: 'Error',
-    description: 'A preset unavailable-agent notice, not a live backend check.',
+    label: 'Service unavailable',
+    description: 'A fictional unavailable-service notice, not a live backend check.',
   },
 ];
 
@@ -64,15 +60,15 @@ const hindiWarnings: Record<DemoScenario, string[]> = {
   ],
 };
 
-export function getDemoResponse(scenario: DemoScenario, language: DemoLanguage): AnalyzeResponse {
+export function getDemoResponse(scenario: DemoScenario, language: Language): AnalyzeResponse {
   const response = responseSchema.parse(examples[scenario]);
-  response.language = demoLanguageSchema.parse(language);
-
-  if (scenario === 'needs_clarification' && language === 'en') {
-    response.questions = [
-      'This is an imaginary example only. Which test label should be displayed?',
-    ];
-  }
+  response.language = language;
+  const sample = mockContent[language];
+  // Preserve the imported warnings verbatim, but never present their old readiness
+  // statements as current checks. The unsupported reason must remain visible first.
+  response.warnings.unshift(historicalWarning, qualityWarning, sample.quality);
+  if (scenario === 'unsupported') response.warnings.unshift(sample.unsupported);
+  if (scenario === 'needs_clarification') response.questions = [sample.question];
   if (scenario === 'success') {
     response.warnings.push(
       'Classification confidence is a synthetic label, not policy confidence or a guarantee of correctness.',
@@ -81,7 +77,11 @@ export function getDemoResponse(scenario: DemoScenario, language: DemoLanguage):
 
   if (language === 'hi') {
     response.warnings.push(
-      ...hindiWarnings[scenario],
+      ...hindiWarnings[scenario].map((warning) =>
+        warning.includes('लागू नहीं')
+          ? `ऐतिहासिक परीक्षण टिप्पणी, वर्तमान स्थिति की जाँच नहीं: ${warning}`
+          : warning,
+      ),
       'Hindi translation demonstration only: preset synthetic content, not live Hindi analysis.',
       'केवल हिंदी अनुवाद का प्रदर्शन: पहले से लिखा काल्पनिक पाठ, वास्तविक हिंदी विश्लेषण नहीं।',
     );
@@ -109,8 +109,28 @@ export function getDemoResponse(scenario: DemoScenario, language: DemoLanguage):
       }
     }
     if (response.error) {
-      response.error.message = 'बैकएंड का आधार उपलब्ध है; विश्लेषण अभी लागू नहीं है।';
+      response.error.message =
+        'ऐतिहासिक परीक्षण संदेश, वर्तमान स्थिति की जाँच नहीं: बैकएंड का आधार उपलब्ध है; विश्लेषण अभी लागू नहीं है।';
     }
+  }
+
+  if (language !== 'en' && language !== 'hi') {
+    if (response.classification) {
+      response.classification.category = sample.category;
+      response.classification.rationale = sample.rationale;
+    }
+    if (scenario === 'success') {
+      response.explanation[0].text = sample.explanation;
+      response.actions[0].text = sample.actions[0];
+      response.required_documents[0].text = sample.document;
+      if (response.draft) {
+        response.draft.title = sample.title;
+        response.draft.blocks[0].text = sample.factual;
+        response.draft.blocks[1].text = sample.templates[0];
+        response.draft.missing_fields = [sample.missing[0]];
+      }
+    }
+    if (response.error) response.error.message = sample.error;
   }
 
   return responseSchema.parse(response);
@@ -118,7 +138,7 @@ export function getDemoResponse(scenario: DemoScenario, language: DemoLanguage):
 
 export async function loadDemoResponse(
   scenario: DemoScenario,
-  language: DemoLanguage,
+  language: Language,
   signal: AbortSignal,
 ): Promise<AnalyzeResponse> {
   const abortError = () => new DOMException('Demo preview was cancelled.', 'AbortError');

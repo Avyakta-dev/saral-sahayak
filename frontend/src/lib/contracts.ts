@@ -2,46 +2,6 @@ import { z } from 'zod';
 
 export const languageSchema = z.enum(['en', 'hi', 'kn', 'ta', 'te', 'ml']);
 export type Language = z.infer<typeof languageSchema>;
-// Preset examples are not translations for every accepted API language.
-export const demoLanguageSchema = z.enum(['en', 'hi']);
-export type DemoLanguage = z.infer<typeof demoLanguageSchema>;
-
-const languageNameSchema = z
-  .string()
-  .min(1)
-  .max(60)
-  .refine((name) => name === name.trim() && /^[\p{L}\p{M}]+(?:[ -][\p{L}\p{M}]+)*$/u.test(name), {
-    message: 'Language names must contain only letters, marks, spaces or hyphens.',
-  });
-
-export const capabilitiesSchema = z.object({
-  schema_version: z.literal('1.0').optional(),
-  analysis_available: z.boolean(),
-  default_language: z.literal('en'),
-  languages: z
-    .array(
-      z
-        .object({
-          code: languageSchema,
-          name: languageNameSchema,
-          native_name: languageNameSchema,
-          quality_verified: z.literal(false),
-        })
-        .strict(),
-    )
-    .min(1)
-    .max(6)
-    .refine((languages) => new Set(languages.map(({ code }) => code)).size === languages.length, {
-      message: 'Language codes must be unique.',
-    })
-    .refine((languages) => languages.some(({ code }) => code === 'en'), {
-      message: 'English must be enabled.',
-    }),
-  checks: z.record(z.boolean()).optional(),
-  inputs: z.array(z.string()).optional(),
-  downloads_available: z.boolean().optional(),
-});
-export type Capabilities = z.infer<typeof capabilitiesSchema>;
 const recordIdSchema = z
   .string()
   .length(11)
@@ -58,6 +18,82 @@ const boundedText = (maximum: number) =>
     const length = codePointLength(text);
     return length >= 1 && length <= maximum;
   }, `Must contain 1–${maximum} Unicode code points.`);
+
+// Mirror backend/output_validation.py without normalizing displayed content.
+const nonBlankProse = (text: string) => /[^\p{White_Space}\p{Cf}\p{Cc}]/u.test(text);
+const generatedText = (maximum: number) =>
+  boundedText(maximum).refine(nonBlankProse, 'Generated prose must not be blank.');
+
+function decodeForLinkCheck(text: string): string {
+  // Decode percent bytes tolerantly, like urllib.parse.unquote (including invalid UTF-8).
+  const unquoted = text.replace(/(?:%[\da-f]{2})+/gi, (escaped) =>
+    new TextDecoder('utf-8', { ignoreBOM: true }).decode(
+      Uint8Array.from(escaped.match(/[\da-f]{2}/gi)!, (hex) => parseInt(hex, 16)),
+    ),
+  );
+  return unquoted.replace(/&(?:#[0-9]+;?|#x[\da-f]+;?|[a-z][a-z0-9]{0,31};?)/gi, (entity) => {
+    const numeric = /^&#(x[\da-f]+|[0-9]+);?$/i.exec(entity);
+    if (numeric) {
+      const digits = numeric[1];
+      const code = parseInt(
+        digits.startsWith('x') || digits.startsWith('X') ? digits.slice(1) : digits,
+        /^[xX]/.test(digits) ? 16 : 10,
+      );
+      // Python html.unescape drops these invalid references, rather than inserting controls.
+      if (
+        (code >= 1 && code <= 8) ||
+        code === 11 ||
+        (code >= 14 && code <= 31) ||
+        code === 127 ||
+        (code >= 0xfdd0 && code <= 0xfdef) ||
+        (code <= 0x10ffff && (code & 0xffff) >= 0xfffe)
+      )
+        return '';
+    }
+    // Only an entity token (never '<' or markup) enters this detached browser decoder.
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = entity;
+    // textContent preserves entity-produced CR; textarea.value would normalize it to LF.
+    return decoder.textContent ?? '';
+  });
+}
+
+function normalizedForLinkCheck(text: string): string {
+  for (let round = 0; round < 3; round += 1) {
+    const decoded = decodeForLinkCheck(text);
+    if (decoded === text) break;
+    text = decoded;
+  }
+  return (
+    text
+      .normalize('NFKC')
+      .replace(/\p{Cf}/gu, '')
+      // Python re.IGNORECASE also matches dotted/dotless I against ASCII i.
+      .replace(/[\u0130\u0131]/gu, 'i')
+  );
+}
+
+// Python's Unicode word boundaries/whitespace, not JavaScript's ASCII-only \b/\s.
+const wordStart = String.raw`(?<![\p{L}\p{N}_])`;
+const wordEnd = String.raw`(?![\p{L}\p{N}_])`;
+const space = String.raw`[\p{White_Space}\u001c-\u001f]*`;
+const linkSyntax = new RegExp(
+  String.raw`${wordStart}(?:https?|ftp|file|data|javascript|vbscript|mailto|tel)${space}:` +
+    String.raw`|${wordStart}[a-z][a-z0-9+.-]*${space}:${space}[/\\]` +
+    String.raw`|[/\\]{2}|${wordStart}www${space}\.` +
+    String.raw`|\[[^\]\n]*\]${space}(?:\(|\[|:)` +
+    String.raw`|<${space}(?:a|img)${wordEnd}` +
+    String.raw`|${wordStart}(?:[a-z0-9-]+\.)+(?:com|org|net|gov|edu|in|io|co|dev|app|info|biz|invalid|test)${wordEnd}`,
+  'iu',
+);
+const linkFreeText = z
+  .string()
+  .refine(nonBlankProse, 'Generated prose must not be blank.')
+  .refine(
+    (text) => !linkSyntax.test(normalizedForLinkCheck(text)),
+    'Uncited prose must not contain links or URL syntax.',
+  );
+const boundedLinkFreeText = (maximum: number) => boundedText(maximum).pipe(linkFreeText);
 
 export function safeSourceUrl(url: string): string | null {
   if (/[\u0000-\u0020\u007f\\]/u.test(url)) return null;
@@ -95,6 +131,8 @@ const citationSchema = z
     heading: boundedText(300),
     start_line: z.number().int().positive().safe(),
     end_line: z.number().int().positive().safe(),
+    start_column: z.number().int().nonnegative().safe().nullable().default(null),
+    end_column: z.number().int().nonnegative().safe().nullable().default(null),
     source_urls: z
       .array(
         z
@@ -106,8 +144,6 @@ const citationSchema = z
       )
       .max(30)
       .default([]),
-    start_column: z.number().int().nonnegative().safe().nullable().optional(),
-    end_column: z.number().int().nonnegative().safe().nullable().optional(),
   })
   .strict()
   .superRefine((citation, context) => {
@@ -118,9 +154,7 @@ const citationSchema = z
         message: 'Citation line range is reversed.',
       });
     }
-    const hasStart = citation.start_column !== undefined && citation.start_column !== null;
-    const hasEnd = citation.end_column !== undefined && citation.end_column !== null;
-    if (hasStart !== hasEnd) {
+    if ((citation.start_column === null) !== (citation.end_column === null)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['end_column'],
@@ -128,10 +162,10 @@ const citationSchema = z
       });
     }
     if (
-      hasStart &&
-      hasEnd &&
       citation.start_line === citation.end_line &&
-      citation.end_column! < citation.start_column!
+      citation.start_column !== null &&
+      citation.end_column !== null &&
+      citation.end_column < citation.start_column
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -143,14 +177,14 @@ const citationSchema = z
 
 const supportedTextSchema = z
   .object({
-    text: boundedText(6000),
+    text: generatedText(6000),
     citation_ids: z.array(citationIdSchema).min(1).max(30),
   })
   .strict();
 
 const draftBlockSchema = z
   .object({
-    text: boundedText(6000),
+    text: generatedText(6000),
     kind: z.enum(['factual', 'template', 'user_supplied']),
     citation_ids: z.array(citationIdSchema).max(30).default([]),
   })
@@ -167,7 +201,7 @@ const draftBlockSchema = z
 
 const draftSchema = z
   .object({
-    title: boundedText(200),
+    title: generatedText(200),
     blocks: z.array(draftBlockSchema).min(1).max(50),
     missing_fields: z.array(z.string()).max(20).default([]),
   })
@@ -176,16 +210,16 @@ const draftSchema = z
 const classificationSchema = z
   .object({
     reason_id: recordIdSchema,
-    category: boundedText(100),
+    category: boundedLinkFreeText(100),
     confidence: z.enum(['low', 'medium', 'high']),
-    rationale: boundedText(1000),
+    rationale: boundedLinkFreeText(1000),
   })
   .strict();
 
 const errorDetailSchema = z
   .object({
     code: boundedText(100),
-    message: boundedText(500),
+    message: generatedText(500),
   })
   .strict();
 
@@ -200,8 +234,8 @@ export const responseSchema = z
     required_documents: z.array(supportedTextSchema).max(30).default([]),
     draft: draftSchema.nullable().default(null),
     citations: z.array(citationSchema).max(100).default([]),
-    warnings: z.array(z.string()).max(30).default([]),
-    questions: z.array(z.string()).max(10).default([]),
+    warnings: z.array(linkFreeText).max(30).default([]),
+    questions: z.array(linkFreeText).max(10).default([]),
     error: errorDetailSchema.nullable().default(null),
   })
   .strict()
@@ -258,6 +292,71 @@ export type Citation = z.infer<typeof citationSchema>;
 export type SupportedText = z.infer<typeof supportedTextSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 
+const requestBodyBytes = (body: unknown) =>
+  new TextEncoder().encode(JSON.stringify(body)).byteLength;
+const claimDetail = (maximum: number) =>
+  z
+    .string()
+    .refine(
+      (text) => codePointLength(text) <= maximum,
+      `Must contain at most ${maximum} Unicode code points.`,
+    )
+    .nullable()
+    .default(null);
+const claimDetailsSchema = z
+  .object({
+    claimant_name: claimDetail(200),
+    claim_id: claimDetail(100),
+    claim_type: claimDetail(100),
+  })
+  .strict();
+
+// Validation only: retain original text/details. The backend trims rejection text itself.
+// The byte bound includes every field/default in the parsed JSON payload, not just text.
+export const requestSchema = z
+  .object({
+    text: boundedText(8000).refine(
+      (text) => !/^[\p{White_Space}\u001c-\u001f]*$/u.test(text),
+      'Rejection text must not be blank.',
+    ),
+    language: languageSchema.default('en'),
+    details: claimDetailsSchema.default({}),
+  })
+  .strict()
+  .superRefine((request, context) => {
+    if (requestBodyBytes(request) > 32768) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'The serialized request exceeds 32,768 UTF-8 bytes. Shorten the text.',
+      });
+    }
+  });
+export type AnalyzeRequest = z.infer<typeof requestSchema>;
+
+// Pre-analysis parsing/admission errors are not AnalyzeResponse envelopes.
+// The API client separately enforces each code's exact HTTP status.
+// A disabled known language instead uses the full responseSchema error envelope.
+export const transportErrorSchema = z.union([
+  z.object({ detail: z.string().min(1) }).strict(),
+  z
+    .object({
+      error: z
+        .object({
+          code: z.enum([
+            'request_too_large',
+            'invalid_request',
+            'access_denied',
+            'analysis_capacity',
+            'request_timeout',
+          ]),
+          message: z.string().min(1),
+        })
+        .strict(),
+    })
+    .strict(),
+]);
+export type TransportError = z.infer<typeof transportErrorSchema>;
+
 export function validateInput(text: string, language: Language): string | null {
   if (codePointLength(text) > 8000)
     return 'Keep the original text within 8,000 Unicode characters, including surrounding spaces.';
@@ -266,9 +365,8 @@ export function validateInput(text: string, language: Language): string | null {
   if (!trimmed || /^[\p{White_Space}\u001c-\u001f]*$/u.test(text)) {
     return 'Enter some text; whitespace alone is not enough.';
   }
-  if (!languageSchema.safeParse(language).success) return 'Choose a supported output language.';
-  const body = JSON.stringify({ text: trimmed, language });
-  if (new TextEncoder().encode(body).byteLength > 32768) {
+  if (!languageSchema.safeParse(language).success) return 'Choose a supported language.';
+  if (requestBodyBytes({ text: trimmed, language }) > 32768) {
     return 'The serialized request exceeds 32,768 UTF-8 bytes. Shorten the text.';
   }
   return null;

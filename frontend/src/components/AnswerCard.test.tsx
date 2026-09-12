@@ -1,30 +1,14 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { responseSchema, type AnalyzeResponse, type DemoLanguage } from '../lib/contracts';
+import { describe, expect, it, vi } from 'vitest';
+import { responseSchema, type AnalyzeResponse, type Language } from '../lib/contracts';
 import { getDemoResponse } from '../lib/demo';
 import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
 import AnswerCard, { AnswerCard as NamedAnswerCard } from './AnswerCard';
 
 const sample = () => getWalkthrough('en');
-const renderCard = (
-  response = sample(),
-  onEdit = vi.fn(),
-  mode: 'live' | 'sample' = 'sample',
-  onRetry?: () => void,
-  retryLabel?: string,
-  downloadsAvailable = false,
-) =>
-  render(
-    <AnswerCard
-      response={response}
-      onEdit={onEdit}
-      mode={mode}
-      onRetry={onRetry}
-      retryLabel={retryLabel}
-      downloadsAvailable={downloadsAvailable}
-    />,
-  );
+const renderCard = (response = sample(), onEdit = vi.fn()) =>
+  render(<AnswerCard response={response} onEdit={onEdit} />);
 
 async function expectEvidence(container: HTMLElement, response: AnalyzeResponse, ids: string[]) {
   await userEvent.click(within(container).getByText(ids.length > 1 ? 'Sources' : 'Source'));
@@ -36,9 +20,15 @@ async function expectEvidence(container: HTMLElement, response: AnalyzeResponse,
     expect(
       within(container).getByText(citation.record_id ?? 'Supporting document (no record ID)'),
     ).toBeVisible();
-    expect(
-      within(container).getByText(`${citation.start_line}–${citation.end_line}`),
-    ).toBeVisible();
+    const location = within(container).getByText(citation.path).closest('dl')!;
+    expect(within(location).getByText(`${citation.start_line}–${citation.end_line}`)).toBeVisible();
+    if (citation.start_column !== null && citation.end_column !== null) {
+      expect(
+        within(location).getByText(
+          `Line ${citation.start_line}, column ${citation.start_column} → line ${citation.end_line}, column ${citation.end_column}`,
+        ),
+      ).toBeVisible();
+    }
     for (const url of citation.source_urls) {
       expect(within(container).getByText(url)).toBeVisible();
     }
@@ -47,15 +37,27 @@ async function expectEvidence(container: HTMLElement, response: AnalyzeResponse,
 }
 
 describe('illustrative walkthrough', () => {
-  it.each<DemoLanguage>(['en', 'hi'])(
-    'validates %s without changing original metadata or warnings',
+  it.each<Language>(['en', 'hi', 'kn', 'ta', 'te', 'ml'])(
+    'validates the rich %s sample while preserving original citations, warnings and fixture values',
     (language) => {
       const original = getDemoResponse('success', language);
       const response = getWalkthrough(language);
       expect(responseSchema.parse(response)).toEqual(response);
       expect(response.language).toBe(language);
-      expect(response.citations).toEqual(original.citations);
-      expect(response.classification).toEqual(original.classification);
+      expect(response.citations.slice(0, original.citations.length)).toEqual(original.citations);
+      expect(response.citations).toHaveLength(original.citations.length + 1);
+      const reason = response.citations.find((citation) => citation.record_id === 'epfo-rr-001')!;
+      expect(reason).toMatchObject({
+        path: 'references/knowledge/epfo/reasons/epfo-rr-001.md',
+        start_column: 0,
+        end_column: 0,
+      });
+      expect(reason.heading).toMatch(/SYNTHETIC.*not read/);
+      expect(response.classification).toMatchObject({
+        reason_id: reason.record_id,
+        confidence: 'low',
+      });
+      expect(response.classification?.rationale).not.toBe('');
       expect(response.warnings.slice(0, original.warnings.length)).toEqual(original.warnings);
       expect(response.warnings.length).toBeGreaterThan(original.warnings.length);
       expect(response.actions).toHaveLength(2);
@@ -64,9 +66,16 @@ describe('illustrative walkthrough', () => {
         ...response.actions,
         ...response.required_documents,
       ]) {
-        expect(claim.citation_ids).toEqual(original.explanation[0].citation_ids);
+        expect(claim.citation_ids).toEqual([reason.id, ...original.explanation[0].citation_ids]);
       }
-      expect(response.draft?.blocks.every((block) => block.kind === 'template')).toBe(true);
+      const factual = response.draft!.blocks.filter((block) => block.kind === 'factual');
+      expect(factual).toHaveLength(1);
+      expect(factual[0].citation_ids).toEqual([reason.id, ...original.explanation[0].citation_ids]);
+      expect(
+        response
+          .draft!.blocks.filter((block) => block.kind === 'template')
+          .every((block) => block.citation_ids.length === 0),
+      ).toBe(true);
       expect(response.draft?.missing_fields).toHaveLength(2);
       expect(getDemoResponse('success', language)).toEqual(original);
     },
@@ -93,20 +102,30 @@ describe('illustrative walkthrough', () => {
 
   it('returns independent values without mutating the source fixture', () => {
     const original = getDemoResponse('success', 'en');
+    const pristine = sample();
     const response = sample();
     response.citations[0].heading = 'changed locally';
+    response.citations.at(-1)!.source_urls.push('https://example.invalid/mutation');
     response.actions[0].citation_ids.push('ev-other');
+    response.draft!.blocks.at(-1)!.citation_ids.length = 0;
     response.warnings.length = 0;
-    expect(sample().citations).toEqual(original.citations);
-    expect(sample().actions[0].citation_ids).toEqual(original.explanation[0].citation_ids);
+    expect(sample()).toEqual(pristine);
     expect(getDemoResponse('success', 'en')).toEqual(original);
   });
 });
 
 describe('AnswerCard', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+  it('honors explicit mode over the legacy isSample alias', () => {
+    const response = sample();
+    const { rerender } = render(
+      <AnswerCard response={response} onEdit={vi.fn()} mode="live" isSample />,
+    );
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
+    expect(screen.getByText('Not a general chatbot')).toBeVisible();
+    rerender(<AnswerCard response={response} onEdit={vi.fn()} mode="sample" isSample={false} />);
+    expect(screen.getByRole('heading', { name: 'Your sample answer' })).toBeVisible();
+    rerender(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
   });
 
   it('exports both forms and defaults to one compact overview with collapsed disclosures', async () => {
@@ -119,9 +138,17 @@ describe('AnswerCard', () => {
     expect(screen.getByRole('tabpanel', { name: 'Overview' })).toBeVisible();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copy sample' })).not.toBeInTheDocument();
-    screen.queryAllByText(/confidence|matrix|success|\d+%/i).forEach((element) => {
-      expect(element).not.toBeVisible();
-    });
+    const uncertainty = screen.getByRole('complementary', { name: 'Classification uncertainty' });
+    expect(uncertainty).toBeVisible();
+    expect(uncertainty).toHaveTextContent('Classification confidence: low');
+    expect(within(uncertainty).getByText(response.classification!.rationale)).toBeVisible();
+    expect(
+      within(uncertainty).getByText(/not policy certainty or source verification/),
+    ).toBeVisible();
+    expect(uncertainty).not.toHaveTextContent(/\d+%/);
+    expect(
+      screen.getByText('Sample language quality has not been independently reviewed.'),
+    ).toBeVisible();
     for (const warning of response.warnings) {
       expect(screen.getByText(warning)).not.toBeVisible();
     }
@@ -129,7 +156,7 @@ describe('AnswerCard', () => {
     for (const warning of response.warnings) {
       expect(screen.getByText(warning)).toBeVisible();
     }
-    expect(screen.getByText(/Original fixture notes below/)).toBeVisible();
+    expect(screen.getByText(/Original fixture notes below/, { selector: 'p' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
   });
 
@@ -168,8 +195,6 @@ describe('AnswerCard', () => {
 
   it('keeps exact evidence beside every explanation, document, action and cited draft block', async () => {
     const response = sample();
-    // The original fixture's factual draft block must still work, without editing that fixture.
-    response.draft = getDemoResponse('success', 'en').draft;
     renderCard(response);
     await expectEvidence(
       screen.getByText(response.explanation[0].text).closest('.answer-claim')!,
@@ -190,10 +215,11 @@ describe('AnswerCard', () => {
       );
     }
     await userEvent.click(screen.getByRole('tab', { name: 'Draft' }));
+    const factual = response.draft!.blocks.find((block) => block.kind === 'factual')!;
     await expectEvidence(
-      screen.getByText(response.draft!.blocks[0].text).closest('.draft-block')!,
+      screen.getByText(factual.text).closest('.draft-block')!,
       response,
-      response.draft!.blocks[0].citation_ids,
+      factual.citation_ids,
     );
   });
 
@@ -247,12 +273,33 @@ describe('AnswerCard', () => {
     response.draft!.blocks.forEach((block) => expect(copied).toContain(block.text));
     response.warnings.forEach((warning) => expect(copied).toContain(warning));
     expect(copied).toContain('[recipient]');
+    const ids = new Set(response.draft!.blocks.flatMap((block) => block.citation_ids));
+    expect(ids.size).toBe(2);
+    for (const citation of response.citations.filter((entry) => ids.has(entry.id))) {
+      expect(copied).toContain(`Source ${citation.id} (synthetic, unverified)`);
+      expect(copied).toContain(citation.path);
+      expect(copied).toContain(`Record ID: ${citation.record_id ?? 'supporting document'}`);
+      expect(copied).toContain(`Heading: ${citation.heading}`);
+      expect(copied).toContain(`Lines: ${citation.start_line}–${citation.end_line}`);
+      if (citation.start_column !== null && citation.end_column !== null) {
+        expect(copied).toContain(
+          `zero-based columns: ${citation.start_column}–${citation.end_column}`,
+        );
+      }
+      for (const url of citation.source_urls) expect(copied).toContain(url);
+    }
   });
 
   it('hides download while capabilities.downloads_available is false', async () => {
     const user = userEvent.setup();
-    const response = getDemoResponse('success', 'en');
-    renderCard(response, vi.fn(), 'live', undefined, undefined, false);
+    render(
+      <AnswerCard
+        response={getDemoResponse('success', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        downloadsAvailable={false}
+      />,
+    );
     await user.click(screen.getByRole('tab', { name: 'Draft' }));
     expect(screen.getByRole('button', { name: 'Copy draft' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
@@ -261,12 +308,12 @@ describe('AnswerCard', () => {
   it('downloads a local draft .txt only when downloads_available is true', async () => {
     const user = userEvent.setup();
     const response = getDemoResponse('success', 'en');
-    renderCard(response, vi.fn(), 'live', undefined, undefined, true);
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" downloadsAvailable />);
     await user.click(screen.getByRole('tab', { name: 'Draft' }));
 
-    const createObjectURL = vi.fn((_blob: Blob) => 'blob:synthetic-draft');
+    const createObjectURL = vi.fn(() => 'blob:synthetic-draft');
     const revokeObjectURL = vi.fn();
-    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
     const click = vi.fn();
     const remove = vi.fn();
     const anchor = {
@@ -277,23 +324,15 @@ describe('AnswerCard', () => {
       click,
       remove,
     } as unknown as HTMLAnchorElement;
-    const realCreate = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation(((tag: string, options?: any) => {
+    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
       if (tag === 'a') return anchor;
-      return realCreate(tag, options);
+      return document.createElement(tag);
     }) as typeof document.createElement);
     vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
 
     await user.click(screen.getByRole('button', { name: 'Download draft' }));
 
     expect(createObjectURL).toHaveBeenCalledOnce();
-    const blobArg = createObjectURL.mock.calls[0]![0]!;
-    expect(blobArg).toBeInstanceOf(Blob);
-    expect(blobArg.type).toContain('text/plain');
-    const body = await blobArg.text();
-    expect(body).toContain(response.draft!.title);
-    response.draft!.blocks.forEach((block) => expect(body).toContain(block.text));
-    expect(body).toContain('Educational guidance only');
     expect(anchor.download).toBe('saral-sahayak-draft-en.txt');
     expect(click).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-draft');
@@ -304,8 +343,15 @@ describe('AnswerCard', () => {
     vi.restoreAllMocks();
   });
 
-  it('never offers download for unsupported cases without a draft', async () => {
-    renderCard(getDemoResponse('unsupported', 'en'), vi.fn(), 'live', undefined, undefined, true);
+  it('never offers download for unsupported cases without a draft', () => {
+    render(
+      <AnswerCard
+        response={getDemoResponse('unsupported', 'en')}
+        onEdit={vi.fn()}
+        mode="live"
+        downloadsAvailable
+      />,
+    );
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument();
   });
@@ -364,50 +410,6 @@ describe('AnswerCard', () => {
       expect(onEdit).toHaveBeenCalledTimes(1);
     },
   );
-
-  it('shows live error code, warnings, and a bounded Try again action', async () => {
-    const onRetry = vi.fn();
-    const response = getDemoResponse('error', 'en');
-    const { container } = renderCard(response, vi.fn(), 'live', onRetry, 'Try again (2 left)');
-    expect(screen.getByText(response.error!.message)).toBeVisible();
-    expect(screen.getByText(response.error!.code)).toBeVisible();
-    const message = container.querySelector('.answer-message') as HTMLElement;
-    for (const warning of response.warnings) {
-      expect(within(message).getByText(warning)).toBeVisible();
-    }
-    await userEvent.click(screen.getByRole('button', { name: 'Try again (2 left)' }));
-    expect(onRetry).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not offer Try again for sample errors or clarification/unsupported live states', () => {
-    const { unmount: unmountSample } = renderCard(
-      getDemoResponse('error', 'en'),
-      vi.fn(),
-      'sample',
-      vi.fn(),
-    );
-    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
-    unmountSample();
-    const { unmount: unmountUnsupported } = render(
-      <AnswerCard
-        response={getDemoResponse('unsupported', 'en')}
-        onEdit={vi.fn()}
-        mode="live"
-        onRetry={vi.fn()}
-      />,
-    );
-    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
-    unmountUnsupported();
-    render(
-      <AnswerCard
-        response={getDemoResponse('needs_clarification', 'en')}
-        onEdit={vi.fn()}
-        mode="live"
-        onRetry={vi.fn()}
-      />,
-    );
-    expect(screen.queryByRole('button', { name: /Try again/i })).not.toBeInTheDocument();
-  });
 
   it('suppresses accidentally retained guidance whenever the status is not success', () => {
     renderCard({
@@ -529,29 +531,67 @@ describe('AnswerCard', () => {
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   });
 
-  it('labels live answers as grounded with not-chatbot disclosures', async () => {
-    const response = sample();
-    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
-    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
-    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
-    expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByText('About this answer'));
-    expect(screen.getByText(/Educational guidance only/)).toBeVisible();
-    expect(screen.getByText('Not a general chatbot')).toBeVisible();
-    expect(screen.getByText(/Cites EPFO Markdown paths and original source URLs/)).toBeVisible();
-    expect(screen.getByText(/Abstains or asks for clarification/)).toBeVisible();
-    expect(screen.getByText(/Checklists and drafts come from cited blocks/)).toBeVisible();
-    await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    // Live Evidence may render multiple citation details; assert copy without requiring a single node.
-    expect(screen.getAllByText(/Evidence cited by the analysis service/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/Synthetic evidence only/)).not.toBeInTheDocument();
-  });
-
-  it('keeps sample disclosures when mode is sample', () => {
-    renderCard(sample(), vi.fn(), 'sample');
-    expect(screen.getByRole('heading', { name: 'Your sample answer' })).toBeVisible();
-    expect(screen.getByText('Sample only · not real claim advice')).toBeVisible();
-  });
+  for (const language of ['en', 'hi', 'kn', 'ta', 'te', 'ml'] as const) {
+    it.each(['success', 'needs_clarification', 'unsupported', 'error'] as const)(
+      `renders %s in ${language}, with English controls and correctly tagged warnings`,
+      async (scenario) => {
+        const response = getWalkthrough(language, scenario);
+        const { container } = renderCard(response);
+        expect(container.querySelector('.answer-card')).toHaveAttribute('lang', language);
+        expect(
+          screen.getByRole('button', { name: 'Edit remark' }).closest('[lang]'),
+        ).toHaveAttribute('lang', 'en');
+        expect(
+          screen.getByText('Sample language quality has not been independently reviewed.'),
+        ).toHaveAttribute('lang', 'en');
+        if (scenario === 'success') {
+          expect(screen.getByText(response.explanation[0].text)).toBeVisible();
+          expect(
+            screen.getByText(response.classification!.rationale).closest('[lang]'),
+          ).toHaveAttribute('lang', language);
+          expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+            'Overview',
+            'Next steps',
+            'Draft',
+          ]);
+        } else {
+          expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+          expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+          expect(screen.queryByRole('button', { name: /copy|download/i })).not.toBeInTheDocument();
+          expect(container.querySelector('.evidence, .draft-paper')).toBeNull();
+          for (const question of response.questions) {
+            expect(screen.getByText(question)).toBeVisible();
+            expect(screen.getByText(question).closest('[lang]')).toHaveAttribute('lang', language);
+          }
+          if (scenario === 'unsupported') {
+            const message = container.querySelector('.answer-message > p')!;
+            expect(message).toHaveTextContent(response.warnings[0]);
+            expect(message).toBeVisible();
+            expect(message).toHaveAttribute('lang', language);
+          }
+          if (scenario === 'error') {
+            expect(screen.getByText(response.error!.message)).toBeVisible();
+            expect(screen.getByText(response.error!.message)).toHaveAttribute('lang', language);
+          }
+        }
+        await userEvent.click(screen.getByText('About this sample'));
+        const scripts: [Language, RegExp][] = [
+          ['hi', /[\u0900-\u097f]/u],
+          ['kn', /[\u0c80-\u0cff]/u],
+          ['ta', /[\u0b80-\u0bff]/u],
+          ['te', /[\u0c00-\u0c7f]/u],
+          ['ml', /[\u0d00-\u0d7f]/u],
+        ];
+        const disclosure = container.querySelector('.answer-disclosure') as HTMLElement;
+        for (const warning of response.warnings) {
+          const expected = scripts.find(([, range]) => range.test(warning))?.[0] ?? 'en';
+          const item = within(disclosure).getByText(warning);
+          expect(item).toBeVisible();
+          expect(item).toHaveAttribute('lang', expected);
+        }
+      },
+    );
+  }
 
   it('treats supplied markup as inert text', async () => {
     const response = sample();

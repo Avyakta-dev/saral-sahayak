@@ -1,4 +1,4 @@
-import type { Capabilities } from '../lib/contracts';
+import { previewCapabilities, type Capabilities } from '../lib/capabilities';
 
 // Script-rendering samples only, not translations or policy evidence.
 export const languageSamples = [
@@ -11,8 +11,7 @@ export const languageSamples = [
 ] as const;
 
 export const testCapabilities: Capabilities = {
-  schema_version: '1.0',
-  default_language: 'en',
+  ...previewCapabilities,
   analysis_available: true,
   languages: languageSamples.map(({ code, name, native_name }) => ({
     code,
@@ -20,7 +19,4 @@ export const testCapabilities: Capabilities = {
     native_name,
     quality_verified: false,
   })),
-  checks: { model_configured: true, knowledge_structure_ready: true },
-  inputs: ['text'],
-  downloads_available: false,
 };

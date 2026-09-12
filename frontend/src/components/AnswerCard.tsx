@@ -9,34 +9,30 @@ import {
   ListChecks,
   MessageCircle,
   Pencil,
-  RefreshCw,
 } from 'lucide-react';
-import type { AnalyzeResponse } from '../lib/contracts';
-import {
-  downloadDraftText,
-  draftDownloadFilename,
-  formatDraftExportText,
-} from '../lib/draftExport';
+import type { AnalyzeResponse, Language } from '../lib/contracts';
+import { downloadDraftText, draftDownloadFilename } from '../lib/draftExport';
 import { Evidence } from './Evidence';
-
-type AnswerMode = 'live' | 'sample';
 
 type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
-  mode?: AnswerMode;
-  /** Live error envelopes only — bounded user-initiated retry from the parent. */
+  mode?: 'live' | 'sample';
+  isSample?: boolean;
+  qualityVerified?: boolean;
+  /** The parent owns the manual retry budget. */
   onRetry?: () => void;
   retryLabel?: string;
   /**
    * When capabilities.downloads_available is true, offer a local draft .txt download.
-   * Remains false/hidden while the backend reports downloads unavailable (no fake control).
+   * Hidden while the backend reports downloads unavailable (no fake control).
    */
   downloadsAvailable?: boolean;
 };
 
-const sampleLabels = {
-  banner: 'Sample only · not real claim advice',
+// Interface language is English; response content keeps its requested output language.
+const labels = {
+  sample: 'Sample only · not real claim advice',
   title: 'Your sample answer',
   edit: 'Edit remark',
   tabs: ['Overview', 'Next steps', 'Draft'],
@@ -68,47 +64,34 @@ const sampleLabels = {
   error: 'Please edit the remark and try again.',
 };
 
-const liveLabels = {
-  banner: 'Grounded analysis · educational, not legal advice',
-  title: 'Your grounded answer',
-  edit: 'Edit remark',
-  tabs: ['Overview', 'Next steps', 'Draft'],
-  tablist: 'Explore the grounded answer',
-  documents: 'Required documents',
-  noDocuments: 'No document information was supplied.',
-  noActions: 'No steps were supplied.',
-  noDraft: 'No draft was supplied.',
-  progress: (done: number, total: number) => `${done} of ${total} checked`,
-  tracking: 'Temporary checklist · not saved or verified by any service.',
-  draftNotice: 'Draft from cited evidence — review before any use',
-  missing: 'Unfilled placeholders',
-  copy: 'Copy draft',
-  copying: 'Copying…',
-  copied: 'Draft copied, including disclosures.',
-  copyError: 'Could not copy. Select and copy the draft and its disclosures manually.',
-  download: 'Download draft',
-  downloading: 'Preparing…',
-  downloaded: 'Draft downloaded, including disclosures.',
-  downloadError: 'Could not download. Use Copy draft instead.',
-  disclosure: 'About this answer',
-  disclosureNote:
-    'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
-  clarificationTitle: 'One more detail',
-  clarification: 'Please clarify the remark before continuing.',
-  unsupportedTitle: 'Not enough evidence',
-  unsupported: 'We cannot support an answer to this remark. Try editing it with more context.',
-  errorTitle: 'Could not prepare an answer',
-  error: 'Please edit the remark and try again.',
-};
+function answerLabels(isSample: boolean) {
+  if (isSample) return labels;
+  return {
+    ...labels,
+    sample: 'Grounded analysis · educational, not legal advice',
+    title: 'Your grounded answer',
+    tablist: 'Explore the grounded answer',
+    documents: 'Required documents',
+    draftNotice: 'Draft from cited evidence — review before any use',
+    copy: 'Copy draft',
+    copied: 'Draft copied with citations and limitations.',
+    copyError: 'Could not copy. Select and copy the draft and its citations manually.',
+    download: 'Download draft',
+    downloaded: 'Draft downloaded, including disclosures.',
+    downloadError: 'Could not download. Use Copy draft instead.',
+    disclosure: 'About this answer',
+    disclosureNote:
+      'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
+  };
+}
 
-const notChatbotBullets = [
-  'Cites EPFO Markdown paths and original source URLs from the evidence ledger.',
-  'Abstains or asks for clarification when evidence is thin.',
-  'Checklists and drafts come from cited blocks, not free-form chat.',
-];
-
-function labelsFor(mode: AnswerMode) {
-  return mode === 'live' ? liveLabels : sampleLabels;
+function sampleTextLanguage(text: string): Language {
+  if (/[\u0900-\u097f]/u.test(text)) return 'hi';
+  if (/[\u0c80-\u0cff]/u.test(text)) return 'kn';
+  if (/[\u0b80-\u0bff]/u.test(text)) return 'ta';
+  if (/[\u0c00-\u0c7f]/u.test(text)) return 'te';
+  if (/[\u0d00-\u0d7f]/u.test(text)) return 'ml';
+  return 'en';
 }
 
 function highlightPlaceholders(text: string) {
@@ -123,16 +106,16 @@ function highlightPlaceholders(text: string) {
   );
 }
 
-function AnswerTabs({
+function ResponseTabs({
   response,
-  mode,
+  isSample,
   downloadsAvailable = false,
 }: {
   response: AnalyzeResponse;
-  mode: AnswerMode;
+  isSample: boolean;
   downloadsAvailable?: boolean;
 }) {
-  const text = labelsFor(mode);
+  const text = answerLabels(isSample);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -141,8 +124,8 @@ function AnswerTabs({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const copyOperation = useRef(0);
   const downloadOperation = useRef(0);
-  const icons = [MessageCircle, ListChecks, FileText];
   const showDownload = downloadsAvailable && Boolean(response.draft);
+  const icons = [MessageCircle, ListChecks, FileText];
 
   useEffect(() => {
     setSelected(0);
@@ -154,7 +137,7 @@ function AnswerTabs({
       copyOperation.current += 1;
       downloadOperation.current += 1;
     };
-  }, [response, mode, downloadsAvailable]);
+  }, [response, isSample, downloadsAvailable]);
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -181,20 +164,33 @@ function AnswerTabs({
 
   function exportBody() {
     if (!response.draft) return '';
-    return formatDraftExportText(
-      response.draft,
-      {
-        banner: text.banner,
-        draftNotice: text.draftNotice,
-        missing: text.missing,
-        disclosure: text.disclosure,
-        disclosureNote: text.disclosureNote,
-      },
-      response.warnings,
-    );
+    const draftCitationIds = new Set(response.draft.blocks.flatMap((block) => block.citation_ids));
+    const sourceNotes = response.citations
+      .filter((citation) => draftCitationIds.has(citation.id))
+      .flatMap((citation) => [
+        `Source ${citation.id} (${isSample ? 'synthetic, unverified' : 'supplied by the analysis service; not independently verified'})`,
+        citation.path,
+        `Record ID: ${citation.record_id ?? 'supporting document'}`,
+        `Heading: ${citation.heading}`,
+        `Lines: ${citation.start_line}–${citation.end_line}${citation.start_column != null && citation.end_column != null ? `; zero-based columns: ${citation.start_column}–${citation.end_column}` : ''}`,
+        ...citation.source_urls,
+      ]);
+    return [
+      text.sample,
+      text.draftNotice,
+      response.draft.title,
+      ...response.draft.blocks.map((block) => block.text),
+      ...(response.draft.missing_fields.length
+        ? [`${text.missing}: ${response.draft.missing_fields.join(', ')}`]
+        : []),
+      ...sourceNotes,
+      text.disclosure,
+      text.disclosureNote,
+      ...response.warnings,
+    ].join('\n\n');
   }
 
-  async function copyDraft() {
+  async function copySample() {
     if (!response.draft || copyState === 'pending') return;
     const operation = ++copyOperation.current;
     setCopyState('pending');
@@ -259,7 +255,11 @@ function AnswerTabs({
           {response.explanation.map((claim, index) => (
             <div className="answer-claim" key={index}>
               <p>{claim.text}</p>
-              <Evidence ids={claim.citation_ids} citations={response.citations} mode={mode} />
+              <Evidence
+                ids={claim.citation_ids}
+                citations={response.citations}
+                isSample={isSample}
+              />
             </div>
           ))}
         </div>
@@ -274,7 +274,7 @@ function AnswerTabs({
                   <Evidence
                     ids={document.citation_ids}
                     citations={response.citations}
-                    mode={mode}
+                    isSample={isSample}
                   />
                 </div>
               </div>
@@ -331,7 +331,7 @@ function AnswerTabs({
                     <Evidence
                       ids={action.citation_ids}
                       citations={response.citations}
-                      mode={mode}
+                      isSample={isSample}
                     />
                   </div>
                 </li>
@@ -358,7 +358,7 @@ function AnswerTabs({
             <div className="draft-toolbar" lang="en">
               <span>{text.draftNotice}</span>
               <div className="draft-toolbar-actions">
-                <button type="button" onClick={copyDraft} disabled={copyState === 'pending'}>
+                <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
                   {copyState === 'copied' ? (
                     <Check size={16} aria-hidden="true" />
                   ) : (
@@ -387,7 +387,11 @@ function AnswerTabs({
               {response.draft.blocks.map((block, index) => (
                 <div className="draft-block" key={index}>
                   <p>{highlightPlaceholders(block.text)}</p>
-                  <Evidence ids={block.citation_ids} citations={response.citations} mode={mode} />
+                  <Evidence
+                    ids={block.citation_ids}
+                    citations={response.citations}
+                    isSample={isSample}
+                  />
                 </div>
               ))}
             </article>
@@ -422,12 +426,15 @@ function AnswerTabs({
 export function AnswerCard({
   response,
   onEdit,
-  mode = 'sample',
+  mode,
+  isSample: sample = true,
+  qualityVerified = false,
   onRetry,
   retryLabel = 'Try again',
   downloadsAvailable = false,
 }: AnswerCardProps) {
-  const text = labelsFor(mode);
+  const isSample = mode === undefined ? sample : mode === 'sample';
+  const text = answerLabels(isSample);
   const id = useId();
   const title =
     response.status === 'success'
@@ -437,12 +444,11 @@ export function AnswerCard({
         : response.status === 'unsupported'
           ? text.unsupportedTitle
           : text.errorTitle;
-  const showRetry = Boolean(onRetry) && response.status === 'error' && mode === 'live';
 
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
-      <p className="sample-banner" lang="en">
-        <Info size={15} aria-hidden="true" /> {text.banner}
+      <p className={isSample ? 'sample-banner' : 'sample-banner service-banner'} lang="en">
+        <Info size={15} aria-hidden="true" /> {text.sample}
       </p>
       <header className="answer-header" lang="en">
         <span className="answer-icon">
@@ -455,24 +461,61 @@ export function AnswerCard({
           <Pencil size={15} aria-hidden="true" /> {text.edit}
         </button>
       </header>
+      <p className="sample-quality-note" lang="en">
+        {isSample
+          ? 'Sample language quality has not been independently reviewed.'
+          : qualityVerified
+            ? 'The service reports reviewed language quality; this does not guarantee this answer.'
+            : 'Output language quality has not been independently verified.'}
+      </p>
+      {response.status === 'success' && response.classification && (
+        <aside className="answer-uncertainty" aria-label="Classification uncertainty" lang="en">
+          <span>
+            Classification confidence: <strong>{response.classification.confidence}</strong>
+          </span>
+          <p lang={response.language}>{response.classification.rationale}</p>
+          <small lang="en">
+            {isSample
+              ? 'A sample label, not policy certainty or source verification.'
+              : 'Classification confidence is not source verification or a guarantee of the outcome.'}
+          </small>
+        </aside>
+      )}
       {response.status === 'success' ? (
-        <AnswerTabs response={response} mode={mode} downloadsAvailable={downloadsAvailable} />
+        <ResponseTabs
+          response={response}
+          isSample={isSample}
+          downloadsAvailable={downloadsAvailable}
+        />
       ) : (
         <div className="answer-message">
           <p
-            lang={response.status === 'error' && response.error?.message ? response.language : 'en'}
+            lang={
+              response.status === 'unsupported' && response.warnings[0]
+                ? sampleTextLanguage(response.warnings[0])
+                : response.status === 'error' && response.error?.message
+                  ? response.language
+                  : 'en'
+            }
           >
             {response.status === 'needs_clarification'
               ? text.clarification
               : response.status === 'unsupported'
-                ? text.unsupported
+                ? response.warnings[0] || text.unsupported
                 : response.error?.message || text.error}
           </p>
-          {response.status === 'error' && response.error?.code ? (
+          {!isSample && response.status === 'error' && response.error?.code && (
             <p className="answer-error-code" lang="en">
               Error code: <code>{response.error.code}</code>
             </p>
-          ) : null}
+          )}
+          {!isSample && response.status === 'error' && onRetry && (
+            <div className="reply-actions answer-retry-actions">
+              <button className="light-button" type="button" onClick={onRetry}>
+                {retryLabel}
+              </button>
+            </div>
+          )}
           {response.status === 'needs_clarification' && (
             <ul className="answer-questions">
               {response.questions.map((question, index) => (
@@ -480,59 +523,27 @@ export function AnswerCard({
               ))}
             </ul>
           )}
-          {(response.status === 'unsupported' || response.status === 'error') &&
-            response.warnings.length > 0 && (
-              <ul className="answer-state-warnings">
-                {response.warnings.map((warning, index) => (
-                  <li
-                    key={index}
-                    lang={
-                      mode === 'live' ? response.language : /[ऀ-ॿ]/u.test(warning) ? 'hi' : 'en'
-                    }
-                  >
-                    {warning}
-                  </li>
-                ))}
-              </ul>
-            )}
-          {showRetry ? (
-            <div className="reply-actions answer-retry-actions">
-              <button className="light-button" type="button" onClick={onRetry}>
-                <RefreshCw size={16} aria-hidden="true" /> {retryLabel}
-              </button>
-            </div>
-          ) : null}
         </div>
       )}
-      <details className="answer-disclosure">
+      <details className="answer-disclosure" open={!isSample && response.warnings.length > 0}>
         <summary lang="en">
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
         <p lang="en">{text.disclosureNote}</p>
-        {mode === 'live' && (
+        {!isSample && (
           <div className="not-chatbot-note" lang="en">
             <strong>Not a general chatbot</strong>
             <ul>
-              {notChatbotBullets.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
+              <li>Cites EPFO Markdown paths and original source URLs from the evidence ledger.</li>
+              <li>Abstains or asks for clarification when evidence is thin.</li>
+              <li>Checklists and drafts come from cited blocks, not free-form chat.</li>
             </ul>
           </div>
         )}
         {response.warnings.length > 0 && (
           <ul>
             {response.warnings.map((warning, index) => (
-              // Demo warnings mix preserved English notes with prewritten Hindi translations.
-              <li
-                key={index}
-                lang={
-                  mode === 'live'
-                    ? response.language
-                    : /[\u0900-\u097f]/u.test(warning)
-                      ? 'hi'
-                      : 'en'
-                }
-              >
+              <li key={index} lang={sampleTextLanguage(warning)}>
                 {warning}
               </li>
             ))}

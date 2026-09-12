@@ -1,37 +1,45 @@
 # Conversational UI direction
 
-Shravya requested a simpler, more visual experience after reviewing the initial text-heavy prototype. The conversational redesign replaces the wizard, two-column form and prominent demo-outcome selector. It does not imply final preview approval or permission to commit/push.
+Shravya requested a simpler, more visual experience after reviewing the initial text-heavy prototype. Keep the conversational composer and compact answer tabs; do not restore a wizard or prominent outcome selector.
 
-## Keep the selected visual identity
+## Visual identity
 
 - Light cream `#FFFBF5`, forest green `#166534`, restrained warm accents.
-- Clear, bold headings; local system sans-serif; softly rounded controls.
-- Text-only Saral Sahayak wordmark with an original decorative document/image illustration in the welcome view.
-- English interface controls with English/Hindi sample output.
-- Accessible focus, keyboard operation, readable contrast and reduced-motion support.
+- Clear headings, local system sans-serif and softly rounded controls.
+- Text-only Saral Sahayak wordmark and decorative document/image illustration.
+- English interface controls. API output choices use actual capability metadata; offline examples use the validated six-language fixture. Quality flags never imply guaranteed fluency or policy accuracy.
+- Visible keyboard focus, readable contrast, responsive layouts and reduced-motion support.
 
-## Simpler flow
+## Two explicit modes
 
-1. Start in one composer: type/paste text, add an image or import a text file.
-2. Preview and remove/replace attachments before sending. Camera input opens on supported devices; pasted screenshots and drag/drop also work.
-3. Show the user's message once as a conversation bubble. Keep the composer available below the conversation, without sending users through multiple screens.
-4. Own messages receive an honest connection notice while analysis is unavailable. Never choose a preset outcome or pretend a sample answers the user's claim.
-5. An explicit **Show me an example** opens a labelled visual walkthrough. Compact Overview, Next steps and Draft tabs avoid a wall of text.
-6. Show sources, provenance warnings and technical limitations on demand rather than repeating them in every section. Keep one visible preview/connection limitation near the composer.
+**API mode** uses the configured public application server root, or same-origin `/api/v1` when the root is omitted. Metadata discovery sends no claim text. It gates enabled languages and the visible **Analyze text** action. Only the user's explicit action sends editable text to the configured service; images stay local. Actual success/clarification/unsupported/error responses render without mock substitution.
 
-## Interaction details
+**Preview mode** is an explicit choice through **Use examples** or the public `VITE_PREVIEW_ONLY=true` build setting. Own messages receive a truthful connection notice. **Show me an example** and the secondary sample gallery display labelled preset content, never a purported analysis of the user's input.
 
-- Enter sends; Shift+Enter adds a line; IME composition does not trigger an accidental send.
-- Attachment thumbnails enlarge in a keyboard-accessible dialog. Files stay local; OCR is not simulated.
-- The sample checklist is temporary personal tracking, not external verification.
-- Sample drafts retain highlighted placeholders. Copying includes the sample disclosures; clipboard failure is visible. Live draft **Download** is shown only when `downloads_available` is true; otherwise no download control (copy-only).
-- Output language affects new replies. Editing removes the old turn and returns its content to the composer; new chat clears state.
-- Cancelled sample responses and removed/replaced file selections cannot reappear. Image URLs are released when no longer needed.
-- Only six latest turns are kept in memory; nothing is persisted or submitted to an analysis service.
-- Live transport/availability failures and live `error` envelopes offer a bounded user-initiated **Try again** (max three analyze attempts per turn). Clarification and unsupported stay edit-first. No automatic retries.
+Configuration failures do not silently switch into preview. Switching modes is explicit and cancels pending work. Completed turns retain their original API/sample presentation.
 
-## Scope and review boundary
+## Conversation and evidence
 
-Local image/text input and presentation belong to the web frontend. OCR, actual analysis, voice, PDF reading and document downloads remain separate integration work; controls must not pretend those capabilities exist.
+- Keep the user's message once in a bubble and the composer available below the conversation.
+- Overview, Next steps and Draft tabs avoid a wall of text.
+- Show categorical classification confidence and rationale without percentages. Show actual unsupported reasons and clarification questions, not fabricated actions.
+- API warnings/limitations are visible by default; detailed source locations remain expandable. Preserve the reviewed “Not a general chatbot” explanation of bounded evidence, clarification and cited actions.
+- Preserve the shared backend-status/readiness summary. Configuration and structural readiness are not connectivity, authorization or policy-quality guarantees. Access denial never prompts users for a shared gateway token.
+- Preserve path, canonical record ID, exact heading, lines, zero-based columns and original source URLs. Keep remedy/source excerpts as separate evidence items.
+- Draft placeholders stay visible. Copy includes factual-block sources and limitations. API drafts and explicit samples use different notices; neither promises a successful claim outcome. Live draft Download appears only when `downloads_available` is true; otherwise export stays copy-only.
 
-The user authorized this redesign and testing. Final preview approval is still required before clearly messaged commits. Ask separately before pushing, then open the PR after the approved push. No document can grant those approvals.
+## Interaction and privacy
+
+- Enter sends/analyzes; Shift+Enter adds a line; IME composition never causes accidental submission.
+- Image thumbnails can enlarge, be removed or replaced. File selection is not an upload or OCR capability.
+- API consent text explains that only editable text is sent and asks users to omit personal identifiers. Cookies/provider credentials are not sent.
+- Clarification editing preserves original text and relevant questions. Editing or retrying removes stale guidance for that turn.
+- Cancel, new chat, mode/language/capability changes and unmount invalidate in-flight work. Never simulate agent stages or percentages.
+- No automatic retries. A transient analysis failure permits at most two deliberate resends; metadata refreshes are bounded too.
+- Checklist marks are temporary personal tracking. The latest six turns remain in memory; no account, analytics or persisted claim history is introduced.
+
+## Scope and review
+
+Issue 24 was explicitly accepted by Anish through merged PR 35. This follow-up implements issue 25's real text API connection and requires review. Issue 26 remains gated on that review and its own acceptance criteria.
+
+OCR, voice, PDF reading, document downloads, provider configuration and deployment remain separate shared work. No frontend control should invent those capabilities. Source/translation quality, physical camera behavior and real-provider readiness are not certified by local synthetic tests. No document grants merge or provider-credit authorization.
