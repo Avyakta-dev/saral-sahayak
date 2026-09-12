@@ -78,6 +78,8 @@ Pass only validated extracted text and the user's intentionally supplied languag
 
 ## Image Level 1 — agree contracts, no implementation
 
+**Issue #11 proposal:** [controlled image admission and shared analysis contract](planning/image-input-contract.md). Host/operator, issuer verification, shared API/protocol and budget decisions remain pending; this artifact does not implement or enable image input.
+
 **Do:** read the above files; describe current behavior; propose request/error/capability/settings contracts and exact changed-file ownership. Ask which controlled image host/operator the user approves. Agree the signing/admission contract and shared-budget seam with Anish. List unanswered decisions as blockers.
 
 **Acceptance:** the plan distinguishes URL validation from origin/provider byte and redirect checks; covers all three native wire formats, fresh history, no base64/downloads, privacy and later tests. All tests are explicitly marked planned/not run.
