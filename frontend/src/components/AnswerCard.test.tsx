@@ -7,8 +7,8 @@ import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
 import AnswerCard, { AnswerCard as NamedAnswerCard } from './AnswerCard';
 
 const sample = () => getWalkthrough('en');
-const renderCard = (response = sample(), onEdit = vi.fn()) =>
-  render(<AnswerCard response={response} onEdit={onEdit} />);
+const renderCard = (response = sample(), onEdit = vi.fn(), mode: 'live' | 'sample' = 'sample') =>
+  render(<AnswerCard response={response} onEdit={onEdit} mode={mode} />);
 
 async function expectEvidence(container: HTMLElement, response: AnalyzeResponse, ids: string[]) {
   await userEvent.click(within(container).getByText(ids.length > 1 ? 'Sources' : 'Source'));
@@ -401,6 +401,30 @@ describe('AnswerCard', () => {
     expect(screen.getByRole('heading', { name: 'Could not prepare an answer' })).toBeVisible();
     expect(screen.getByText(error.error!.message)).toHaveAttribute('lang', 'hi');
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
+
+  it('labels live answers as grounded with not-chatbot disclosures', async () => {
+    const response = sample();
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
+    expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('About this answer'));
+    expect(screen.getByText(/Educational guidance only/)).toBeVisible();
+    expect(screen.getByText('Not a general chatbot')).toBeVisible();
+    expect(screen.getByText(/Cites EPFO Markdown paths and original source URLs/)).toBeVisible();
+    expect(screen.getByText(/Abstains or asks for clarification/)).toBeVisible();
+    expect(screen.getByText(/Checklists and drafts come from cited blocks/)).toBeVisible();
+    await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    // Live Evidence may render multiple citation details; assert copy without requiring a single node.
+    expect(screen.getAllByText(/Evidence cited by the analysis service/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Synthetic evidence only/)).not.toBeInTheDocument();
+  });
+
+  it('keeps sample disclosures when mode is sample', () => {
+    renderCard(sample(), vi.fn(), 'sample');
+    expect(screen.getByRole('heading', { name: 'Your sample answer' })).toBeVisible();
+    expect(screen.getByText('Sample only · not real claim advice')).toBeVisible();
   });
 
   it('treats supplied markup as inert text', async () => {

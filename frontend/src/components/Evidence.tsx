@@ -5,11 +5,16 @@ import { safeSourceUrl } from '../lib/contracts';
 type EvidenceProps = {
   ids: string[];
   citations: Citation[];
+  mode?: 'live' | 'sample';
 };
 
-export function Evidence({ ids, citations }: EvidenceProps) {
+export function Evidence({ ids, citations, mode = 'sample' }: EvidenceProps) {
   if (!ids.length) return null;
   const evidence = ids.map((id) => citations.find((citation) => citation.id === id));
+  const notice =
+    mode === 'live'
+      ? 'Evidence cited by the analysis service. Paths and source URLs are shown for you to verify; this is not a guarantee of policy correctness.'
+      : 'Synthetic evidence only. These locations have not been read or verified.';
 
   return (
     <details className="evidence" lang="en">
@@ -20,9 +25,7 @@ export function Evidence({ ids, citations }: EvidenceProps) {
         <ChevronDown className="disclosure-chevron" size={14} aria-hidden="true" />
       </summary>
       <div className="evidence-body">
-        <p className="evidence-notice">
-          Synthetic evidence only. These locations have not been read or verified.
-        </p>
+        <p className="evidence-notice">{notice}</p>
         {evidence.map((citation, index) =>
           citation ? (
             <dl className="citation" key={citation.id}>

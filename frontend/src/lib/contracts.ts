@@ -67,6 +67,8 @@ const citationSchema = z
       )
       .max(30)
       .default([]),
+    start_column: z.number().int().nonnegative().safe().nullable().optional(),
+    end_column: z.number().int().nonnegative().safe().nullable().optional(),
   })
   .strict()
   .superRefine((citation, context) => {
@@ -75,6 +77,27 @@ const citationSchema = z
         code: z.ZodIssueCode.custom,
         path: ['end_line'],
         message: 'Citation line range is reversed.',
+      });
+    }
+    const hasStart = citation.start_column !== undefined && citation.start_column !== null;
+    const hasEnd = citation.end_column !== undefined && citation.end_column !== null;
+    if (hasStart !== hasEnd) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['end_column'],
+        message: 'Citation columns must be supplied together.',
+      });
+    }
+    if (
+      hasStart &&
+      hasEnd &&
+      citation.start_line === citation.end_line &&
+      citation.end_column! < citation.start_column!
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['end_column'],
+        message: 'Citation column range is reversed.',
       });
     }
   });

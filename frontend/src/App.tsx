@@ -23,6 +23,7 @@ import {
 import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
+import { analyzeRemark, fetchCapabilities } from './lib/api';
 import { loadDemoResponse } from './lib/demo';
 import { getWalkthrough, walkthroughRemark } from './lib/walkthrough';
 import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib/attachments';
@@ -35,6 +36,8 @@ type Turn = {
   language: Language;
   sample: boolean;
   response: AnalyzeResponse | null;
+  /** Transport / availability failure for a live turn (not a schema AnalyzeResponse). */
+  failure?: string | null;
 };
 
 function WelcomeVisual() {
@@ -247,16 +250,18 @@ export default function App() {
     return all.slice(-6);
   }
 
-  function cancelSample() {
+  function cancelRequest(notice = 'Request cancelled.') {
     request.current?.abort();
     request.current = null;
     setPending(false);
-    setTurns((previous) => previous.filter((turn) => turn.response !== null || !turn.sample));
-    setNotice('Sample cancelled.');
+    setTurns((previous) =>
+      previous.filter((turn) => turn.response !== null || Boolean(turn.failure)),
+    );
+    if (notice) setNotice(notice);
   }
 
   function newChat() {
-    cancelSample();
+    cancelRequest('');
     fileVersion.current += 1;
     setReadingFile(false);
     retainedImages.current.forEach(releaseImage);
@@ -272,7 +277,7 @@ export default function App() {
   }
 
   function editTurn(turn: Turn) {
-    cancelSample();
+    cancelRequest('');
     setText(turn.text);
     if (currentAttachment.current && currentAttachment.current !== turn.image)
       forgetImage(currentAttachment.current);
@@ -297,20 +302,103 @@ export default function App() {
       textarea.current?.focus();
       return;
     }
+
+    const trimmed = text.trim();
+    const image = attachment;
+    const selectedLanguage = language;
+
+    // Image-only: OCR is not connected; do not auto-call analyze or invent text.
+    if (!trimmed && image) {
+      const next: Turn = {
+        id: ++turnId.current,
+        text: '',
+        image,
+        sample: false,
+        response: null,
+        failure:
+          'Got the image. Reading it is the next piece. OCR and claim analysis from images are not available yet; nothing was uploaded or extracted.',
+        language: selectedLanguage,
+      };
+      setTurns((previous) => trimThread(previous, next));
+      updateAttachment(null);
+      setText('');
+      setError('');
+      setNotice('');
+      closeMenu();
+      return;
+    }
+
+    const controller = new AbortController();
+    request.current = controller;
+    const id = ++turnId.current;
+    setPending(true);
+    setError('');
+    setNotice('');
     const next: Turn = {
-      id: ++turnId.current,
-      text: text.trim(),
-      image: attachment,
+      id,
+      text: trimmed,
+      image,
       sample: false,
       response: null,
-      language,
+      failure: null,
+      language: selectedLanguage,
     };
     setTurns((previous) => trimThread(previous, next));
     updateAttachment(null);
     setText('');
-    setError('');
-    setNotice('');
     closeMenu();
+
+    void (async () => {
+      try {
+        try {
+          const capabilities = await fetchCapabilities(controller.signal);
+          if (!capabilities.analysis_available) {
+            if (request.current !== controller || controller.signal.aborted) return;
+            setTurns((previous) =>
+              previous.map((turn) =>
+                turn.id === id
+                  ? {
+                      ...turn,
+                      failure:
+                        'Analysis is not available on this server right now (model configuration or knowledge gates). Your message was not turned into guidance.',
+                    }
+                  : turn,
+              ),
+            );
+            return;
+          }
+        } catch (cause) {
+          if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+            return;
+          // Fall through to analyze; a missing capabilities route still allows a direct analyze attempt.
+        }
+
+        const response = await analyzeRemark({
+          text: trimmed,
+          language: selectedLanguage,
+          signal: controller.signal,
+        });
+        if (request.current !== controller || controller.signal.aborted) return;
+        setTurns((previous) =>
+          previous.map((turn) => (turn.id === id ? { ...turn, response, failure: null } : turn)),
+        );
+      } catch (cause) {
+        if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
+          return;
+        const message =
+          cause instanceof Error && cause.message
+            ? cause.message
+            : 'The analysis service could not be reached.';
+        setTurns((previous) =>
+          previous.map((turn) => (turn.id === id ? { ...turn, failure: message } : turn)),
+        );
+      } finally {
+        if (request.current === controller) {
+          request.current = null;
+          setPending(false);
+        }
+      }
+    })();
   }
 
   function composerKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -359,7 +447,7 @@ export default function App() {
   }
 
   function changeLanguage(value: Language) {
-    if (pending) cancelSample();
+    if (pending) cancelRequest('Request cancelled.');
     setLanguage(value);
     setNotice(hasConversation ? 'Language updated for new replies.' : '');
   }
@@ -526,8 +614,8 @@ export default function App() {
               <button
                 className="send-button stop-button"
                 type="button"
-                onClick={cancelSample}
-                aria-label="Stop opening sample"
+                onClick={() => cancelRequest('Request cancelled.')}
+                aria-label="Stop request"
               >
                 <Square size={17} aria-hidden="true" />
               </button>
@@ -554,8 +642,8 @@ export default function App() {
         {notice}
       </p>
       <p className="preview-limit" id="preview-limit">
-        <LockKeyhole size={12} aria-hidden="true" /> Local preview. Analysis & image reading aren’t
-        connected.{' '}
+        <LockKeyhole size={12} aria-hidden="true" /> Local UI. Live analyze needs a running backend;
+        OCR isn’t connected.{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
           Details
         </button>
@@ -590,7 +678,7 @@ export default function App() {
               id="language"
               value={language}
               onChange={(event) => changeLanguage(event.target.value as Language)}
-              title="Language for new sample replies"
+              title="Language for new replies"
             >
               <option value="en">English</option>
               <option value="hi">हिन्दी</option>
@@ -662,7 +750,7 @@ export default function App() {
               <span aria-hidden="true">·</span>
               <span>No account needed</span>
               <span aria-hidden="true">·</span>
-              <span>Nothing is sent</span>
+              <span>You choose when to send</span>
             </div>
           </div>
         ) : (
@@ -711,28 +799,34 @@ export default function App() {
                       <div className="assistant-content">
                         {turn.sample ? (
                           turn.response ? (
-                            <AnswerCard response={turn.response} onEdit={() => editTurn(turn)} />
+                            <AnswerCard
+                              mode="sample"
+                              response={turn.response}
+                              onEdit={() => editTurn(turn)}
+                            />
                           ) : (
                             <div className="opening-sample" role="status">
                               <LoaderCircle className="spin" size={17} aria-hidden="true" />
                               Opening the sample walkthrough…
                             </div>
                           )
-                        ) : (
+                        ) : turn.response ? (
+                          <AnswerCard
+                            mode="live"
+                            response={turn.response}
+                            onEdit={() => editTurn(turn)}
+                          />
+                        ) : turn.failure ? (
                           <div className="unavailable-reply" role="status">
                             <span className="reply-kicker">
-                              {turn.image ? 'Image attached' : 'Message ready'}
+                              {turn.image && !turn.text ? 'Image attached' : 'Live analysis'}
                             </span>
                             <h2>
-                              {turn.image
+                              {turn.image && !turn.text
                                 ? 'Got the image. Reading it is the next piece.'
-                                : 'Your message is here. The assistant isn’t connected yet.'}
+                                : 'Your message is here. Analysis isn’t available yet.'}
                             </h2>
-                            <p>
-                              {turn.image
-                                ? 'You can preview or replace this image. OCR and claim analysis are not available yet; no text has been extracted.'
-                                : 'This preview can’t analyze your claim or answer follow-up questions yet. Your message stays on this device.'}
-                            </p>
+                            <p>{turn.failure}</p>
                             <div className="reply-actions">
                               <button
                                 className="light-button"
@@ -749,17 +843,23 @@ export default function App() {
                                 onClick={() => editTurn(turn)}
                               >
                                 <PenLine size={14} aria-hidden="true" />
-                                {turn.image ? 'Add or edit wording' : 'Edit message'}
+                                {turn.image && !turn.text ? 'Add or edit wording' : 'Edit message'}
                               </button>
                             </div>
                             <details className="connection-details">
                               <summary>Why can’t it answer yet?</summary>
                               <p>
-                                This web preview is not connected to an analysis service. Images are
-                                selected locally, not uploaded. It never substitutes a canned answer
-                                for your own claim.
+                                Live analyze calls the backend only when you submit text. It never
+                                auto-submits a claim, never substitutes a canned sample for your
+                                remark, and never sends ANALYSIS_ACCESS_TOKEN or LLM keys from the
+                                browser. Images stay local until OCR exists.
                               </p>
                             </details>
+                          </div>
+                        ) : (
+                          <div className="opening-sample" role="status">
+                            <LoaderCircle className="spin" size={17} aria-hidden="true" />
+                            Analyzing with grounded evidence…
                           </div>
                         )}
                       </div>
@@ -838,16 +938,18 @@ export default function App() {
           </li>
         </ul>
         <div className="connection-note">
-          <strong>Not connected yet</strong>
+          <strong>How live analyze works</strong>
           <p>
-            Live analysis, image text extraction, voice, PDF reading and document downloads. Sample
-            answers are illustrative—not advice or a usable claim draft.
+            With a running backend and VITE_API_BASE_URL (or same-origin), submitting text calls{' '}
+            <code>/api/v1/analyze</code>. Image text extraction, voice, PDF reading and document
+            downloads are still unavailable. Sample answers remain illustrative—not advice or a
+            usable claim draft. Nothing is auto-submitted.
           </p>
         </div>
         <p className="dialog-privacy">
           <LockKeyhole size={15} aria-hidden="true" />
-          Use fictional or redacted material. Images and text stay in memory, clear on reload, and
-          are never sent to a server. Camera availability depends on your device.
+          Use fictional or redacted material. LLM keys and ANALYSIS_ACCESS_TOKEN stay server-side
+          only. Camera availability depends on your device.
         </p>
         <small>Not an official EPFO service or legal advice.</small>
       </dialog>

@@ -12,14 +12,16 @@ import {
 import type { AnalyzeResponse } from '../lib/contracts';
 import { Evidence } from './Evidence';
 
+type AnswerMode = 'live' | 'sample';
+
 type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
+  mode?: AnswerMode;
 };
 
-// Interface language is English; response content keeps its requested output language.
-const labels = {
-  sample: 'Sample only · not real claim advice',
+const sampleLabels = {
+  banner: 'Sample only · not real claim advice',
   title: 'Your sample answer',
   edit: 'Edit remark',
   tabs: ['Overview', 'Next steps', 'Draft'],
@@ -47,6 +49,45 @@ const labels = {
   error: 'Please edit the remark and try again.',
 };
 
+const liveLabels = {
+  banner: 'Grounded analysis · educational, not legal advice',
+  title: 'Your grounded answer',
+  edit: 'Edit remark',
+  tabs: ['Overview', 'Next steps', 'Draft'],
+  tablist: 'Explore the grounded answer',
+  documents: 'Required documents',
+  noDocuments: 'No document information was supplied.',
+  noActions: 'No steps were supplied.',
+  noDraft: 'No draft was supplied.',
+  progress: (done: number, total: number) => `${done} of ${total} checked`,
+  tracking: 'Temporary checklist · not saved or verified by any service.',
+  draftNotice: 'Draft from cited evidence — review before any use',
+  missing: 'Unfilled placeholders',
+  copy: 'Copy draft',
+  copying: 'Copying…',
+  copied: 'Draft copied, including disclosures.',
+  copyError: 'Could not copy. Select and copy the draft and its disclosures manually.',
+  disclosure: 'About this answer',
+  disclosureNote:
+    'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
+  clarificationTitle: 'One more detail',
+  clarification: 'Please clarify the remark before continuing.',
+  unsupportedTitle: 'Not enough evidence',
+  unsupported: 'We cannot support an answer to this remark. Try editing it with more context.',
+  errorTitle: 'Could not prepare an answer',
+  error: 'Please edit the remark and try again.',
+};
+
+const notChatbotBullets = [
+  'Cites EPFO Markdown paths and original source URLs from the evidence ledger.',
+  'Abstains or asks for clarification when evidence is thin.',
+  'Checklists and drafts come from cited blocks, not free-form chat.',
+];
+
+function labelsFor(mode: AnswerMode) {
+  return mode === 'live' ? liveLabels : sampleLabels;
+}
+
 function highlightPlaceholders(text: string) {
   return text.split(/(\[[^\]\n]+\])/g).map((part, index) =>
     part.startsWith('[') && part.endsWith(']') ? (
@@ -59,8 +100,8 @@ function highlightPlaceholders(text: string) {
   );
 }
 
-function SampleTabs({ response }: { response: AnalyzeResponse }) {
-  const text = labels;
+function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: AnswerMode }) {
+  const text = labelsFor(mode);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -77,7 +118,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
     return () => {
       copyOperation.current += 1;
     };
-  }, [response]);
+  }, [response, mode]);
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -102,12 +143,12 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
     tabRefs.current[next]?.focus();
   }
 
-  async function copySample() {
+  async function copyDraft() {
     if (!response.draft || copyState === 'pending') return;
     const operation = ++copyOperation.current;
     setCopyState('pending');
     const copiedText = [
-      text.sample,
+      text.banner,
       text.draftNotice,
       response.draft.title,
       ...response.draft.blocks.map((block) => block.text),
@@ -167,7 +208,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
           {response.explanation.map((claim, index) => (
             <div className="answer-claim" key={index}>
               <p>{claim.text}</p>
-              <Evidence ids={claim.citation_ids} citations={response.citations} />
+              <Evidence ids={claim.citation_ids} citations={response.citations} mode={mode} />
             </div>
           ))}
         </div>
@@ -179,7 +220,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
                 <FileText className="document-tile-icon" size={24} aria-hidden="true" />
                 <div>
                   <p>{document.text}</p>
-                  <Evidence ids={document.citation_ids} citations={response.citations} />
+                  <Evidence
+                    ids={document.citation_ids}
+                    citations={response.citations}
+                    mode={mode}
+                  />
                 </div>
               </div>
             ))
@@ -232,7 +277,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
                   />
                   <div className="step-content">
                     <label htmlFor={`${id}-step-${index}`}>{action.text}</label>
-                    <Evidence ids={action.citation_ids} citations={response.citations} />
+                    <Evidence
+                      ids={action.citation_ids}
+                      citations={response.citations}
+                      mode={mode}
+                    />
                   </div>
                 </li>
               ))}
@@ -257,7 +306,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
           <>
             <div className="draft-toolbar" lang="en">
               <span>{text.draftNotice}</span>
-              <button type="button" onClick={copySample} disabled={copyState === 'pending'}>
+              <button type="button" onClick={copyDraft} disabled={copyState === 'pending'}>
                 {copyState === 'copied' ? (
                   <Check size={16} aria-hidden="true" />
                 ) : (
@@ -271,7 +320,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
               {response.draft.blocks.map((block, index) => (
                 <div className="draft-block" key={index}>
                   <p>{highlightPlaceholders(block.text)}</p>
-                  <Evidence ids={block.citation_ids} citations={response.citations} />
+                  <Evidence ids={block.citation_ids} citations={response.citations} mode={mode} />
                 </div>
               ))}
             </article>
@@ -295,8 +344,8 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
   );
 }
 
-export function AnswerCard({ response, onEdit }: AnswerCardProps) {
-  const text = labels;
+export function AnswerCard({ response, onEdit, mode = 'sample' }: AnswerCardProps) {
+  const text = labelsFor(mode);
   const id = useId();
   const title =
     response.status === 'success'
@@ -310,7 +359,7 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
       <p className="sample-banner" lang="en">
-        <Info size={15} aria-hidden="true" /> {text.sample}
+        <Info size={15} aria-hidden="true" /> {text.banner}
       </p>
       <header className="answer-header" lang="en">
         <span className="answer-icon">
@@ -324,7 +373,7 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
         </button>
       </header>
       {response.status === 'success' ? (
-        <SampleTabs response={response} />
+        <AnswerTabs response={response} mode={mode} />
       ) : (
         <div className="answer-message">
           <p
@@ -350,6 +399,16 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
         <p lang="en">{text.disclosureNote}</p>
+        {mode === 'live' && (
+          <div className="not-chatbot-note" lang="en">
+            <strong>Not a general chatbot</strong>
+            <ul>
+              {notChatbotBullets.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {response.warnings.length > 0 && (
           <ul>
             {response.warnings.map((warning, index) => (
