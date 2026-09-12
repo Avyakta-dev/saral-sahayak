@@ -42,6 +42,48 @@ class AnalysisError(Exception):
         super().__init__(message)
 
 
+_GUIDANCE_HEADINGS = frozenset(
+    {
+        "Classification",
+        "What it means",
+        "Root cause",
+        "Fix",
+        "Required documents",
+        "How it is detected",
+    }
+)
+
+_FINISH_NUDGE = (
+    "Host note: stop tool use now. Return one FinalAnalysis JSON object immediately using only "
+    "evidence_ids already returned in this history. Do not re-read the same path or heading, and "
+    "do not paginate unless a cited URL was cut. Every explanation/action/required_document claim "
+    "that cites a non-Sources excerpt must also cite that same file's Sources evidence_id on the "
+    "same claim. If guidance plus same-file Sources for a candidate reason (including "
+    "initials/name-mismatch comparison evidence) are already present, prefer a grounded success; "
+    "otherwise clarify or abstain. No invented IDs, URLs or identities."
+)
+
+_FINISH_TOOL_MESSAGE = (
+    "Further reads are blocked to preserve the shared evidence budget for a validated final "
+    "answer. Emit FinalAnalysis JSON now using evidence_ids already in this history. On every "
+    "claim, pair non-Sources excerpts with that same file's Sources evidence_id. Prefer success "
+    "when a reason, explanation, actions and same-file source URLs are present; otherwise clarify "
+    "or abstain. Do not invent evidence or identities."
+)
+
+
+def _repair_message(detail: str) -> str:
+    """One-shot repair with the concrete host validation failure (truncated)."""
+    reason = " ".join(detail.split())[:400].strip() or "output/provenance validation failed"
+    return (
+        f"Your final object failed host validation: {reason}. Correct it once using the same "
+        "schema, requested language and evidence IDs from this history. Every claim that cites a "
+        "non-Sources excerpt must also cite that same file's Sources evidence_id on that claim. "
+        "Do not call tools. No citation metadata or draft fields. If evidence is insufficient, "
+        "clarify or abstain. Do not invent evidence or identities."
+    )
+
+
 def _prompt(request: AnalyzeRequest) -> str:
     name = LANGUAGES[request.language][0]
     return (
@@ -56,17 +98,25 @@ def _prompt(request: AnalyzeRequest) -> str:
         "What it means, Root cause, Fix, Required documents, and Sources and verification. "
         "Request the best candidate's Classification, What it means, Fix, and Sources and "
         "verification together in one turn; "
-        "read additional candidate sections only when needed. Use heading or cursor for continuation. "
-        "Compare ambiguous reasons, applicability, caveats and source limitations before answering. "
+        "read additional candidate sections only when needed. Never re-read the same path and "
+        "heading already returned in this history. Use heading or cursor for continuation only "
+        "when a needed URL or sentence was truncated. "
+        "As soon as one candidate has citable guidance plus that same file's Sources and "
+        "verification (for example initials versus expanded-name mismatch evidence), emit the "
+        "FinalAnalysis JSON immediately - do not keep exploring nearby records. "
+        "Compare ambiguous reasons, applicability, caveats and source limitations before answering "
+        "only when those reads are still missing. "
         "Source confidence/dates are metadata, not proof of correctness. Unknown cases must "
         "abstain (unsupported with a warning); ambiguous cases must ask focused questions "
         "(needs_clarification). Neither state may contain classification or guidance. "
         "Success requires a reason actually read, explanation, actions, and original source URLs "
         "actually returned by tools. Every explanation/action/required document uses evidence_ids "
         "from the tool responses. No invented IDs, citation metadata, paths or URLs. An excerpt "
-        "whose heading is null, and README index evidence, cannot be cited. If a Fix section "
-        "has no URL, read that SAME FILE's Sources section and cite BOTH evidence IDs on that "
-        "claim. Do not borrow unrelated source URLs. Include only factual supported guidance; "
+        "whose heading is null, and README index evidence, cannot be cited. If a cited excerpt "
+        "has no source URLs (typical for What it means / Fix / Required documents), that SAME "
+        "claim must also cite the SAME FILE's Sources and verification evidence_id so provenance "
+        "sees same-file source URLs. Cite BOTH IDs on every such claim, including explanation. "
+        "Do not borrow unrelated source URLs. Include only factual supported guidance; "
         "never invent names, claim numbers, dates, amounts, guarantees or completed actions. "
         "All prose must contain meaningful nonblank text. Warnings, questions and classification "
         "prose must contain no URLs or link syntax. Evidence-bearing prose may include only plain "
@@ -76,10 +126,49 @@ def _prompt(request: AnalyzeRequest) -> str:
         f"Output language MUST be {request.language} ({name}); write user-facing prose in that "
         "language's primary script, preserving canonical IDs, URLs and supplied identities. "
         "Return a single JSON object matching this schema (no markdown fences). Tool calls "
-        "may precede the final JSON. Limits include 12 total tool calls, 8 distinct files, "
+        "may precede the final JSON, but after enough evidence prefer the schema object over "
+        "more tools. Limits include 12 total tool calls, 8 distinct files, "
         "120 lines/3072 UTF-8 text bytes per read and a shared 30-second deadline; "
-        "the host may lower these.\n"
+        "the host may lower these and may refuse further reads to protect the final answer.\n"
         + json.dumps(FinalAnalysis.model_json_schema(), ensure_ascii=False)
+    )
+
+
+def _has_answerable_evidence(ledger: EvidenceLedger) -> bool:
+    """True when citable guidance plus same-record Sources exist (not semantic proof)."""
+    guidance: set[str] = set()
+    sourced: set[str] = set()
+    for entry in ledger.entries:
+        if not entry.heading or not entry.record_id or entry.path.endswith("/README.md"):
+            continue
+        if entry.heading in _GUIDANCE_HEADINGS:
+            guidance.add(entry.record_id)
+        # Only the Sources section satisfies provenance URL requirements for success.
+        if entry.heading.startswith("Sources") and entry.source_urls:
+            sourced.add(entry.record_id)
+    return bool(guidance & sourced)
+
+
+def _should_stop_tools(ledger: EvidenceLedger, budget: Budget) -> bool:
+    """Refuse further reads so a final/repair turn keeps evidence-budget headroom."""
+    if _has_answerable_evidence(ledger):
+        # Live Azure traces kept exploring after guidance+sources and burned ~10.8k/12k
+        # evidence tokens before any validated FinalAnalysis. Stop as soon as one record
+        # is citable; the prior turn already delivered those excerpts.
+        return True
+    used = budget.usage.output_tokens
+    limit = budget.limits.output_tokens
+    # Without enough evidence, force a finish/abstain attempt before hard exhaustion.
+    return used >= (limit * 92) // 100 or budget.usage.tool_calls >= 10
+
+
+def _finish_tool_result(budget: Budget, call_id: str) -> Message:
+    deadline = budget.begin_tool()
+    error = KnowledgeError("finish_required", _FINISH_TOOL_MESSAGE)
+    budget.charge_output(error.to_dict())
+    budget.check(deadline)
+    return Message(
+        role="tool", tool_call_id=call_id, content=json.dumps(error.to_dict()), is_error=True
     )
 
 
@@ -252,6 +341,7 @@ class AnalysisService:
             Message(role="user", content=request.model_dump_json()),
         ]
         repaired = False
+        finish_nudged = False
         used_calls: set[str] = set()
         with KnowledgeFiles(self.knowledge_root, budget=budget) as tools:
             # Bootstrap via the actual tool boundary, not an out-of-band file read.
@@ -304,6 +394,11 @@ class AnalysisService:
                 # Preserve provider-owned reasoning/replay signatures exactly as returned.
                 history.append(result.message)
                 if result.tool_calls:
+                    if repaired:
+                        raise AnalysisError(
+                            "invalid_model_output", "The model returned invalid output.", 502
+                        )
+                    stop_tools = _should_stop_tools(tools.ledger, budget)
                     for call in result.tool_calls:
                         await asyncio.sleep(0)
                         if call.id in used_calls:
@@ -312,18 +407,26 @@ class AnalysisService:
                                 "invalid_model_output", "The model returned invalid output.", 502
                             )
                         used_calls.add(call.id)
-                        history.append(dispatch_tool(tools, call))
+                        if stop_tools:
+                            history.append(_finish_tool_result(budget, call.id))
+                        else:
+                            history.append(dispatch_tool(tools, call))
                         if trace is not None:
                             trace.emit(budget, AnalysisPhase.TOOL_COMPLETE)
+                    if stop_tools or _has_answerable_evidence(tools.ledger):
+                        if not finish_nudged:
+                            history.append(Message(role="user", content=_FINISH_NUDGE))
+                            finish_nudged = True
                     continue
                 if trace is not None:
                     trace.emit(budget, AnalysisPhase.VALIDATION)
                 response = None
+                validation_detail = ""
                 try:
                     final = FinalAnalysis.model_validate(object_json(result.text))
                     response = build_response(final, request, tools.ledger)
-                except (ValueError, TypeError, RecursionError):
-                    pass
+                except (ValueError, TypeError, RecursionError) as exc:
+                    validation_detail = str(exc)
                 budget.check()
                 if response is not None:
                     return response
@@ -335,14 +438,4 @@ class AnalysisService:
                 if trace is not None:
                     trace.emit(budget, AnalysisPhase.REPAIR)
                 repaired = True
-                history.append(
-                    Message(
-                        role="user",
-                        content=(
-                            "Your final object failed output/provenance validation. Correct it once "
-                            "using the same schema, requested language and evidence IDs from this "
-                            "history. No citation metadata or draft fields. If evidence is "
-                            "insufficient, clarify or abstain. Do not invent evidence or identities."
-                        ),
-                    )
-                )
+                history.append(Message(role="user", content=_repair_message(validation_detail)))
