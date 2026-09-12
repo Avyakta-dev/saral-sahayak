@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic content adapter harness</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 920px; margin: 24px auto; padding: 0 20px; color: #172c3e; }
+    h1 { font-size: 1.5rem; }
+    .notice { background: #fff0bf; padding: 12px; border: 1px solid #856000; }
+    form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display: grid; gap: 4px; }
+    input, textarea, select, button { font: inherit; padding: 8px; }
+    button { cursor: pointer; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #eef3f7; padding: 12px; }
+    @media (max-width: 600px) { form { grid-template-columns: 1fr; } }
+  </style>
+  <script src="form-fixture.js" defer></script>
+  <script src="../content.js" defer></script>
+</head>
+<body>
+  <h1>SYNTHETIC TEST HARNESS — NOT AI</h1>
+  <p class="notice">Local adapter test only, not installed-extension integration. No model, screenshot, external requests or real user data. Serve this page on localhost HTTP. The attachment contains synthetic text. Never enter personal data here.</p>
+  <form id="synthetic-form">
+    <label for="full-name">Full name<input id="full-name" name="fullName" autocomplete="name" maxlength="100"></label>
+    <label for="email">Email<input id="email" name="email" type="email" autocomplete="email"></label>
+    <label for="phone">Phone<input id="phone" name="phone" type="tel" autocomplete="tel"></label>
+    <label for="address">Address<textarea id="address" name="address" maxlength="300"></textarea></label>
+    <label for="city">City<select id="city" name="city"><option value="">Choose city</option><option value="synthetic-city">Synthetic City</option><option value="disabled-city" disabled>Disabled City</option></select></label>
+    <label for="resume">Resume<input id="resume" name="resume" type="file" accept=".txt,text/plain"></label>
+    <label for="password">Password (must stay excluded)<input id="password" name="password" type="password" value="synthetic-password"></label>
+    <label for="otp-code">OTP (must stay excluded)<input id="otp-code" name="otpCode" autocomplete="one-time-code" value="000000"></label>
+    <input id="hidden-field" name="hiddenField" type="hidden" value="synthetic-hidden">
+    <button type="submit">Manual submit test (prevented)</button>
+  </form>
+  <div class="controls">
+    <button type="button" id="scan-fixture">Scan fixture</button>
+    <button type="button" id="fill-fixture">Fill synthetic review</button>
+    <button type="button" id="mutate-fixture">Mutate then fill</button>
+    <button type="button" id="reset-fixture">Reset fixture</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Ready. Scan fixture before filling.</p>
+  <p>Prevented submit count: <strong id="submit-count">0</strong></p>
+  <h2>Scan / fill result</h2><pre id="result">No scan yet.</pre>
+  <h2>Native field event log</h2><pre id="event-log">No events yet.</pre>
+</body>
+</html>
