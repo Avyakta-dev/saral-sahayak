@@ -101,7 +101,8 @@
       this.#busy = true;
       try {
         const result = operation();
-        this.#alive(); // Never return success if validation/random generation consumed the TTL.
+        // consumeFill may intentionally destroy state before returning values.
+        if (this.#state) this.#alive(); // Never return success if validation/random generation consumed the TTL.
         return result;
       } catch {
         this.#drop();
@@ -208,6 +209,53 @@
         check(typeof tag === "string" && tag === this.#state.artifact.approvalTag);
         this.#state.stage = "reviewed";
         return this.#snapshot();
+      });
+    }
+
+    // One-pass local restoration after explicit preview review. Returns private values only
+    // to the trusted controller for local display; snapshot() still never exports them.
+    // Stage advances to restored so a second restore cannot re-export.
+    restoreLocal(binding) {
+      return this.#run(() => {
+        this.#guard(binding, "reviewed");
+        const entries = this.#state.entries.map(({ slot, label, token, value }) =>
+          Object.freeze({ slot, label, token, filled: value !== "", value: value === "" ? null : value }));
+        this.#state.stage = "restored";
+        return Object.freeze({
+          requestId: this.#state.requestId,
+          remainingMs: this.#state.expiresAt - this.#alive(),
+          stage: "restored",
+          slots: Object.freeze(entries)
+        });
+      });
+    }
+
+    // Consume selected filled slots for an explicit Fill. Drops the vault immediately so a
+    // worker restart cannot replay writes. Empty/unselected slots are omitted, never invented.
+    consumeFill(selectedSlots, binding) {
+      return this.#run(() => {
+        this.#guard(binding, "restored");
+        check(Array.isArray(selectedSlots));
+        const descriptors = Object.getOwnPropertyDescriptors(selectedSlots);
+        const length = descriptors.length.value;
+        check(integer(length) && length > 0 && length <= 20 && Reflect.ownKeys(descriptors).length === length + 1);
+        const bySlot = new Map(this.#state.entries.map(entry => [entry.slot, entry]));
+        const seen = new Set();
+        const released = [];
+        for (let index = 0; index < length; index++) {
+          this.#alive();
+          const descriptor = descriptors[index];
+          check(descriptor && Object.hasOwn(descriptor, "value") && descriptor.enumerable);
+          const slot = descriptor.value;
+          check(typeof slot === "string" && /^field-[0-9]{1,10}$/.test(slot) && !seen.has(slot));
+          seen.add(slot);
+          const entry = bySlot.get(slot);
+          check(entry && entry.value !== "");
+          released.push(Object.freeze({ slot: entry.slot, label: entry.label, value: entry.value }));
+        }
+        // Destroy before returning so callers cannot ask again after a partial page write.
+        this.#drop();
+        return Object.freeze(released);
       });
     }
 

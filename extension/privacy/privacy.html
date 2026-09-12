@@ -13,7 +13,7 @@
     <header>
       <p class="eyebrow">Developer UI · local only</p>
       <h1>Local privacy preview</h1>
-      <p>Inspect safe field labels, choose a crop, then explicitly generate and review an opaque preview. Nothing is sent to an AI provider or saved by this page.</p>
+      <p>Inspect safe field labels, choose a crop, review an opaque preview, optionally restore locally, then explicitly approve Fill. Nothing is auto-submitted.</p>
     </header>
 
     <p id="status" class="notice" role="status" aria-live="polite">Connecting to the local privacy worker…</p>
@@ -50,21 +50,44 @@
 
     <section id="preview-section" aria-labelledby="preview-title" hidden>
       <h2 id="preview-title">3. Review local preview</h2>
-      <p>This is a newly generated, fully opaque PNG, not a redacted original screenshot. Every field mask is exactly <strong>***</strong>, regardless of its value or length. “Filled” only indicates whether a field has a value; tokens and values are not displayed.</p>
+      <p>This is a newly generated, fully opaque PNG, not a redacted original screenshot. Every field mask is exactly <strong>***</strong>, regardless of its value or length. “Filled” only indicates whether a field has a value; tokens and values are not displayed here.</p>
       <img id="preview-image" alt="Locally generated fully opaque preview of the chosen crop">
       <ul id="slots" class="slots"></ul>
       <label class="check-row"><input id="review-check" type="checkbox" disabled> I have reviewed this fully opaque local preview.</label>
       <button id="confirm" type="button" disabled>Confirm local preview</button>
-      <p class="muted">Confirmation records local review only. It does not authorize transmission, restoration, filling, or submission. The session expires 120 seconds after Capture, without renewal.</p>
+      <p class="muted">Confirmation records local review only. It does not authorize transmission or submission. The session expires 120 seconds after Capture, without renewal.</p>
+    </section>
+
+    <section id="restore-section" aria-labelledby="restore-title" hidden>
+      <h2 id="restore-title">4. Local restore (host template)</h2>
+      <p id="restore-help">Restore replaces approved placeholders locally using a host template. Analyze/upload remain disabled. Restored text stays in this trusted window until you cancel or Fill.</p>
+      <button id="restore" type="button" disabled aria-describedby="restore-help">Restore locally</button>
+      <p id="restore-title-text" class="muted" hidden></p>
+      <ul id="restored-slots" class="slots"></ul>
+    </section>
+
+    <section id="fill-section" aria-labelledby="fill-title" hidden>
+      <h2 id="fill-title">5. Approve Fill (never Submit)</h2>
+      <p>Choose fields individually or use Select all filled. Empty/unresolved placeholders cannot be filled. The extension writes <code>.value</code> only and never clicks Submit.</p>
+      <fieldset id="fill-fields" disabled>
+        <legend>Fields to fill on the page</legend>
+      </fieldset>
+      <div class="actions">
+        <button id="select-filled" type="button" class="secondary" disabled>Select all filled</button>
+        <button id="clear-filled" type="button" class="secondary" disabled>Clear selection</button>
+      </div>
+      <label class="check-row consent"><input id="fill-confirmation" type="checkbox" disabled><span>I approve filling the selected values on the page. I understand the site may autosave. The extension never submits.</span></label>
+      <button id="fill" type="button" disabled>Fill selected fields</button>
+      <p id="fill-outcomes" class="notice" hidden></p>
     </section>
 
     <section aria-labelledby="unavailable-title">
-      <h2 id="unavailable-title">Not available in this developer UI</h2>
-      <p id="unavailable-help">Analyze, Restore, and Fill are disabled. This local-only page has no provider, network, storage, restoration, or form-filling functionality.</p>
+      <h2 id="unavailable-title">Still unavailable</h2>
+      <p id="unavailable-help">Analyze, image upload, provider selection and Submit stay disabled. This slice adds local restore + explicit Fill only.</p>
       <div class="actions">
         <button type="button" disabled aria-describedby="unavailable-help">Analyze</button>
-        <button type="button" disabled aria-describedby="unavailable-help">Restore</button>
-        <button type="button" disabled aria-describedby="unavailable-help">Fill</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Upload image</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Submit</button>
       </div>
     </section>
 

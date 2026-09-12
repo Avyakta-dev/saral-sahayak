@@ -6,12 +6,16 @@
     'status', 'expiry', 'inspect', 'fields', 'crop-form', 'crop-controls',
     'crop-x', 'crop-y', 'crop-width', 'crop-height', 'crop-limits', 'capture',
     'preview-section', 'preview-image', 'slots', 'review-check', 'confirm',
+    'restore-section', 'restore', 'restore-title-text', 'restored-slots',
+    'fill-section', 'fill-fields', 'select-filled', 'clear-filled',
+    'fill-confirmation', 'fill', 'fill-outcomes',
     'cancel', 'close',
   ].map((id) => [id, document.getElementById(id)]));
   let port = null;
   let state = 'connecting';
   let limits = null;
   let fields = [];
+  let fillChoices = [];
   let approvalTag = null;
   let imageReady = false;
   let deadline = 0;
@@ -27,6 +31,7 @@
     limits = null;
     imageReady = false;
     fields.length = 0;
+    fillChoices.length = 0;
 
     const connection = port;
     port = null;
@@ -39,11 +44,11 @@
       try { connection.disconnect(); } catch { /* Already closed. */ }
     }
 
-    // Remove the raster source, form values, field nodes, and all session DOM.
     ui['preview-image'].onload = null;
     ui['preview-image'].onerror = null;
     ui['preview-image'].removeAttribute('src');
     ui['review-check'].checked = false;
+    ui['fill-confirmation'].checked = false;
     for (const input of document.querySelectorAll('input')) {
       input.value = '';
       input.checked = false;
@@ -78,7 +83,8 @@
   function tick() {
     if (!alive()) return;
     const seconds = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
-    ui.expiry.textContent = `${state === 'inspecting' || state === 'inspected' ? 'Inspection' : 'Preview'} expires in ${seconds} seconds. Activity does not extend this deadline.`;
+    const label = ['inspecting', 'inspected'].includes(state) ? 'Inspection' : 'Preview';
+    ui.expiry.textContent = `${label} expires in ${seconds} seconds. Activity does not extend this deadline.`;
   }
 
   function startDeadline() {
@@ -88,15 +94,27 @@
     tick();
   }
 
+  function selectedFillSlots() {
+    return fillChoices.filter((item) => item.checkbox.checked).map((item) => item.slot);
+  }
+
   function controls() {
     if (state === 'ended') return;
-    const busy = ['connecting', 'inspecting', 'capturing', 'reviewing'].includes(state);
+    const busy = ['connecting', 'inspecting', 'capturing', 'reviewing', 'restoring', 'filling'].includes(state);
     ui.inspect.disabled = state !== 'ready';
     ui.fields.disabled = state !== 'inspected';
     ui['crop-controls'].disabled = state !== 'inspected';
     ui.capture.disabled = state !== 'inspected';
     ui['review-check'].disabled = state !== 'preview' || !imageReady;
     ui.confirm.disabled = state !== 'preview' || !imageReady || !ui['review-check'].checked;
+    ui['restore-section'].hidden = !['reviewed', 'restoring', 'restored', 'filling'].includes(state) && state !== 'filled';
+    ui.restore.disabled = state !== 'reviewed';
+    ui['fill-section'].hidden = !['restored', 'filling', 'filled'].includes(state);
+    ui['fill-fields'].disabled = state !== 'restored';
+    ui['select-filled'].disabled = state !== 'restored' || !fillChoices.length;
+    ui['clear-filled'].disabled = state !== 'restored' || !fillChoices.length;
+    ui['fill-confirmation'].disabled = state !== 'restored' || !fillChoices.length;
+    ui.fill.disabled = state !== 'restored' || !ui['fill-confirmation'].checked || !selectedFillSlots().length;
     ui.cancel.disabled = false;
     ui['crop-form'].setAttribute('aria-busy', String(busy));
   }
@@ -145,6 +163,7 @@
     const legend = document.createElement('legend');
     legend.textContent = 'Fields to represent with placeholders (optional)';
     ui.fields.append(legend);
+    fields = [];
     for (const candidate of message.candidates) {
       const label = document.createElement('label');
       label.className = 'check-row';
@@ -183,14 +202,12 @@
       end('Invalid or expired opaque preview. The local session has been cleared.');
       return;
     }
-    // A worker response can shorten the capture deadline, never renew it.
     deadline = Math.min(deadline, performance.now() + message.remainingMs);
     if (!alive()) return;
     approvalTag = message.approvalTag;
     ui.slots.replaceChildren();
     for (const slot of message.slots) {
       const item = document.createElement('li');
-      // Never display worker-provided masks, tokens, identifiers, or values.
       item.textContent = `${slot.label || 'Unlabelled field'} — Filled: ${slot.filled ? 'yes' : 'no'} — Mask: ***`;
       ui.slots.append(item);
     }
@@ -211,6 +228,81 @@
     tick();
   }
 
+  function restoredResult(message) {
+    if (!Array.isArray(message.slots) || typeof message.title !== 'string' ||
+        !Number.isFinite(message.remainingMs) || message.remainingMs <= 0 ||
+        message.slots.some((slot) => !slot || typeof slot.slot !== 'string' ||
+          typeof slot.label !== 'string' || typeof slot.filled !== 'boolean')) {
+      end('Invalid local restoration payload. The session has been cleared.');
+      return;
+    }
+    deadline = Math.min(deadline, performance.now() + message.remainingMs);
+    if (!alive()) return;
+    ui['restore-title-text'].hidden = false;
+    ui['restore-title-text'].textContent = message.title;
+    ui['restored-slots'].replaceChildren();
+    ui['fill-fields'].replaceChildren();
+    const legend = document.createElement('legend');
+    legend.textContent = 'Fields to fill on the page';
+    ui['fill-fields'].append(legend);
+    fillChoices = [];
+    for (const slot of message.slots) {
+      const item = document.createElement('li');
+      if (slot.filled && typeof slot.value === 'string') {
+        item.textContent = `${slot.label}: ${slot.value}`;
+      } else {
+        item.textContent = `${slot.label}: unresolved (not filled)`;
+      }
+      ui['restored-slots'].append(item);
+      if (slot.filled && typeof slot.value === 'string' && slot.value) {
+        const label = document.createElement('label');
+        label.className = 'check-row';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = false;
+        checkbox.addEventListener('change', () => { if (alive()) controls(); });
+        const text = document.createElement('span');
+        text.textContent = `${slot.label} → ${slot.value}`;
+        label.append(checkbox, text);
+        ui['fill-fields'].append(label);
+        fillChoices.push({ slot: slot.slot, checkbox });
+      }
+    }
+    if (!fillChoices.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No filled placeholders to write. Unresolved fields stay manual.';
+      ui['fill-fields'].append(empty);
+    }
+    ui['fill-confirmation'].checked = false;
+    ui['fill-outcomes'].hidden = true;
+    ui['fill-outcomes'].textContent = '';
+    state = 'restored';
+    ui.status.textContent = 'Local restoration complete. Select fields and approve Fill separately. Submit remains manual.';
+    controls();
+    tick();
+  }
+
+  function filledResult(message) {
+    if (!Array.isArray(message.results)) {
+      end('Invalid Fill result. The session has been cleared.');
+      return;
+    }
+    const lines = message.results.map((result) => {
+      const id = typeof result?.id === 'string' ? result.id : 'field';
+      const status = typeof result?.status === 'string' ? result.status : 'unknown';
+      const detail = typeof result?.message === 'string' ? result.message : '';
+      return `${id}: ${status}${detail ? ` — ${detail}` : ''}`;
+    });
+    const warnings = Array.isArray(message.warnings) ? message.warnings.filter((item) => typeof item === 'string') : [];
+    ui['fill-outcomes'].hidden = false;
+    ui['fill-outcomes'].textContent = [...lines, ...warnings, message.message || 'Fill finished. Nothing was submitted by the extension.'].join(' ');
+    state = 'filled';
+    ui.status.textContent = 'Fill attempt finished. Review the page yourself; the extension never submits.';
+    controls();
+    // Session values are already cleared worker-side; close local UI after reporting.
+    end(ui['fill-outcomes'].textContent, false);
+  }
+
   function onMessage(message) {
     if (!alive()) return;
     if (!message || typeof message.type !== 'string') {
@@ -218,7 +310,9 @@
       return;
     }
     if (message.type === 'expired') {
-      end('The local session expired. All preview and field data have been cleared. No automatic restart.', false);
+      end(typeof message.message === 'string' && message.message
+        ? message.message
+        : 'The local session expired. All preview and field data have been cleared. No automatic restart.', false);
     } else if (message.type === 'ready' && state === 'connecting') {
       state = 'ready';
       ui.status.textContent = 'Local worker ready. Choose Inspect to request safe field metadata.';
@@ -230,16 +324,19 @@
     } else if (message.type === 'reviewed' && state === 'reviewing') {
       state = 'reviewed';
       approvalTag = null;
-      ui.status.textContent = 'Local preview review confirmed. Nothing was transmitted, restored, or filled. The original expiry still applies.';
+      ui['restore-section'].hidden = false;
+      ui.status.textContent = 'Local preview review confirmed. Restore is available; Analyze/upload/Submit stay disabled.';
       controls();
+    } else if (message.type === 'restored' && state === 'restoring') {
+      restoredResult(message);
+    } else if (message.type === 'filled' && state === 'filling') {
+      filledResult(message);
     } else {
-      // Do not surface arbitrary worker error text or attempt an automatic retry.
       end('The worker could not complete this local step. All session data have been cleared.');
     }
   }
 
   function onDisconnect() {
-    // Read and discard Chrome's transport error; never log response contents.
     void chrome.runtime.lastError;
     end('The local worker disconnected. All preview and field data have been cleared. No automatic restart.', false);
   }
@@ -267,7 +364,6 @@
     state = 'capturing';
     ui.status.textContent = 'Generating an entirely opaque crop locally. No original screenshot is taken…';
     controls();
-    // Keep the earlier inspection deadline: source monitoring can expire before the vault.
     tick();
     send({ type: 'capture', ids, crop });
   });
@@ -281,6 +377,36 @@
     ui.status.textContent = 'Confirming local review…';
     controls();
     send({ type: 'review', approvalTag });
+  });
+  ui.restore.addEventListener('click', () => {
+    if (!alive() || state !== 'reviewed') return;
+    state = 'restoring';
+    ui.status.textContent = 'Restoring approved placeholders locally from the host template…';
+    controls();
+    send({ type: 'restore' });
+  });
+  ui['select-filled'].addEventListener('click', () => {
+    if (!alive() || state !== 'restored') return;
+    for (const item of fillChoices) item.checkbox.checked = true;
+    controls();
+  });
+  ui['clear-filled'].addEventListener('click', () => {
+    if (!alive() || state !== 'restored') return;
+    for (const item of fillChoices) item.checkbox.checked = false;
+    ui['fill-confirmation'].checked = false;
+    controls();
+  });
+  ui['fill-confirmation'].addEventListener('change', () => {
+    if (alive()) controls();
+  });
+  ui.fill.addEventListener('click', () => {
+    if (!alive() || state !== 'restored' || !ui['fill-confirmation'].checked) return;
+    const slots = selectedFillSlots();
+    if (!slots.length) return;
+    state = 'filling';
+    ui.status.textContent = 'Filling only your selected fields. Submission remains manual…';
+    controls();
+    send({ type: 'fill', confirmed: true, slots });
   });
   ui.cancel.addEventListener('click', () => {
     if (!alive() || ui.cancel.disabled) return;
@@ -297,6 +423,6 @@
     port.onMessage.addListener(onMessage);
     port.onDisconnect.addListener(onDisconnect);
   } catch {
-    end('Could not connect to the local privacy worker. All session data have been cleared.', false);
+    end('Could not connect to the local privacy worker.', false);
   }
 })();
