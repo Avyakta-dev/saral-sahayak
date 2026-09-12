@@ -1,0 +1,46 @@
+name: Backend container
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'backend/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'references/knowledge/epfo/**'
+      - 'scripts/smoke_backend_container.py'
+      - '.github/workflows/backend-container.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'backend/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'references/knowledge/epfo/**'
+      - 'scripts/smoke_backend_container.py'
+      - '.github/workflows/backend-container.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Docker build and isolated smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build production image without credentials
+        run: docker build --tag setu-backend:ci .
+      - name: Smoke-test with no network, secrets or published ports
+        run: python3 scripts/smoke_backend_container.py setu-backend:ci
