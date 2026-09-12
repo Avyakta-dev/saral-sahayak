@@ -58,16 +58,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Classification repair via JD nationality parameter per SOP themes.
 
-- https://www.epfindia.gov.in/site_en/International_workers.php
-- https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
-- https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
-- https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_en/International_workers.php
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+
+### Secondary (news / blog / forum)
+
+- [blog] https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
+- [blog] https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
+- [blog] https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

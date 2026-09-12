@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Local privacy preview · Saral Sahayak</title>
+  <link rel="stylesheet" href="privacy.css">
+  <script src="privacy.js" defer></script>
+</head>
+<body>
+  <main id="privacy-root">
+    <header>
+      <p class="eyebrow">Extension UI Level 2 · trusted window</p>
+      <h1>Local privacy preview</h1>
+      <p>Inspect safe field labels, choose a crop, review an opaque preview, compare outbound placeholders versus local restoration, then explicitly approve Fill. Nothing is auto-submitted. Level 1 annotated mocks remain labelled under <code>extension/mocks/privacy-ux-level-1/</code>.</p>
+    </header>
+
+    <p id="status" class="notice" role="status" aria-live="polite">Connecting to the local privacy worker…</p>
+    <p id="expiry" class="muted">No preview session started.</p>
+
+    <section aria-labelledby="inspect-title">
+      <h2 id="inspect-title">1. Inspect field labels</h2>
+      <p>Inspect returns field identifiers and safe labels, not field values. Selection starts empty. No keys, profiles, or file values are requested here.</p>
+      <button id="inspect" type="button" disabled>Inspect</button>
+      <fieldset id="fields" disabled>
+        <legend>Fields to represent with placeholders</legend>
+        <p class="muted">Inspect first. No fields are selected automatically.</p>
+      </fieldset>
+    </section>
+
+    <section aria-labelledby="crop-title">
+      <h2 id="crop-title">2. Choose crop and capture locally</h2>
+      <p>Crop coordinates are whole CSS pixels relative to the viewport. The default starts at (0, 0) and covers as much of the viewport as fits within 2048 physical pixels per side (2048 ÷ device pixel ratio).</p>
+      <form id="crop-form">
+        <fieldset id="crop-controls" disabled>
+          <legend>Viewport crop</legend>
+          <div class="crop-grid">
+            <label>X <input id="crop-x" name="x" type="number" min="0" step="1" required></label>
+            <label>Y <input id="crop-y" name="y" type="number" min="0" step="1" required></label>
+            <label>Width <input id="crop-width" name="width" type="number" min="1" step="1" required></label>
+            <label>Height <input id="crop-height" name="height" type="number" min="1" step="1" required></label>
+          </div>
+          <p id="crop-limits" class="muted">Viewport limits will appear after inspection.</p>
+        </fieldset>
+        <p class="notice">Conservative preview: entire chosen crop is opaque. No original screenshot is taken; canvas/images/frames/unknown content never preserved.</p>
+        <button id="capture" type="submit" disabled>Capture opaque preview locally</button>
+      </form>
+    </section>
+
+    <section id="preview-section" aria-labelledby="preview-title" hidden>
+      <h2 id="preview-title">3. Review local preview</h2>
+      <p>This is a newly generated, fully opaque PNG, not a redacted original screenshot. Every field mask is exactly <strong>***</strong>, regardless of its value or length. “Filled” only indicates whether a field has a value; tokens and values are not displayed here.</p>
+      <img id="preview-image" alt="Locally generated fully opaque preview of the chosen crop">
+      <ul id="slots" class="slots"></ul>
+      <label class="check-row" id="first-last-row"><input id="first-last" type="checkbox" disabled> Opt in to show first &amp; last grapheme locally for an approved non-sensitive slot (≥12 graphemes). Personal registry labels stay fully masked. Fragments never enter Analyze payload, raster, logs, or metadata. Off by default and unavailable in this slice.</label>
+      <label class="check-row"><input id="review-check" type="checkbox" disabled> I have reviewed this fully opaque local preview.</label>
+      <button id="confirm" type="button" disabled>Confirm local preview</button>
+      <p class="muted">Confirmation records local review only. It does not authorize transmission, restoration, filling, or submission. The displayed deadline starts at Inspect and is never extended by Capture or confirmation. The vault also has a 120-second absolute limit from Capture; the earlier deadline or a lost worker connection ends the session.</p>
+    </section>
+
+    <section id="outbound-section" aria-labelledby="outbound-title" hidden>
+      <h2 id="outbound-title">Outbound envelope (would leave only after Analyze)</h2>
+      <p id="outbound-help">This plain-text renderer shows only safe labels, filled flags, fixed <code>***</code> masks, and schema <code>privacy-slots-1</code>. Opaque request-bound tokens stay in the vault and are <strong>not</strong> rendered here. Private values never appear in this outbound view. Analyze remains disabled — nothing leaves the device from this window.</p>
+      <p id="outbound-meta" class="muted">Schema: privacy-slots-1 · transport: disabled</p>
+      <ul id="outbound-slots" class="slots"></ul>
+    </section>
+
+    <section id="restore-section" aria-labelledby="restore-title" hidden>
+      <h2 id="restore-title">4. Local restore (host template · trusted window only)</h2>
+      <p id="restore-help">Restore replaces approved placeholders locally using a host template. Analyze/upload remain disabled. Restored text stays in this trusted window until you cancel or Fill — it must not be echoed into a later Analyze, provider, or diagnostics path. Rendering uses plain text nodes only (never <code>innerHTML</code>).</p>
+      <button id="restore" type="button" disabled aria-describedby="restore-help">Restore locally</button>
+      <p id="restore-title-text" class="muted" hidden></p>
+      <p id="local-restore-banner" class="notice local-only" hidden>Local only — values below are restored in this trusted window and are not part of any outbound Analyze payload.</p>
+      <ul id="restored-slots" class="slots"></ul>
+    </section>
+
+    <section id="fill-section" aria-labelledby="fill-title" hidden>
+      <h2 id="fill-title">5. Approve Fill (never Submit)</h2>
+      <p>Choose fields individually or use Select all filled. Empty/unresolved placeholders cannot be filled. The extension writes <code>.value</code> only and never clicks Submit.</p>
+      <fieldset id="fill-fields" disabled>
+        <legend>Fields to fill on the page</legend>
+      </fieldset>
+      <div class="actions">
+        <button id="select-filled" type="button" class="secondary" disabled>Select all filled</button>
+        <button id="clear-filled" type="button" class="secondary" disabled>Clear selection</button>
+      </div>
+      <label class="check-row consent"><input id="fill-confirmation" type="checkbox" disabled><span>I approve filling the selected values on the page. I understand the site may autosave. The extension never submits.</span></label>
+      <button id="fill" type="button" disabled>Fill selected fields</button>
+      <p id="fill-outcomes" class="notice" hidden></p>
+    </section>
+
+    <section aria-labelledby="provider-title">
+      <h2 id="provider-title">Provider / mode disclosure</h2>
+      <p id="provider-help">Trusted provider options stay unavailable until Ajay’s transport/mode contracts and Anish’s shared approvals land. Local / loopback would still be a recipient — not labelled inherently private. Identical token/safe-label rules apply in every mode. Changing mode/destination clears prior approvals.</p>
+      <label class="stack">Mode
+        <select id="provider-mode" disabled aria-describedby="provider-help">
+          <option selected value="">Not connected — destination unavailable</option>
+          <option value="backend">EPFO backend (de-identified remark)</option>
+          <option value="direct-remote">Direct remote model</option>
+          <option value="direct-loopback">Direct loopback model</option>
+          <option value="companion">Optional local companion</option>
+        </select>
+      </label>
+      <p id="provider-destination" class="muted">Exact destination: unavailable · uploader: unavailable · companion: not installed</p>
+    </section>
+
+    <section aria-labelledby="unavailable-title">
+      <h2 id="unavailable-title">Analyze / upload / Submit (still unavailable)</h2>
+      <p id="unavailable-help">Analyze, image upload, provider selection and Submit stay disabled. Destination consent cannot authorize a disabled path. This Level 2 slice wires UI disclosure and plain-text rendering only; it does not enable transmission.</p>
+      <p id="analyze-destination" class="notice">Destination consent (unavailable): no approved endpoint. Retention at any future recipient is uncertain. “Filled: yes” does not authorize Analyze or Fill by itself.</p>
+      <label class="check-row"><input id="analyze-consent" type="checkbox" disabled> I approve sending only tokens, filled flags, and safe labels for this reviewed payload. (Analyze remains disabled.)</label>
+      <div class="actions">
+        <button type="button" disabled aria-describedby="unavailable-help">Analyze</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Upload image</button>
+        <button type="button" disabled aria-describedby="unavailable-help">Submit</button>
+      </div>
+    </section>
+
+    <footer class="actions">
+      <button id="cancel" class="secondary" type="button" disabled>Cancel and clear</button>
+      <button id="close" class="secondary" type="button">Close</button>
+    </footer>
+  </main>
+</body>
+</html>

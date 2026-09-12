@@ -10,9 +10,9 @@ import { Evidence } from './Evidence';
 describe('analysis-service answer presentation', () => {
   it('distinguishes API responses from explicit sample replies', () => {
     const response = getWalkthrough('en');
-    render(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
-    expect(screen.getByRole('heading', { name: 'Your guidance' })).toBeVisible();
-    expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
     expect(
       screen.getByText('Output language quality has not been independently verified.'),
@@ -27,12 +27,7 @@ describe('analysis-service answer presentation', () => {
 
   it('treats quality flags as service metadata rather than an accuracy guarantee', () => {
     render(
-      <AnswerCard
-        response={getWalkthrough('en')}
-        onEdit={vi.fn()}
-        isSample={false}
-        qualityVerified
-      />,
+      <AnswerCard response={getWalkthrough('en')} onEdit={vi.fn()} mode="live" qualityVerified />,
     );
     expect(
       screen.getByText(
@@ -46,16 +41,14 @@ describe('analysis-service answer presentation', () => {
     response.warnings = [
       'The source may be out of date. Check important requirements before acting.',
     ];
-    render(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
     expect(screen.getByText(response.warnings[0])).toBeVisible();
-    expect(
-      screen.getByText('Important limitations and source information').closest('details'),
-    ).toHaveAttribute('open');
+    expect(screen.getByText('About this answer').closest('details')).toHaveAttribute('open');
   });
 
   it('preserves service citation details including zero columns without synthetic UI claims', async () => {
     const response = getWalkthrough('en');
-    render(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
     const overview = screen.getByRole('tabpanel', { name: 'Overview' });
     await userEvent.click(within(overview).getAllByText('Sources')[0]);
     expect(
@@ -76,9 +69,9 @@ describe('analysis-service answer presentation', () => {
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     const response = getWalkthrough('en');
     response.warnings = ['Verify important requirements with the relevant authority.'];
-    render(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
+    render(<AnswerCard response={response} onEdit={vi.fn()} mode="live" />);
     await user.click(screen.getByRole('tab', { name: 'Draft' }));
-    expect(screen.getByText('Review this draft and any missing details before use')).toBeVisible();
+    expect(screen.getByText('Draft from cited evidence — review before any use')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Copy draft' }));
     expect(screen.getByRole('status')).toHaveTextContent(
       'Draft copied with citations and limitations.',
@@ -100,7 +93,7 @@ describe('analysis-service answer presentation', () => {
   it('reports live draft clipboard failure without falsely reporting success', async () => {
     const user = userEvent.setup();
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Denied'));
-    render(<AnswerCard response={getWalkthrough('en')} onEdit={vi.fn()} isSample={false} />);
+    render(<AnswerCard response={getWalkthrough('en')} onEdit={vi.fn()} mode="live" />);
     await user.click(screen.getByRole('tab', { name: 'Draft' }));
     await user.click(screen.getByRole('button', { name: 'Copy draft' }));
     expect(screen.getByRole('status')).toHaveTextContent(
@@ -113,9 +106,7 @@ describe('analysis-service answer presentation', () => {
     (state) => {
       const response = getDemoResponse(state, 'en');
       const onEdit = vi.fn();
-      const { container } = render(
-        <AnswerCard response={response} onEdit={onEdit} isSample={false} />,
-      );
+      const { container } = render(<AnswerCard response={response} onEdit={onEdit} mode="live" />);
       expect(screen.queryByRole('tab')).not.toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /copy|download/i })).not.toBeInTheDocument();
@@ -129,9 +120,22 @@ describe('analysis-service answer presentation', () => {
     },
   );
 
+  it('keeps Evidence default sample semantics and explicit mode precedence', async () => {
+    const citation = getWalkthrough('en').citations[0];
+    const { rerender } = render(<Evidence ids={[citation.id]} citations={[citation]} />);
+    await userEvent.click(screen.getByText('Source', { exact: true }));
+    expect(screen.getByText(/Synthetic evidence only/)).toBeVisible();
+    rerender(<Evidence ids={[citation.id]} citations={[citation]} mode="live" isSample />);
+    expect(screen.getByText(/Source details supplied by the analysis service/)).toBeVisible();
+    rerender(
+      <Evidence ids={[citation.id]} citations={[citation]} mode="sample" isSample={false} />,
+    );
+    expect(screen.getByText(/Synthetic evidence only/)).toBeVisible();
+  });
+
   it('does not label absent service source URLs as verified evidence', async () => {
     const citation = { ...getWalkthrough('en').citations[0], source_urls: [] };
-    render(<Evidence ids={[citation.id]} citations={[citation]} isSample={false} />);
+    render(<Evidence ids={[citation.id]} citations={[citation]} mode="live" />);
     await userEvent.click(screen.getByText('Source', { exact: true }));
     expect(
       screen.getByText('No source URL supplied. The underlying source cannot be verified here.'),

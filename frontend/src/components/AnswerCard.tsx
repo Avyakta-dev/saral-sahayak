@@ -15,8 +15,12 @@ import { Evidence } from './Evidence';
 type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
+  mode?: 'live' | 'sample';
   isSample?: boolean;
   qualityVerified?: boolean;
+  /** The parent owns the manual retry budget. */
+  onRetry?: () => void;
+  retryLabel?: string;
 };
 
 // Interface language is English; response content keeps its requested output language.
@@ -53,17 +57,17 @@ function answerLabels(isSample: boolean) {
   if (isSample) return labels;
   return {
     ...labels,
-    sample: 'Analysis response · verify important guidance',
-    title: 'Your guidance',
-    tablist: 'Explore the analysis response',
-    documents: 'Documents required',
-    draftNotice: 'Review this draft and any missing details before use',
+    sample: 'Grounded analysis · educational, not legal advice',
+    title: 'Your grounded answer',
+    tablist: 'Explore the grounded answer',
+    documents: 'Required documents',
+    draftNotice: 'Draft from cited evidence — review before any use',
     copy: 'Copy draft',
     copied: 'Draft copied with citations and limitations.',
     copyError: 'Could not copy. Select and copy the draft and its citations manually.',
-    disclosure: 'Important limitations and source information',
+    disclosure: 'About this answer',
     disclosureNote:
-      'Guidance is based on the response from the analysis service. Citations are not independent policy verification, legal advice or a guarantee of the claim outcome.',
+      'Educational guidance only — not legal advice, an official EPFO decision, or a guarantee of claim outcome. Citations show Markdown paths and source URLs for you to verify.',
   };
 }
 
@@ -355,9 +359,13 @@ function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSam
 export function AnswerCard({
   response,
   onEdit,
-  isSample = true,
+  mode,
+  isSample: sample = true,
   qualityVerified = false,
+  onRetry,
+  retryLabel = 'Try again',
 }: AnswerCardProps) {
+  const isSample = mode === undefined ? sample : mode === 'sample';
   const text = answerLabels(isSample);
   const id = useId();
   const title =
@@ -424,6 +432,18 @@ export function AnswerCard({
                 ? response.warnings[0] || text.unsupported
                 : response.error?.message || text.error}
           </p>
+          {!isSample && response.status === 'error' && response.error?.code && (
+            <p className="answer-error-code" lang="en">
+              Error code: <code>{response.error.code}</code>
+            </p>
+          )}
+          {!isSample && response.status === 'error' && onRetry && (
+            <div className="reply-actions answer-retry-actions">
+              <button className="light-button" type="button" onClick={onRetry}>
+                {retryLabel}
+              </button>
+            </div>
+          )}
           {response.status === 'needs_clarification' && (
             <ul className="answer-questions">
               {response.questions.map((question, index) => (
@@ -438,6 +458,16 @@ export function AnswerCard({
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
         <p lang="en">{text.disclosureNote}</p>
+        {!isSample && (
+          <div className="not-chatbot-note" lang="en">
+            <strong>Not a general chatbot</strong>
+            <ul>
+              <li>Cites EPFO Markdown paths and original source URLs from the evidence ledger.</li>
+              <li>Abstains or asks for clarification when evidence is thin.</li>
+              <li>Checklists and drafts come from cited blocks, not free-form chat.</li>
+            </ul>
+          </div>
+        )}
         {response.warnings.length > 0 && (
           <ul>
             {response.warnings.map((warning, index) => (

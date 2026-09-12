@@ -613,6 +613,15 @@ describe('requestSchema', () => {
 describe('transportErrorSchema (offline body examples, no HTTP)', () => {
   it.each([
     { status: 400, body: { detail: 'There was an error parsing the body' } },
+    { status: 401, body: { error: { code: 'access_denied', message: 'Analysis access denied.' } } },
+    {
+      status: 429,
+      body: { error: { code: 'analysis_capacity', message: 'Analysis capacity is limited.' } },
+    },
+    {
+      status: 504,
+      body: { error: { code: 'request_timeout', message: 'Analysis request timed out.' } },
+    },
     {
       status: 413,
       body: { error: { code: 'request_too_large', message: 'Request exceeds 32 KiB.' } },

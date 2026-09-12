@@ -333,7 +333,8 @@ export const requestSchema = z
   });
 export type AnalyzeRequest = z.infer<typeof requestSchema>;
 
-// These pre-analysis 400 / 413 / 422 bodies are not AnalyzeResponse envelopes.
+// Pre-analysis parsing/admission errors are not AnalyzeResponse envelopes.
+// The API client separately enforces each code's exact HTTP status.
 // A disabled known language instead uses the full responseSchema error envelope.
 export const transportErrorSchema = z.union([
   z.object({ detail: z.string().min(1) }).strict(),
@@ -341,7 +342,13 @@ export const transportErrorSchema = z.union([
     .object({
       error: z
         .object({
-          code: z.enum(['request_too_large', 'invalid_request']),
+          code: z.enum([
+            'request_too_large',
+            'invalid_request',
+            'access_denied',
+            'analysis_capacity',
+            'request_timeout',
+          ]),
           message: z.string().min(1),
         })
         .strict(),

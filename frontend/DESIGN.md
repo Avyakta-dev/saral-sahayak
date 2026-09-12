@@ -12,9 +12,9 @@ Shravya requested a simpler, more visual experience after reviewing the initial 
 
 ## Two explicit modes
 
-**API mode** starts when a valid public application API prefix is configured. Metadata discovery sends no claim text. It gates enabled languages and the visible **Analyze text** action. Only the user's explicit action sends editable text to the configured service; images stay local. Actual success/clarification/unsupported/error responses render without mock substitution.
+**API mode** uses the configured public application server root, or same-origin `/api/v1` when the root is omitted. Metadata discovery sends no claim text. It gates enabled languages and the visible **Analyze text** action. Only the user's explicit action sends editable text to the configured service; images stay local. Actual success/clarification/unsupported/error responses render without mock substitution.
 
-**Preview mode** is the default when no API is configured, or an explicit choice through **Use examples**. Own messages receive a truthful connection notice. **Show me an example** and the secondary sample gallery display labelled preset content, never a purported analysis of the user's input.
+**Preview mode** is an explicit choice through **Use examples** or the public `VITE_PREVIEW_ONLY=true` build setting. Own messages receive a truthful connection notice. **Show me an example** and the secondary sample gallery display labelled preset content, never a purported analysis of the user's input.
 
 Configuration failures do not silently switch into preview. Switching modes is explicit and cancels pending work. Completed turns retain their original API/sample presentation.
 
@@ -23,7 +23,8 @@ Configuration failures do not silently switch into preview. Switching modes is e
 - Keep the user's message once in a bubble and the composer available below the conversation.
 - Overview, Next steps and Draft tabs avoid a wall of text.
 - Show categorical classification confidence and rationale without percentages. Show actual unsupported reasons and clarification questions, not fabricated actions.
-- API warnings/limitations are visible by default; detailed source locations remain expandable.
+- API warnings/limitations are visible by default; detailed source locations remain expandable. Preserve the reviewed “Not a general chatbot” explanation of bounded evidence, clarification and cited actions.
+- Preserve the shared backend-status/readiness summary. Configuration and structural readiness are not connectivity, authorization or policy-quality guarantees. Access denial never prompts users for a shared gateway token.
 - Preserve path, canonical record ID, exact heading, lines, zero-based columns and original source URLs. Keep remedy/source excerpts as separate evidence items.
 - Draft placeholders stay visible. Copy includes factual-block sources and limitations. API drafts and explicit samples use different notices; neither promises a successful claim outcome.
 

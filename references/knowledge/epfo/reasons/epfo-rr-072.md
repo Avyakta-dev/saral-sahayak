@@ -56,15 +56,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** circular, official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://epfigms.gov.in/
-- https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- [official] https://epfigms.gov.in/
+
+### Secondary (news / blog / forum)
+
+- [news] https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- [blog] https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

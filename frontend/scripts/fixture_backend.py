@@ -2,6 +2,8 @@
 
 No production corpus, .env, provider client, credentials, or government requests.
 Run --self-test for an HTTP-only smoke test (no browser/App required).
+--protected-self-test checks real admission-gate errors with a synthetic server
+credential only. No browser credentials, gateway or auth bypass is provided.
 The real knowledge tools require POSIX. On Windows this launcher uses existing
 WSL dependencies: set FIXTURE_WSL_PYTHON to a Linux venv's Python executable.
 A lease shuts down the Linux child even when Playwright taskkills the Windows
@@ -35,6 +37,7 @@ ACTION = "SYNTHETIC fixture: compare the fictional notice labels."
 QUESTION = "SYNTHETIC fixture: which fictional notice label needs checking?"
 LIMITATION = "SYNTHETIC fixture: no evidence supports this fictional notice."
 MARKER = "issue25-synthetic-real-service"
+SERVER_TOKEN = "SYNTHETIC-server-only-admission-token-not-real"
 ROOT = Path(__file__).resolve().parents[2]
 # A request owns its counter; concurrent requests never consume a global FIFO.
 MODEL_TURNS: contextvars.ContextVar[dict | None] = contextvars.ContextVar("turns", default=None)
@@ -92,6 +95,8 @@ def windows_launcher(args: argparse.Namespace) -> None:
         ]
         if args.self_test:
             command.append("--self-test")
+        if args.protected_self_test:
+            command.append("--protected-self-test")
         child = subprocess.Popen(command)
         try:
             while child.poll() is None:
@@ -156,7 +161,8 @@ class SyntheticModel:
     Test scenario selection is intentionally deterministic, NOT policy retrieval.
     """
 
-    config = SimpleNamespace(max_output_tokens=2048, timeout_seconds=0.4)
+    def __init__(self, *, timeout_seconds: float = 0.4):
+        self.config = SimpleNamespace(max_output_tokens=2048, timeout_seconds=timeout_seconds)
 
     async def complete(self, messages, tools, **kwargs):
         from backend.llm import LLMError, LLMResult, Message, ToolCall, Usage
@@ -253,7 +259,7 @@ class SyntheticModel:
         )
 
 
-def fixture_app(root: Path):
+def fixture_app(root: Path, *, protected: bool = False):
     from backend.config import Settings
     from backend.main import create_app
 
@@ -265,14 +271,21 @@ def fixture_app(root: Path):
         llm_model="SYNTHETIC-NOT-A-REAL-MODEL",
         llm_extra_headers={"X-Synthetic-Fixture": "SYNTHETIC-NOT-A-CREDENTIAL"},
         llm_timeout_seconds=1,
-        analysis_request_seconds=5,
+        analysis_request_seconds=2 if protected else 5,
+        analysis_access_mode="protected" if protected else "local",
+        analysis_access_token=SERVER_TOKEN if protected else "",
+        analysis_requests_per_minute=2 if protected else 10,
+        analysis_max_concurrent=1 if protected else 2,
         llm_connect_timeout_seconds=1,
         llm_max_output_tokens=2048,
         llm_anthropic_version="2023-06-01",
         cors_origins=[ORIGIN],
         supported_languages=["en", "hi"],
     )
-    app = create_app(settings, knowledge_root=root, model_client=SyntheticModel())
+    # Protected smoke puts the outer admission deadline before the fake model's
+    # timeout. The local browser harness retains the service-owned 504 path.
+    model = SyntheticModel(timeout_seconds=10 if protected else 0.4)
+    app = create_app(settings, knowledge_root=root, model_client=model)
 
     @app.middleware("http")
     async def synthetic_marker(request, call_next):
@@ -289,7 +302,53 @@ def fixture_app(root: Path):
     return app
 
 
-def smoke_test(server, sock) -> None:
+def protected_smoke(client) -> None:
+    # Server-to-server only. The public browser client must never learn this token.
+    assert client.get("/api/v1/capabilities").json()["analysis_available"]
+    denied = client.post("/api/v1/analyze", content="{")
+    assert denied.status_code == 401
+    assert denied.json() == {
+        "error": {"code": "access_denied", "message": "Analysis access denied."}
+    }
+    assert denied.headers["x-synthetic-model-turns"] == "0"
+    print("PASS real HTTP protected: 401 access_denied before body/model work", flush=True)
+    preflight = client.options(
+        "/api/v1/analyze",
+        headers={
+            "Origin": ORIGIN,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert preflight.status_code == 400  # No browser-credential CORS bypass.
+    headers = {"Authorization": "Bearer " + SERVER_TOKEN}
+    accepted = client.post(
+        "/api/v1/analyze",
+        json={"text": "SYNTHETIC supported server admission"},
+        headers=headers,
+    )
+    assert accepted.status_code == 200 and accepted.json()["status"] == "success"
+    assert accepted.headers["x-synthetic-model-turns"] == "2"
+    for scenario, status, code, message, turns in [
+        ("timeout", 504, "request_timeout", "Analysis request timed out.", "1"),
+        ("supported", 429, "analysis_capacity", "Analysis capacity is limited.", "0"),
+    ]:
+        response = client.post(
+            "/api/v1/analyze",
+            json={"text": f"SYNTHETIC {scenario} server admission"},
+            headers=headers,
+        )
+        assert response.status_code == status, response.text
+        assert response.json() == {"error": {"code": code, "message": message}}
+        assert response.headers["x-synthetic-fixture"] == MARKER
+        assert response.headers["x-synthetic-model-turns"] == turns
+        assert SERVER_TOKEN not in response.text and "Traceback" not in response.text
+        if status == 429:
+            assert 1 <= int(response.headers["retry-after"]) <= 60
+        print(f"PASS real HTTP protected: {status} {code}; fake model turns={turns}", flush=True)
+
+
+def smoke_test(server, sock, *, protected: bool = False) -> None:
     import httpx
 
     worker = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
@@ -303,6 +362,9 @@ def smoke_test(server, sock) -> None:
         with httpx.Client(base_url=f"http://{HOST}:{PORT}", trust_env=False, timeout=10) as client:
             assert client.get("/health/live").json()["status"] == "alive"
             assert client.get("/health/ready").status_code == 200
+            if protected:
+                protected_smoke(client)
+                return
             metadata = client.get("/api/v1/capabilities", headers={"Origin": ORIGIN})
             assert metadata.headers["access-control-allow-origin"] == ORIGIN
             denied = client.get("/api/v1/capabilities", headers={"Origin": "http://127.0.0.1:5173"})
@@ -363,7 +425,9 @@ def smoke_test(server, sock) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--self-test", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--self-test", action="store_true")
+    mode.add_argument("--protected-self-test", action="store_true")
     parser.add_argument("--lease-file", type=Path)
     parser.add_argument("--lease-token")
     args = parser.parse_args()
@@ -382,7 +446,7 @@ def main() -> None:
         root = Path(temporary) / "references" / "knowledge" / "epfo"
         root.mkdir(parents=True)
         write_corpus(root)
-        app = fixture_app(root)
+        app = fixture_app(root, protected=args.protected_self_test)
         server = uvicorn.Server(
             uvicorn.Config(app, host=HOST, port=PORT, access_log=False, log_level="warning")
         )
@@ -412,8 +476,8 @@ def main() -> None:
             f"TEST ONLY {MARKER}: {HOST}:{PORT}; fake model, temporary synthetic Markdown",
             flush=True,
         )
-        if args.self_test:
-            smoke_test(server, sock)
+        if args.self_test or args.protected_self_test:
+            smoke_test(server, sock, protected=args.protected_self_test)
         else:
             server.run(sockets=[sock])
 

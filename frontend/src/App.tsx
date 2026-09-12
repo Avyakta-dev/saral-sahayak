@@ -32,6 +32,8 @@ import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib
 import type { ImageAttachment } from './lib/attachments';
 import { ApiError, getConfiguredApiClient, isRetryableCode } from './lib/api';
 import type { ApiClient } from './lib/api';
+import { statusFromCapabilities, type BackendStatus } from './lib/backendStatus';
+import { canRetryAnalysis, MAX_ANALYSIS_ATTEMPTS } from './lib/analysisRetry';
 
 type ConnectionState = 'loading' | 'ready' | 'unavailable' | 'error';
 type Failure = { code: string; retryable: boolean };
@@ -41,6 +43,11 @@ function failureMessage(code: string): string {
   switch (code) {
     case 'invalid_configuration':
       return 'The analysis service configuration is invalid. Ask the site operator to check it.';
+    case 'access_denied':
+      return 'Analysis access was denied. Ask the site operator to configure the trusted gateway. Do not enter access tokens or provider keys in this UI.';
+    case 'analysis_capacity':
+      return 'The analysis service is at capacity. Try later; this request will not be retried.';
+    case 'request_timeout':
     case 'analysis_timeout':
     case 'timeout':
       return 'The service took too long to respond. Your text is still here.';
@@ -548,11 +555,19 @@ export default function App({
       setTurns((previous) =>
         previous.map((item) => (item.id === turn.id ? { ...item, response } : item)),
       );
+      if (response.status === 'error' && response.error?.code === 'access_denied') {
+        setConnectionState('unavailable');
+        setConnectionFailure({ code: 'access_denied', retryable: false });
+      }
       if (response.status === 'success')
         setText((current) => (current === turn.text ? '' : current));
     } catch (cause) {
       if (request.current !== controller || controller.signal.aborted) return;
       const failure = transportFailure(cause);
+      if (failure.code === 'access_denied') {
+        setConnectionState('unavailable');
+        setConnectionFailure(failure);
+      }
       setTurns((previous) =>
         previous.map((item) => (item.id === turn.id ? { ...item, failure } : item)),
       );
@@ -573,7 +588,8 @@ export default function App({
   }
 
   function retryTurn(turn: Turn) {
-    if (!canRetry(turn) || (turn.retries ?? 0) >= 2 || turn.language !== language) return;
+    if (!canRetry(turn) || !canRetryAnalysis(1 + (turn.retries ?? 0)) || turn.language !== language)
+      return;
     void analyzeTurn({ ...turn, retries: (turn.retries ?? 0) + 1 });
   }
 
@@ -697,10 +713,39 @@ export default function App({
         ? 'Text analysis is configured. Review your text before sending.'
         : 'Text analysis is unavailable. Refresh the connection or use examples.';
 
+  const backendStatus: BackendStatus =
+    connectionFailure?.code === 'access_denied'
+      ? {
+          kind: 'not_ready',
+          label: 'Analysis gateway not ready',
+          detail: failureMessage('access_denied'),
+        }
+      : connectionState === 'loading'
+        ? { kind: 'checking', label: 'Checking analysis backend…' }
+        : liveCapabilities
+          ? statusFromCapabilities(liveCapabilities)
+          : {
+              kind: 'unreachable',
+              label: 'Analysis backend unreachable',
+              detail: connectionMessage,
+            };
+
   const composer = (
     <div className="composer-dock">
       {mode === 'api' && (
         <div className="api-connection" data-state={connectionState}>
+          <aside className="demo-readiness" aria-label="Analysis readiness">
+            <p className={`backend-status backend-status-${backendStatus.kind}`} role="status">
+              {backendStatus.label}
+            </p>
+            {backendStatus.detail && backendStatus.detail !== connectionMessage && (
+              <p>{backendStatus.detail}</p>
+            )}
+            <p>
+              Availability is configuration and structure metadata, not authorization, verified
+              model connectivity, policy accuracy or language quality.
+            </p>
+          </aside>
           <p role="status">{connectionMessage}</p>
           <div className="api-connection-actions">
             <button
@@ -1012,6 +1057,10 @@ export default function App({
                 <br /> of your claim.
               </h1>
               <p className="welcome-caption">Paste a remark. Add a screenshot. Start here.</p>
+              <p className="source-hint">
+                Grounded EPFO guidance with Markdown evidence and original source URLs. Ask for
+                clarification or abstain when evidence is insufficient.
+              </p>
             </section>
             {composer}
             <div className="starter-actions">
@@ -1054,7 +1103,7 @@ export default function App({
                   : `${offlineCapabilities.languages.length} example languages · quality unreviewed`}
               </span>
               <span aria-hidden="true">·</span>
-              <span>No account needed</span>
+              <span>{mode === 'api' ? 'Server-controlled access' : 'No account needed'}</span>
               <span aria-hidden="true">·</span>
               <span>{mode === 'api' ? 'Text sent only on Analyze' : 'Nothing is sent'}</span>
             </div>
@@ -1107,7 +1156,7 @@ export default function App({
                           <AnswerCard
                             response={turn.response}
                             onEdit={() => editTurn(turn)}
-                            isSample={turn.sample}
+                            mode={turn.sample ? 'sample' : 'live'}
                             qualityVerified={turn.qualityVerified ?? false}
                           />
                         ) : turn.failure ? (
@@ -1181,8 +1230,8 @@ export default function App({
                             {canRetry(turn) ? (
                               <>
                                 <p>
-                                  Retry resends the same text to the analysis service. Up to two
-                                  retries per message.
+                                  Retry resends the same text to the analysis service. Up to{' '}
+                                  {MAX_ANALYSIS_ATTEMPTS - 1} manual retries per message.
                                 </p>
                                 <button
                                   type="button"
@@ -1193,12 +1242,12 @@ export default function App({
                                     pending ||
                                     readingFile ||
                                     turn.language !== language ||
-                                    (turn.retries ?? 0) >= 2
+                                    !canRetryAnalysis(1 + (turn.retries ?? 0))
                                   }
                                 >
                                   Retry analysis
                                 </button>
-                                {(turn.retries ?? 0) >= 2 && (
+                                {!canRetryAnalysis(1 + (turn.retries ?? 0)) && (
                                   <p>Retry limit reached. Edit the remark or try later.</p>
                                 )}
                               </>

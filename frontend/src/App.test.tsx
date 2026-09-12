@@ -1,6 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
+import ConnectedApp from './App';
+
+const App = (props: Parameters<typeof ConnectedApp>[0]) => (
+  <ConnectedApp {...props} apiClient={null} />
+);
 import { capabilitiesSchema, previewCapabilities, type Capabilities } from './lib/capabilities';
 import type { Language } from './lib/contracts';
 import * as demo from './lib/demo';

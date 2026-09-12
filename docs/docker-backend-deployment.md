@@ -4,7 +4,7 @@
 
 A non-root Python 3.12 production image for the existing FastAPI backend, using immutable base-image digests and `uv.lock` production dependencies. Only `backend/` and the public 186-file Markdown corpus are copied into the runtime image. The default command listens on port **8000**. It runs without repository mounts, a writable application directory, developer tools or a credential file.
 
-This is packaging and local smoke-test preparation, **not a deployed or accepted live demo**. Issue #29's live supported-case latency, policy/source verification and independent six-language quality acceptance remain open. The web frontend currently displays labelled preview states and is not connected to this API; Shravya's #25 transport integration is still required. Docker does not make that connection automatically. OCR, uploads and downloads are not implemented by this work.
+This is packaging and local smoke-test preparation, **not a deployed or accepted live demo**. Policy/source verification and independent six-language quality acceptance remain open. The main web UI can call live analyze when pointed at a running API (`VITE_API_BASE_URL`; see [demo-runbook.md](demo-runbook.md)); Docker packaging alone does not wire that path or satisfy Level 3 demo acceptance. OCR, uploads and downloads are not implemented by this work.
 
 ## Build and isolated smoke test
 
@@ -12,7 +12,7 @@ Use a clean reviewed checkout, Docker Engine/Desktop with Linux containers, and 
 
 ```sh
 docker build --tag setu-backend:local .
-python scripts/smoke_backend_container.py setu-backend:local
+python3 scripts/smoke_backend_container.py setu-backend:local
 ```
 
 The build downloads pinned base images and locked Python packages; no provider credentials or real user input are required. The smoke container has **no external network, no published ports, no secrets, read-only root filesystem, all capabilities dropped and no-new-privileges enabled**. Requests run through loopback inside the container. The script checks liveness, honest dependency errors, the included corpus, capability flags, exact-origin CORS, malformed/oversized requests, non-root execution and absence of private application material/dev dependencies. It removes only the uniquely named container it created, even on failure. The image remains available locally. The dedicated GitHub workflow builds and runs the same smoke; it never pushes an image or deploys.
@@ -35,10 +35,10 @@ The backend has no `PORT` environment setting. Map your host/platform service po
 The Docker host/provider and public backend domain are not selected here. Before enabling a paid model on a publicly reachable backend:
 
 1. Put the container behind an HTTPS reverse proxy/service endpoint. Keep the raw Docker port private. The default disables proxy-header trust; if the deployment needs forwarded headers, explicitly trust only the actual proxy addresses in a reviewed command override, not arbitrary clients.
-2. Add access control and rate/concurrency limits at the gateway/application boundary. **The current API has no authentication/rate limiter. CORS is not authentication and does not prevent credit abuse from non-browser clients.** Do not expose an unrestricted paid-model endpoint.
+2. Enable [protected analysis mode](protected-analysis.md) for the gateway-to-backend connection and add independently tested user authentication and distributed rate/cost limits at the gateway. Protected mode supplies a server token and per-process admission limits only; default local mode remains unrestricted. **CORS is not authentication and does not prevent credit abuse from non-browser clients.** Do not expose an unrestricted paid-model endpoint.
 3. Inject operator-provided model settings at runtime via the host's secret manager or a local ignored environment file; never use Docker build arguments, image `ENV`, Git or Vercel frontend variables for keys. Docker host administrators can inspect container environment values, so protect host access. Use exact names from `.env.example` and `docs/backend-contract.md`; no provider-specific aliases are assumed.
 4. Set `CORS_ORIGINS` to a JSON array of exact approved frontend HTTPS origins, without trailing slashes, paths or wildcards. The documentation-only shape is `["https://your-project.vercel.app"]`; replace it with the actual selected origin. Each preview domain needs separate approval. Do not broadly allow all Vercel projects. Keep browser credentials disabled under the current contract.
-5. Keep request and proxy timeouts aligned with the reviewed backend contract. The base used for this packaging has a 30-second request deadline and 25-second model-call default; PR #39 separately proposes bounded configurable timeouts. This PR neither changes those controls nor verifies longer live calls.
+5. Keep request and proxy timeouts aligned with the reviewed backend contract. Defaults remain a 30-second analysis request deadline and 25-second model-call timeout; `ANALYSIS_REQUEST_SECONDS` / `LLM_TIMEOUT_SECONDS` are configurable up to 120 for authorized live retests. Packaging neither verifies longer live calls nor closes issue 30.
 6. Run an explicitly authorized, bounded synthetic acceptance matrix before describing the service as live-ready. Never paste API keys in chat or use real claim documents for deployment smoke tests.
 
 ## Build and runtime privacy

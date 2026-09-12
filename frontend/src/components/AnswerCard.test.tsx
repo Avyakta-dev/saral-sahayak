@@ -115,6 +115,19 @@ describe('illustrative walkthrough', () => {
 });
 
 describe('AnswerCard', () => {
+  it('honors explicit mode over the legacy isSample alias', () => {
+    const response = sample();
+    const { rerender } = render(
+      <AnswerCard response={response} onEdit={vi.fn()} mode="live" isSample />,
+    );
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
+    expect(screen.getByText('Not a general chatbot')).toBeVisible();
+    rerender(<AnswerCard response={response} onEdit={vi.fn()} mode="sample" isSample={false} />);
+    expect(screen.getByRole('heading', { name: 'Your sample answer' })).toBeVisible();
+    rerender(<AnswerCard response={response} onEdit={vi.fn()} isSample={false} />);
+    expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
+  });
+
   it('exports both forms and defaults to one compact overview with collapsed disclosures', async () => {
     expect(AnswerCard).toBe(NamedAnswerCard);
     const response = sample();

@@ -1,6 +1,6 @@
 "use strict";
 
-importScripts("mapping.js", "epfo-background.js");
+importScripts("mapping.js", "epfo-background.js", "privacy/vault.js", "privacy/slots.js", "privacy/raster.js", "privacy/controller.js");
 
 const { check, validateProfile, validateFile, validatePlan, validateEntries } = FormMapping;
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
@@ -11,6 +11,7 @@ let revision = 0;
 let busy = false;
 let controller;
 let writes = Promise.resolve();
+let privacyOpeningVersion = 0;
 
 const ready = (async () => {
   await chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
@@ -223,7 +224,29 @@ async function fill(payload, version) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "PRIVACY_INVALIDATED") { LocalPrivacy.invalidated(message, sender); return false; }
   if (sender.id !== chrome.runtime.id || sender.tab || sender.url !== chrome.runtime.getURL("popup.html")) return false;
+  if (message?.type === "PRIVACY_OPEN") {
+    const openingVersion = ++privacyOpeningVersion;
+    (async () => {
+      await ready;
+      check(!busy, "Wait for the current form action before starting privacy capture.");
+      busy = true;
+      const version = ++revision;
+      try {
+        controller?.abort();
+        EPFOBridge.cancel();
+        const previousScan = state.scan;
+        await Promise.all([resetScan(previousScan, false), EPFOBridge.clearConnection()]);
+        await persist(freshState(), version);
+        check(openingVersion === privacyOpeningVersion, "Privacy opening was cancelled.");
+        return await LocalPrivacy.open();
+      } finally { busy = false; }
+    })().then(sendResponse).catch(() => sendResponse({ ok: false, error: "Privacy capture requires an idle extension and a normal HTTP(S) source tab." }));
+    return true;
+  }
+  privacyOpeningVersion += 1;
+  LocalPrivacy.cancel();
   if (message?.type?.startsWith("SS_EPFO_")) {
     EPFOBridge.handle(message).then(sendResponse).catch(error => {
       sendResponse({ ok: false, error: error instanceof TypeError ? "The EPFO request failed. Check the page and backend connection." : error.message || "The EPFO request failed." });

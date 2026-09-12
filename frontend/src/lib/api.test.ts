@@ -6,10 +6,15 @@ import { previewCapabilities } from './capabilities';
 import { requestSchema, responseSchema } from './contracts';
 import {
   ApiError,
+  analyzeRemark,
   createApiClient,
+  fetchCapabilities,
+  getApiBaseUrl,
   getConfiguredApiClient,
   isRetryableCode,
   type AnalysisInput,
+  type AnalyzeRemarkInput,
+  type Capabilities,
 } from './api';
 
 const input: AnalysisInput = { text: 'Synthetic rejection remark.', language: 'en' };
@@ -115,24 +120,35 @@ describe('trusted API configuration', () => {
     expect(() => createApiClient('/api/v1', { timeoutMs })).toThrow(ApiError);
   });
 
-  it('defaults to offline preview without a base URL and ignores unrelated settings', () => {
-    vi.stubEnv('VITE_API_BASE_URL', undefined);
-    vi.stubEnv('VITE_API_TIMEOUT_MS', 'invalid-without-base');
+  it.each([undefined, '', '   '])('defaults server root %s to live same-origin', (base) => {
+    vi.stubEnv('VITE_API_BASE_URL', base);
+    vi.stubEnv('VITE_PREVIEW_ONLY', undefined);
+    vi.stubEnv('VITE_API_TIMEOUT_MS', undefined);
     vi.stubEnv('VITE_LLM_API_KEY', 'synthetic-secret');
     vi.stubEnv('VITE_BACKEND_URL', 'https://not-used.invalid');
     const fetchImpl = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchImpl);
-    expect(getConfiguredApiClient()).toBeNull();
+    expect(getApiBaseUrl()).toBe('');
+    expect(getConfiguredApiClient()?.baseUrl).toBe('/api/v1');
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it.each(['', '   '])('treats an empty configured prefix as preview', (base) => {
-    vi.stubEnv('VITE_API_BASE_URL', base);
-    expect(getConfiguredApiClient()).toBeNull();
-  });
+  it.each([
+    ['  http://127.0.0.1:8000///  ', 'http://127.0.0.1:8000'],
+    [' https://api.example.invalid/// ', 'https://api.example.invalid'],
+    ['/proxy///', '/proxy'],
+    ['/', ''],
+  ])(
+    'normalizes trusted server root %s without changing the internal prefix convention',
+    (base, root) => {
+      vi.stubEnv('VITE_API_BASE_URL', base);
+      expect(getApiBaseUrl()).toBe(root);
+      expect(getConfiguredApiClient()?.baseUrl).toBe(`${root}/api/v1`);
+    },
+  );
 
   it('reads only explicit build-time API settings, without requesting anything', () => {
-    vi.stubEnv('VITE_API_BASE_URL', '/proxy/api/v1');
+    vi.stubEnv('VITE_API_BASE_URL', '/proxy');
     vi.stubEnv('VITE_API_TIMEOUT_MS', '300000');
     vi.stubEnv('VITE_LLM_API_KEY', 'synthetic-secret');
     const fetchImpl = vi.fn<typeof fetch>();
@@ -140,6 +156,33 @@ describe('trusted API configuration', () => {
     expect(getConfiguredApiClient()?.baseUrl).toBe('/proxy/api/v1');
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it('forces preview only with explicit true, before inspecting live configuration', async () => {
+    vi.stubEnv('VITE_PREVIEW_ONLY', 'true');
+    vi.stubEnv('VITE_API_BASE_URL', 'invalid-live-settings');
+    vi.stubEnv('VITE_API_TIMEOUT_MS', 'invalid-live-settings');
+    const fetchImpl = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchImpl);
+    expect(getConfiguredApiClient()).toBeNull();
+    await expect(fetchCapabilities()).rejects.toMatchObject({
+      code: 'preview_only',
+      retryable: false,
+    });
+    await expect(analyzeRemark(input)).rejects.toMatchObject({
+      code: 'preview_only',
+      retryable: false,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, '', 'false', 'TRUE', '1', ' true '])(
+    'does not infer preview from %s',
+    (value) => {
+      vi.stubEnv('VITE_PREVIEW_ONLY', value);
+      vi.stubEnv('VITE_API_BASE_URL', '');
+      expect(getConfiguredApiClient()).not.toBeNull();
+    },
+  );
 
   it.each(['999', '300001', 'NaN', '-1000', '1e3', '1000.5', ' 1000', 'secret'])(
     'rejects invalid configured timeout %s safely',
@@ -160,6 +203,183 @@ describe('trusted API configuration', () => {
     expect(warn).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
   });
+});
+
+describe('public compatibility facade uses the bounded client', () => {
+  it('GETs validated capabilities at the server root with optional signal', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', ' http://127.0.0.1:8000/// ');
+    const metadata: Capabilities = { ...previewCapabilities, analysis_available: true };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => json(metadata));
+    vi.stubGlobal('fetch', fetchImpl);
+    expect(await fetchCapabilities(signal())).toEqual(metadata);
+    expect(await fetchCapabilities()).toEqual(metadata);
+    expect(fetchImpl).toHaveBeenCalledWith('http://127.0.0.1:8000/api/v1/capabilities', {
+      method: 'GET',
+      signal: expect.any(AbortSignal),
+      credentials: 'omit',
+      redirect: 'error',
+      cache: 'no-store',
+    });
+  });
+
+  it('accepts individual optional details without serializing signals or browser secrets', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    vi.stubEnv('VITE_ANALYSIS_ACCESS_TOKEN', 'synthetic-secret');
+    vi.stubEnv('VITE_LLM_API_KEY', 'synthetic-secret');
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(successExample));
+    vi.stubGlobal('fetch', fetchImpl);
+    const original: AnalyzeRemarkInput = {
+      ...input,
+      details: { claimant_name: ' Synthetic Name ' },
+      signal: signal(),
+    };
+    expect(await analyzeRemark(original)).toEqual(responseSchema.parse(successExample));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe('/api/v1/analyze');
+    expect(init).toMatchObject({
+      method: 'POST',
+      credentials: 'omit',
+      redirect: 'error',
+      cache: 'no-store',
+    });
+    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      ...input,
+      details: { claimant_name: ' Synthetic Name ', claim_id: null, claim_type: null },
+    });
+    expect(JSON.stringify(init)).not.toMatch(
+      /synthetic-secret|authorization|api[_-]?key|access[_-]?token/i,
+    );
+  });
+
+  it('preserves full analysis error results and default details without a signal', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    const result = fullError();
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(result, 503));
+    vi.stubGlobal('fetch', fetchImpl);
+    expect(await analyzeRemark(input)).toEqual(result);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual(
+      requestSchema.parse(input),
+    );
+  });
+
+  it.each(['capabilities', 'analyze'] as const)(
+    'sanitizes network and fetch abort errors for %s',
+    async (operation) => {
+      vi.stubEnv('VITE_API_BASE_URL', '');
+      const fetchImpl = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('synthetic-secret'));
+      vi.stubGlobal('fetch', fetchImpl);
+      const run = () => (operation === 'capabilities' ? fetchCapabilities() : analyzeRemark(input));
+      await expect(run()).rejects.toMatchObject({
+        code: 'network_error',
+        message: 'The API could not be reached. Please try again.',
+      });
+      fetchImpl.mockRejectedValue(new DOMException('synthetic-secret', 'AbortError'));
+      await expect(run()).rejects.toMatchObject({
+        name: 'AbortError',
+        message: 'The request was cancelled.',
+      });
+    },
+  );
+
+  it('honors wrapper cancellation without forwarding its reason or accepting late results', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    const pending = deferred<Response>();
+    const fetchImpl = vi.fn<typeof fetch>().mockReturnValue(pending.promise);
+    vi.stubGlobal('fetch', fetchImpl);
+    const controller = new AbortController();
+    const failure = expect(
+      analyzeRemark({ ...input, signal: controller.signal }),
+    ).rejects.toMatchObject({
+      name: 'AbortError',
+      message: 'The request was cancelled.',
+    });
+    controller.abort('synthetic-secret');
+    await failure;
+    expect(fetchImpl.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    pending.resolve(json(successExample));
+    await tick();
+    await expect(fetchCapabilities(controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('retains request, content-type and response size validation in the facade', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    const fetchImpl = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchImpl);
+    await expect(
+      analyzeRemark({ ...input, details: { claim_id: 'x'.repeat(101) } }),
+    ).rejects.toMatchObject({ code: 'invalid_request' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    fetchImpl.mockResolvedValue(
+      new Response('<html>synthetic-secret</html>', { headers: { 'Content-Type': 'text/html' } }),
+    );
+    await expect(analyzeRemark(input)).rejects.toMatchObject({
+      code: 'invalid_response',
+      message: 'The API returned an invalid response.',
+    });
+    fetchImpl.mockResolvedValue(json({}, 200, { 'Content-Length': '1048577' }));
+    await expect(fetchCapabilities()).rejects.toMatchObject({ code: 'response_too_large' });
+  });
+});
+
+describe('protected small transport errors', () => {
+  const cases = [
+    [401, 'access_denied', false, 'Analysis access denied.'],
+    [429, 'analysis_capacity', false, 'Analysis capacity is limited.'],
+    [504, 'request_timeout', true, 'Analysis request timed out.'],
+  ] as const;
+
+  it.each(cases)(
+    'maps HTTP %s / %s exactly, safely, with no automatic retries',
+    async (status, code, retryable, message) => {
+      vi.stubEnv('VITE_API_BASE_URL', '');
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        json({ error: { code, message: 'synthetic-secret https://private.invalid' } }, status, {
+          'Retry-After': '1',
+        }),
+      );
+      vi.stubGlobal('fetch', fetchImpl);
+      await expect(analyzeRemark(input)).rejects.toMatchObject({
+        code,
+        httpStatus: status,
+        retryable,
+        message,
+      });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(cases)(
+    'rejects %s / %s on other statuses and malformed envelopes',
+    async (correctStatus, code) => {
+      for (const status of [200, 400, 401, 403, 413, 422, 429, 500, 503, 504]) {
+        if (status === correctStatus) continue;
+        const { client } = fakeClient(
+          json({ error: { code, message: 'synthetic-secret' } }, status),
+        );
+        await expect(client.analyze(input, signal())).rejects.toMatchObject({
+          code: 'invalid_response',
+          retryable: false,
+          httpStatus: status,
+        });
+      }
+      for (const envelope of [
+        { error: { code, message: '' } },
+        { error: { code, message: 'x'.repeat(501) } },
+        { error: { code, message: 'Synthetic', debug: 'synthetic-secret' } },
+        { error: { code, message: 'Synthetic' }, detail: 'synthetic-secret' },
+      ]) {
+        const { client } = fakeClient(json(envelope, correctStatus));
+        await expect(client.analyze(input, signal())).rejects.toMatchObject({
+          code: 'invalid_response',
+        });
+      }
+    },
+  );
 });
 
 describe('HTTP requests and wire validation', () => {
@@ -645,6 +865,7 @@ describe('cancellation, deadlines and manual-only retries', () => {
   it.each([
     'network_error',
     'analysis_timeout',
+    'request_timeout',
     'model_unavailable',
     'service_unavailable',
     'analysis_failed',
@@ -665,6 +886,9 @@ describe('cancellation, deadlines and manual-only retries', () => {
     'budget_exhausted',
     'invalid_model_output',
     'client_disconnected',
+    'access_denied',
+    'analysis_capacity',
+    'preview_only',
     'unknown',
     'toString',
   ])('does not retry code %s', (code) => {

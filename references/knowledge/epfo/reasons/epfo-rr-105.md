@@ -57,15 +57,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, circular
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, circular
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** FEMA guidance from NRI explainers; EPFO still requires Indian account.
 
-- https://nriinformation.com/returning-to-india/nri-provident-fund-guide
-- https://nriinformation.com/nri-info/indian-pension-abroad
-- https://www.epfindia.gov.in/site_en/International_workers.php
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://www.epfindia.gov.in/site_en/International_workers.php
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+
+### Secondary (news / blog / forum)
+
+- [blog] https://nriinformation.com/returning-to-india/nri-provident-fund-guide
+- [blog] https://nriinformation.com/nri-info/indian-pension-abroad
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

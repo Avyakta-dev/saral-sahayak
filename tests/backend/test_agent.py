@@ -7,7 +7,14 @@ import pytest
 
 from backend.agent import AnalysisError, AnalysisService
 from backend.agent.models import FinalAnalysis
-from backend.agent.service import build_response, dispatch_tool
+from backend.agent.service import (
+    _FINISH_NUDGE,
+    _has_answerable_evidence,
+    _repair_message,
+    _should_stop_tools,
+    build_response,
+    dispatch_tool,
+)
 from backend.api.schemas import AnalyzeRequest, ClaimDetails
 from backend.evidence import EvidenceError
 from backend.languages import LANGUAGES
@@ -472,3 +479,116 @@ def test_partial_columns_exact_heading_and_separate_source(root):
         citation.end_column += 1
         with pytest.raises(EvidenceError):
             response.validate_evidence(files.ledger)
+
+
+async def test_multi_tool_rounds_nudge_then_final_json(root):
+    """Simulate live initials-style exploration: tools, then finish without more reads."""
+
+    def final(history):
+        assert any(m.role == "user" and m.content == _FINISH_NUDGE for m in history)
+        assert any(
+            m.role == "tool" and m.is_error and json.loads(m.content)["error"] == "finish_required"
+            for m in history
+        )
+        return text_result(payload(read_ids(history)))
+
+    client = FakeClient(
+        tool_result(read_call("fix"), read_call("sources", "Sources")),
+        tool_result(read_call("again-fix"), read_call("again-sources", "Sources")),
+        final,
+    )
+    response = await AnalysisService(client, root).analyze(AnalyzeRequest(text="Synthetic"))
+    assert response.status == "success"
+    assert len(client.calls) == 3
+    second_tools = [m for m in client.calls[2][0] if m.role == "tool" and m.is_error]
+    assert second_tools
+    assert all(json.loads(m.content)["error"] == "finish_required" for m in second_tools)
+    assert sum(1 for m in client.calls[2][0] if m.content == _FINISH_NUDGE) == 1
+
+
+async def test_multi_tool_rounds_may_abstain_after_finish_nudge(root):
+    """After enough evidence the host may still receive an explicit unsupported abstention."""
+
+    def abstain(history):
+        assert any(m.role == "user" and m.content == _FINISH_NUDGE for m in history)
+        assert any(
+            m.role == "tool" and m.is_error and json.loads(m.content)["error"] == "finish_required"
+            for m in history
+        )
+        return text_result(
+            {"status": "unsupported", "language": "en", "warnings": ["No grounded match."]}
+        )
+
+    client = FakeClient(
+        tool_result(read_call("fix"), read_call("sources", "Sources")),
+        tool_result(read_call("explore-more", "What it means")),
+        abstain,
+    )
+    response = await AnalysisService(client, root).analyze(AnalyzeRequest(text="Ambiguous"))
+    assert response.status == "unsupported"
+    assert response.draft is None and not response.actions
+    assert len(client.calls) == 3
+
+
+async def test_repair_rejects_further_tool_calls(root):
+    first = tool_result(read_call("fix"), read_call("sources", "Sources"))
+    invalid = text_result({"status": "success", "citation_metadata": "forged"})
+    client = FakeClient(first, invalid, tool_result(read_call("extra")))
+    with pytest.raises(AnalysisError) as error:
+        await AnalysisService(client, root).analyze(AnalyzeRequest(text="Synthetic"))
+    assert error.value.code == "invalid_model_output"
+    assert len(client.calls) == 3
+
+
+def test_repair_message_truncates_and_requires_same_file_sources():
+    detail = "Claim requires source evidence from the same file.\n" + ("pad " * 200)
+    message = _repair_message(detail)
+    assert "failed host validation: Claim requires source evidence from the same file." in message
+    assert "same file's Sources evidence_id" in message
+    assert "Do not call tools" in message
+    # Detail is whitespace-collapsed and truncated to 400 chars before the rest of the template.
+    reason = message.split("failed host validation: ", 1)[1].split(". Correct it once", 1)[0]
+    assert len(reason) <= 400 and "\n" not in reason
+    assert _repair_message("").startswith(
+        "Your final object failed host validation: output/provenance validation failed"
+    )
+
+
+async def test_repair_includes_concrete_same_file_sources_error(root):
+    """Live Azure failure mode: valid JSON omitting same-file Sources on the claim."""
+    first = tool_result(read_call("fix"), read_call("sources", "Sources"))
+
+    def missing_sources(history):
+        ids = read_ids(history)
+        assert len(ids) >= 2
+        return text_result(payload(ids[:1]))
+
+    def repaired(history):
+        repair_msgs = [
+            m.content
+            for m in history
+            if m.role == "user" and m.content and "failed host validation:" in m.content
+        ]
+        assert repair_msgs
+        assert "Claim requires source evidence from the same file." in repair_msgs[-1]
+        assert "same file's Sources evidence_id" in repair_msgs[-1]
+        assert "Do not call tools" in repair_msgs[-1]
+        return text_result(payload(read_ids(history)))
+
+    client = FakeClient(first, missing_sources, repaired)
+    response = await AnalysisService(client, root).analyze(AnalyzeRequest(text="Synthetic"))
+    assert response.status == "success"
+    assert len(client.calls) == 3
+    assert [("Fix", []), ("Sources", [URL])] == [
+        (c.heading, c.source_urls) for c in response.citations
+    ]
+
+
+def test_answerable_evidence_helper_requires_same_record_sources(root):
+    with KnowledgeFiles(root) as files:
+        files.read_file(PATH, heading="Fix")
+        assert not _has_answerable_evidence(files.ledger)
+        assert not _should_stop_tools(files.ledger, files.budget)
+        files.read_file(PATH, heading="Sources")
+        assert _has_answerable_evidence(files.ledger)
+        assert _should_stop_tools(files.ledger, files.budget)

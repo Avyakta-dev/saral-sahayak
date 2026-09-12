@@ -1,4 +1,4 @@
-import { capabilitiesSchema, type Capabilities } from './capabilities';
+import { capabilitiesSchema, type Capabilities as ValidatedCapabilities } from './capabilities';
 import {
   requestSchema,
   responseSchema,
@@ -13,15 +13,30 @@ const MAX_RESPONSE_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const CAPABILITIES_TIMEOUT_MS = 5_000;
 
+// Preserve main's public metadata type for existing status consumers. Network
+// results still pass the stricter capabilitiesSchema and use ValidatedCapabilities.
+export type Capabilities = {
+  schema_version?: string;
+  analysis_available: boolean;
+  default_language?: string;
+  languages?: unknown;
+  checks?: Record<string, boolean>;
+  inputs?: string[];
+  downloads_available?: boolean;
+};
+
 export type AnalysisInput = {
   text: string;
   language: Language;
-  details?: AnalyzeRequest['details'];
+  details?: Partial<AnalyzeRequest['details']>;
 };
+
+/** Main's public facade; signal is never serialized into the request body. */
+export type AnalyzeRemarkInput = AnalysisInput & { signal?: AbortSignal };
 
 export interface ApiClient {
   baseUrl: string;
-  getCapabilities(signal: AbortSignal): Promise<Capabilities>;
+  getCapabilities(signal: AbortSignal): Promise<ValidatedCapabilities>;
   analyze(input: AnalysisInput, signal: AbortSignal): Promise<AnalyzeResponse>;
 }
 
@@ -29,6 +44,7 @@ export function isRetryableCode(code: string): boolean {
   return [
     'network_error',
     'analysis_timeout',
+    'request_timeout',
     'model_unavailable',
     'service_unavailable',
     'analysis_failed',
@@ -195,6 +211,16 @@ function smallHttpError(body: unknown, status: number): ApiError | null {
     if (status === 422 && envelope.error.code === 'invalid_request') {
       return new ApiError('invalid_request', 'The request does not match the API schema.', status);
     }
+    if (status === 401 && envelope.error.code === 'access_denied') {
+      return new ApiError('access_denied', 'Analysis access denied.', status);
+    }
+    if (status === 429 && envelope.error.code === 'analysis_capacity') {
+      // No automatic or UI retry, even if Retry-After is present.
+      return new ApiError('analysis_capacity', 'Analysis capacity is limited.', status);
+    }
+    if (status === 504 && envelope.error.code === 'request_timeout') {
+      return new ApiError('request_timeout', 'Analysis request timed out.', status);
+    }
   }
   return null;
 }
@@ -264,6 +290,8 @@ export function createApiClient(
     } catch (error) {
       if (interruption) throw interruption;
       if (error instanceof ApiError) throw error;
+      if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError')
+        throw abortError();
       // Fetch/CORS/network errors can contain endpoints or response details.
       throw new ApiError('network_error', 'The API could not be reached. Please try again.');
     } finally {
@@ -318,17 +346,44 @@ export function createApiClient(
   };
 }
 
+/** Trusted server root, NOT an API prefix. Blank means same-origin /api/v1. */
+export function getApiBaseUrl(): string {
+  const raw: unknown = import.meta.env.VITE_API_BASE_URL;
+  if (raw === undefined || raw === null) return '';
+  if (typeof raw !== 'string') throw invalidConfiguration();
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  return validateBaseUrl(trimmed).replace(/\/+$/, '');
+}
+
 export function getConfiguredApiClient(): ApiClient | null {
-  const baseUrl: unknown = import.meta.env.VITE_API_BASE_URL;
-  if (baseUrl === undefined || baseUrl === '' || (typeof baseUrl === 'string' && !baseUrl.trim())) {
-    return null;
-  }
-  if (typeof baseUrl !== 'string') throw invalidConfiguration();
+  // Preview must be explicit. App tests may instead inject apiClient={null}.
+  // Browser preview builds must set VITE_PREVIEW_ONLY=true; a blank URL is live same-origin.
+  if (import.meta.env.VITE_PREVIEW_ONLY === 'true') return null;
+  const baseUrl = getApiBaseUrl();
   const rawTimeout: unknown = import.meta.env.VITE_API_TIMEOUT_MS;
   let timeoutMs: number | undefined;
   if (rawTimeout !== undefined && rawTimeout !== '') {
     if (typeof rawTimeout !== 'string' || !/^\d+$/.test(rawTimeout)) throw invalidConfiguration();
     timeoutMs = validateTimeout(Number(rawTimeout));
   }
-  return createApiClient(baseUrl, { timeoutMs });
+  return createApiClient(`${baseUrl}/api/v1`, { timeoutMs });
+}
+
+function requireConfiguredApiClient(): ApiClient {
+  const client = getConfiguredApiClient();
+  if (!client)
+    throw new ApiError('preview_only', 'Live API requests are disabled in preview mode.');
+  return client;
+}
+
+/** Read-only metadata through the same bounded, validated transport as the App. */
+export async function fetchCapabilities(signal?: AbortSignal): Promise<Capabilities> {
+  return requireConfiguredApiClient().getCapabilities(signal ?? new AbortController().signal);
+}
+
+/** Never sends browser access tokens or provider keys; retries remain user-initiated. */
+export async function analyzeRemark(input: AnalyzeRemarkInput): Promise<AnalyzeResponse> {
+  const { signal, ...payload } = input;
+  return requireConfiguredApiClient().analyze(payload, signal ?? new AbortController().signal);
 }

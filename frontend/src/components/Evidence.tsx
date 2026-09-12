@@ -5,10 +5,12 @@ import { safeSourceUrl } from '../lib/contracts';
 type EvidenceProps = {
   ids: string[];
   citations: Citation[];
+  mode?: 'live' | 'sample';
   isSample?: boolean;
 };
 
-export function Evidence({ ids, citations, isSample = true }: EvidenceProps) {
+export function Evidence({ ids, citations, mode, isSample: sample = true }: EvidenceProps) {
+  const isSample = mode === undefined ? sample : mode === 'sample';
   if (!ids.length) return null;
   const evidence = ids.map((id) => citations.find((citation) => citation.id === id));
 

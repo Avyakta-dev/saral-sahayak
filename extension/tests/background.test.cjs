@@ -41,12 +41,16 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function jsonResponse(data, status = 200) {
-  const bytes = new TextEncoder().encode(JSON.stringify(data));
+function jsonResponse(data, status = 200, options = {}) {
+  const bytes = new TextEncoder().encode(options.raw === undefined ? JSON.stringify(data) : options.raw);
   let sent = false;
   return {
     ok: status >= 200 && status < 300, status,
-    headers: { get: name => name.toLowerCase() === 'content-type' ? 'application/json' : null },
+    headers: { get: name => {
+      if (name.toLowerCase() === 'content-type') return options.contentType === undefined ? 'application/json' : options.contentType;
+      if (name.toLowerCase() === 'retry-after') return options.retryAfter === undefined ? null : options.retryAfter;
+      return null;
+    } },
     body: { getReader: () => ({
       read: async () => sent ? { done: true } : (sent = true, { done: false, value: bytes }),
       cancel: async () => {}
@@ -102,11 +106,23 @@ function harness(options = {}) {
     runtime: {
       id: EXTENSION_ID,
       getURL: name => `chrome-extension://${EXTENSION_ID}/${name}`,
-      onMessage: { addListener: callback => { assert.equal(listener, undefined); listener = callback; } }
+      onMessage: { addListener: callback => { assert.equal(listener, undefined); listener = callback; } },
+      onConnect: { addListener: () => {} }
+    },
+    windows: {
+      onRemoved: { addListener: () => {} },
+      create: async request => mocked('createWindow', [request], () => ({ id: 70 })),
+      remove: async windowId => mocked('removeWindow', [windowId], () => undefined)
     },
     storage: { session: {
       setAccessLevel: async access => { record('setAccessLevel', [access]); },
-      get: async key => { record('get', [key]); return plain(session); },
+      get: async key => {
+        // Snapshot before waiting: a pending read must not see a later Clear/Connect.
+        const snapshot = plain(session);
+        record('get', [key]);
+        if (hooks.get) await hooks.get(key, snapshot);
+        return snapshot;
+      },
       set: async values => {
         // Snapshot at invocation, like Chrome serialization, but allow delayed commits.
         const snapshot = plain(values);
@@ -121,6 +137,9 @@ function harness(options = {}) {
       }
     } },
     tabs: {
+      onRemoved: { addListener: () => {} },
+      onUpdated: { addListener: () => {} },
+      onActivated: { addListener: () => {} },
       query: async query => mocked('query', [query], () => [plain(h.tab)]),
       sendMessage: async (tabId, message, target) => mocked('sendMessage', [tabId, message, target], () => {
         assert.equal(tabId, TAB.id);
@@ -159,7 +178,7 @@ function harness(options = {}) {
     clearTimeout: id => timers.delete(id),
     importScripts: (...names) => {
       for (const name of names) {
-        assert.ok(['mapping.js', 'epfo-background.js'].includes(name));
+        assert.ok(['mapping.js', 'epfo-background.js', 'privacy/vault.js', 'privacy/slots.js', 'privacy/raster.js', 'privacy/controller.js'].includes(name));
         const source = name === 'mapping.js' ? mappingSource : readFileSync(path.join(__dirname, '..', name), 'utf8');
         vm.runInContext(source, context, { filename: name });
       }
@@ -193,6 +212,50 @@ function failed(response, pattern) {
   assert.match(response.error, pattern);
   return response;
 }
+test('EPFO cancellation during tab lookup prevents any later injection or capture', async () => {
+  const h = harness();
+  await h.ready();
+  h.resetCalls();
+  const lookup = deferred();
+  const entered = deferred();
+  h.hooks.query = () => { entered.resolve(); return lookup.promise; };
+  h.hooks.executeScript = () => [{ frameId: 0, documentId: DOCUMENT_ID }];
+  const pending = h.send('SS_EPFO_DETECT');
+  await entered.promise;
+  await h.send('SS_EPFO_CANCEL');
+  lookup.resolve([plain(TAB)]);
+  failed(await pending, /cancelled/);
+  assert.equal(h.of('executeScript').length, 0);
+  assert.equal(h.of('sendMessage').length, 0);
+  assert.equal(h.of('captureVisibleTab').length, 0);
+  assert.equal(h.of('fetch').length, 0);
+});
+
+test('superseded EPFO tab lookup cannot inject after a newer detection completes', async () => {
+  const h = harness();
+  await h.ready();
+  h.resetCalls();
+  const lookup = deferred();
+  const entered = deferred();
+  let queries = 0;
+  h.hooks.query = () => { if (++queries === 1) { entered.resolve(); return lookup.promise; } return [plain(TAB)]; };
+  h.hooks.executeScript = () => [{ frameId: 0, documentId: DOCUMENT_ID }];
+  h.hooks.sendMessage = (tabId, message, target) => {
+    assert.equal(message.type, 'SS_EPFO_DETECT');
+    assert.deepEqual(plain(target), { documentId: DOCUMENT_ID });
+    return { candidates: [{ text: 'Synthetic selected remark', source: 'selection' }], warnings: [] };
+  };
+  const old = h.send('SS_EPFO_DETECT');
+  await entered.promise;
+  const current = await h.send('SS_EPFO_DETECT');
+  assert.equal(current.ok, true);
+  lookup.resolve([plain(TAB)]);
+  failed(await old, /cancelled/);
+  assert.equal(h.of('executeScript').length, 1);
+  assert.equal(h.of('sendMessage').length, 1);
+  assert.equal(h.of('fetch').length, 0);
+});
+
 function privateStateAbsent(state) {
   const json = JSON.stringify(state);
   assert.equal(Object.hasOwn(state, 'key'), false);
@@ -297,6 +360,338 @@ test('EPFO capabilities survive worker suspension, while malformed cached metada
   assert.match(rejected.error, /Saved backend capabilities are invalid/);
   assert.equal(malformed.session().epfoConnection, undefined);
   assert.equal(malformed.of('fetch').length, 0);
+});
+
+test('EPFO Clear invalidates a delayed valid capability read before later analysis', async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: EPFO_CAPABILITIES } } });
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.get = key => {
+    if (key !== 'epfoConnection' || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  h.hooks.epfoFetch = () => jsonResponse(epfoErrorAnalysis(), 500);
+  const payload = { text: 'Synthetic rejection remark', language: 'en', consent: true };
+  const old = h.send('SS_EPFO_ANALYZE', payload);
+  await entered.promise;
+  successful(await h.send('SS_CLEAR'));
+  assert.equal(h.session().epfoConnection, undefined);
+  pending.resolve();
+  failed(await old, /cancelled|cleared or replaced/);
+  assert.equal(h.of('fetch').length, 0, 'Cancelled old analysis must not send HTTP');
+  const current = await h.send('SS_EPFO_ANALYZE', payload);
+  assert.equal(h.of('fetch').length, 0, 'Cleared capabilities must not authorize later HTTP');
+  failed(current, /Connect to the backend/);
+  assert.equal(h.session().epfoConnection, undefined);
+});
+
+test('EPFO Clear invalidates a delayed Connect write in both storage and memory', async () => {
+  const h = harness();
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.set = snapshot => {
+    if (!snapshot.epfoConnection || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  h.hooks.epfoFetch = url => url.endsWith('/capabilities')
+    ? jsonResponse(EPFO_CAPABILITIES) : jsonResponse(epfoErrorAnalysis(), 500);
+  const old = h.send('SS_EPFO_CAPABILITIES');
+  await entered.promise;
+  const clearing = h.send('SS_CLEAR');
+  // Clear may serialize its removal behind the older pending storage commit.
+  await new Promise(resolve => setImmediate(resolve));
+  pending.resolve();
+  failed(await old, /cancelled|cleared or replaced/);
+  successful(await clearing);
+  assert.equal(h.session().epfoConnection, undefined);
+  h.resetCalls();
+  const current = await h.send('SS_EPFO_ANALYZE', { text: 'Synthetic rejection remark', language: 'en', consent: true });
+  assert.equal(h.of('fetch').length, 0, 'Cancelled Connect must not repopulate the in-memory cache');
+  failed(current, /Connect to the backend/);
+  assert.equal(h.session().epfoConnection, undefined);
+});
+
+for (const failure of ['malformed snapshot', 'storage rejection']) test(`EPFO stale ${failure} cannot erase a newer Connect`, async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: { schema_version: '1.0', languages: [] } } } });
+  await h.ready();
+  const entered = deferred();
+  const pending = deferred();
+  let first = true;
+  h.hooks.get = key => {
+    if (key !== 'epfoConnection' || !first) return;
+    first = false;
+    entered.resolve();
+    return pending.promise;
+  };
+  const fresh = { ...plain(EPFO_CAPABILITIES), languages: EPFO_CAPABILITIES.languages.map(language => ({ ...language, quality_verified: false })) };
+  h.hooks.epfoFetch = (url, init) => {
+    if (url.endsWith('/capabilities')) return jsonResponse(fresh);
+    assert.equal(url, `${EPFO_BASE}/api/v1/analyze`);
+    assert.equal(init.method, 'POST');
+    assert.deepEqual(JSON.parse(init.body), { text: 'Synthetic rejection remark', language: 'en' });
+    return jsonResponse(epfoErrorAnalysis(), 500);
+  };
+  const payload = { text: 'Synthetic rejection remark', language: 'en', consent: true };
+  const old = h.send('SS_EPFO_ANALYZE', payload);
+  await entered.promise;
+  assert.deepEqual(await h.send('SS_EPFO_CAPABILITIES'), { ok: true, data: fresh, status: 200 });
+  const connection = { connected: true, capabilities: fresh };
+  assert.deepEqual(h.session().epfoConnection, connection);
+  h.resetCalls();
+  if (failure === 'storage rejection') pending.reject(new Error('Synthetic delayed session read failure'));
+  else pending.resolve();
+  failed(await old, /cancelled|cleared or replaced|Saved backend capabilities are invalid/);
+  const afterOld = h.session().epfoConnection;
+  const current = await h.send('SS_EPFO_ANALYZE', payload);
+  assert.deepEqual({
+    connection: afterOld,
+    removals: h.of('remove').filter(call => call.args[0] === 'epfoConnection').length,
+    reads: h.of('get').filter(call => call.args[0] === 'epfoConnection').length,
+    response: current,
+    requests: h.of('fetch').map(call => call.args[0])
+  }, {
+    connection, removals: 0, reads: 0,
+    response: { ok: true, data: epfoErrorAnalysis(), status: 500 },
+    requests: [`${EPFO_BASE}/api/v1/analyze`]
+  }, 'Old read failure must preserve the newer session and warm cache');
+  assert.deepEqual(h.session().epfoConnection, connection);
+});
+
+// Exercise the real listener, capabilities discovery, transport and validators together.
+// Saving the unrelated form profile/key makes accidental EPFO credential reuse observable.
+async function epfoAnalyzed(data, status, options = {}) {
+  const h = harness();
+  await saved(h);
+  assert.equal(h.session().formAssistant.key, KEY);
+  assert.equal(h.of('fetch').length, 0);
+  h.hooks.epfoFetch = (url, init) => {
+    if (url === `${EPFO_BASE}/api/v1/capabilities`) {
+      assert.equal(init.method, 'GET');
+      return jsonResponse(EPFO_CAPABILITIES);
+    }
+    assert.equal(url, `${EPFO_BASE}/api/v1/analyze`);
+    assert.equal(init.method, 'POST');
+    return jsonResponse(data, status, options);
+  };
+  assert.deepEqual(await h.send('SS_EPFO_CAPABILITIES'), { ok: true, data: EPFO_CAPABILITIES, status: 200 });
+  assert.equal(h.of('fetch').length, 1, 'Connecting must not analyze');
+  const text = 'Synthetic rejection remark reviewed by the user';
+  const response = await h.send('SS_EPFO_ANALYZE', { text, language: 'en', consent: true });
+  assert.deepEqual(h.of('fetch').map(call => call.args[0]), [
+    `${EPFO_BASE}/api/v1/capabilities`, `${EPFO_BASE}/api/v1/analyze`
+  ], 'Exactly one capabilities GET and one analysis POST; no retries or provider fallback');
+  const get = h.of('fetch')[0].args[1];
+  const post = h.of('fetch')[1].args[1];
+  assert.equal(get.body, undefined);
+  assert.deepEqual(get.headers || {}, {});
+  assert.deepEqual(post.headers, { 'Content-Type': 'application/json' }, 'Saved provider keys must not become backend auth headers');
+  assert.deepEqual(JSON.parse(post.body), { text, language: 'en' }, 'Only reviewed text and language may be transmitted');
+  for (const init of [get, post]) {
+    assert.equal(init.credentials, 'omit');
+    assert.equal(init.redirect, 'error');
+    assert.equal(init.cache, 'no-store');
+    for (const secret of [KEY, PROFILE.name, PROFILE.email, FILE.data, SCREENSHOT, TAB.url]) {
+      assert.equal(JSON.stringify(init).includes(secret), false);
+    }
+  }
+  for (const name of ['query', 'executeScript', 'sendMessage', 'captureVisibleTab']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
+  assert.equal(h.timers.size, 0, 'No pending request timeout or automatic retry');
+  return response;
+}
+
+const HOSTILE_EPFO_MESSAGE = `<script>SECRET_BACKEND_BODY ${KEY} ${TAB.url}</script>`;
+const EPFO_CAPACITY_MESSAGE = 'Backend analysis capacity is limited (HTTP 429). Try again later only if you choose. No automatic retry was made.';
+
+test('EPFO small protected errors use HTTP-specific guidance, never server messages', async t => {
+  // 401/429/504 match backend/access.py; 403 is a gateway-style error in the same shape.
+  const cases = [
+    [401, 'access_denied', 'Analysis access denied.', 'Backend access denied (HTTP 401). Protected analysis requires an approved authenticated gateway. Do not enter the shared server token in this extension.'],
+    [403, 'access_forbidden', 'Analysis access forbidden.', 'Backend access forbidden (HTTP 403). Ask the operator to check the approved access path; do not add server credentials to the browser.'],
+    [429, 'analysis_capacity', 'Analysis capacity is limited.', EPFO_CAPACITY_MESSAGE],
+    [504, 'request_timeout', 'Analysis request timed out.', 'The backend request timed out (HTTP 504). No automatic retry was made; this is not a completed analysis.']
+  ];
+  for (const [status, code, message, expected] of cases) {
+    for (const hostile of [false, true]) await t.test(`HTTP ${status}, ${hostile ? 'hostile' : 'ordinary'} message`, async () => {
+      const response = await epfoAnalyzed({ error: { code, message: hostile ? HOSTILE_EPFO_MESSAGE : message } }, status);
+      assert.deepEqual(response, { ok: false, error: expected });
+      assert.equal(JSON.stringify(response).includes(HOSTILE_EPFO_MESSAGE), false);
+    });
+  }
+});
+
+test('EPFO 429 reflects only bounded positive Retry-After seconds without retrying', async t => {
+  for (const retryAfter of ['1', '60', '3600']) await t.test(`Retry-After ${retryAfter}`, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'analysis_capacity', message: HOSTILE_EPFO_MESSAGE } }, 429, { retryAfter });
+    assert.deepEqual(response, {
+      ok: false,
+      error: `Backend analysis capacity is limited (HTTP 429). Wait at least ${retryAfter} seconds before choosing to try again. No automatic retry was made.`
+    });
+  });
+});
+
+test('EPFO 429 ignores invalid Retry-After headers rather than echoing or retrying', async t => {
+  const cases = [
+    ['absent', null], ['empty', ''], ['HTML', '<img src=x onerror=alert(1)>'],
+    ['HTTP date', 'Wed, 21 Oct 2015 07:28:00 GMT'], ['negative', '-1'], ['zero', '0'],
+    ['above bound', '3601'], ['huge integer', '999999999999999999999999999999'],
+    ['fractional', '1.5'], ['exponent', '1e3'], ['signed', '+60'],
+    ['whitespace', ' 60 '], ['suffixed', '60 seconds']
+  ];
+  for (const [name, retryAfter] of cases) await t.test(name, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'analysis_capacity', message: HOSTILE_EPFO_MESSAGE } }, 429, { retryAfter });
+    assert.deepEqual(response, { ok: false, error: EPFO_CAPACITY_MESSAGE });
+  });
+});
+
+test('EPFO full 503 and 504 errors retain the validated analysis envelope and HTTP status', async t => {
+  const cases = [
+    [503, 'model_not_configured', 'Model configuration is unavailable.'],
+    [503, 'knowledge_unavailable', 'The Markdown knowledge corpus is missing or incomplete.'],
+    [504, 'analysis_timeout', 'Analysis timed out.']
+  ];
+  for (const [status, code, message] of cases) await t.test(`HTTP ${status}: ${code}`, async () => {
+    const data = { ...epfoErrorAnalysis(), error: { code, message } };
+    assert.deepEqual(await epfoAnalyzed(data, status), { ok: true, data, status });
+  });
+});
+
+test('EPFO full 503 and 504 envelopes cannot bypass analysis validation', async t => {
+  for (const status of [503, 504]) {
+    const cases = [
+      ['wrong language', { language: 'hi' }],
+      ['missing actions', { actions: undefined }],
+      ['invalid error', { error: { code: 'analysis_timeout', message: 42 } }],
+      ['unvalidated guidance', { explanation: [{ text: HOSTILE_EPFO_MESSAGE, citation_ids: [] }] }]
+    ];
+    for (const [name, overrides] of cases) await t.test(`HTTP ${status}: ${name}`, async () => {
+      assert.deepEqual(await epfoAnalyzed({ ...epfoErrorAnalysis(), ...overrides }, status), {
+        ok: false, error: 'The backend returned an invalid analysis envelope. No guidance is displayed.'
+      });
+    });
+  }
+});
+
+test('EPFO unexpected HTTP responses never echo small error bodies', async t => {
+  for (const status of [200, 418, 500, 502, 503]) await t.test(`HTTP ${status}`, async () => {
+    const response = await epfoAnalyzed({ error: { code: 'unexpected', message: HOSTILE_EPFO_MESSAGE } }, status);
+    assert.deepEqual(response, { ok: false, error: `Backend returned an unexpected response (HTTP ${status}).` });
+  });
+});
+
+test('EPFO non-JSON content types fail before interpreting or echoing the body', async t => {
+  for (const status of [200, 401, 403, 429, 504]) await t.test(`HTTP ${status}: HTML`, async () => {
+    const response = await epfoAnalyzed(null, status, { contentType: 'text/html', raw: HOSTILE_EPFO_MESSAGE, retryAfter: '60' });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned a non-JSON response.' });
+  });
+  for (const contentType of [null, 'text/plain']) await t.test(`JSON body with ${contentType || 'missing'} content type`, async () => {
+    const response = await epfoAnalyzed(epfoErrorAnalysis(), 503, { contentType });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned a non-JSON response.' });
+  });
+  await t.test('JSON with charset retains the validated envelope', async () => {
+    const data = epfoErrorAnalysis();
+    assert.deepEqual(await epfoAnalyzed(data, 503, { contentType: 'application/json; charset=utf-8' }), { ok: true, data, status: 503 });
+  });
+  await t.test('invalid JSON does not echo the raw response', async () => {
+    const response = await epfoAnalyzed(null, 504, { raw: HOSTILE_EPFO_MESSAGE });
+    assert.deepEqual(response, { ok: false, error: 'The backend returned invalid JSON.' });
+  });
+});
+
+test('PRIVACY_OPEN clears legacy inputs before opening only the trusted local preview', async () => {
+  const h = harness({ session: { epfoConnection: { connected: true, capabilities: EPFO_CAPABILITIES } } });
+  await captured(h);
+  h.resetCalls();
+  h.hooks.createWindow = request => {
+    const stored = h.session().formAssistant;
+    assert.deepEqual(stored.profile, { name: '', email: '', phone: '', address: '' });
+    assert.equal(stored.key, '');
+    assert.equal(stored.file, null);
+    assert.equal(stored.scan, null);
+    assert.equal(h.session().epfoConnection, undefined);
+    assert.deepEqual(plain(request), { url: `chrome-extension://${EXTENSION_ID}/privacy/privacy.html`, type: 'popup', width: 500, height: 760 });
+    return { id: 70 };
+  };
+  assert.deepEqual(await h.send('PRIVACY_OPEN'), { ok: true });
+  assert.deepEqual(h.calls.map(call => call.name), ['sendMessage', 'remove', 'set', 'query', 'createWindow']);
+  assert.deepEqual(h.of('sendMessage')[0].args, [TAB.id, { type: 'SS_RESET' }, { documentId: DOCUMENT_ID }]);
+  assert.deepEqual(h.of('query')[0].args, [{ active: true, currentWindow: true }]);
+  assert.equal(h.of('createWindow').length, 1);
+  assert.equal(h.timers.size, 1);
+  const state = successful(await h.send('SS_GET'));
+  cleared(h, state);
+  assert.equal(h.timers.size, 0);
+  // A subsequent save proves busy was released and empty inputs cannot reuse old secrets.
+  cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+  for (const name of ['fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
+});
+
+for (const type of ['SS_GET', 'SS_EPFO_CANCEL', 'SS_CLEAR']) test(`${type} invalidates PRIVACY_OPEN pending cleanup or storage without opening a window`, async () => {
+  for (const phase of ['sendMessage', 'remove', 'set']) {
+    const h = harness();
+    await captured(h);
+    h.resetCalls();
+    const started = deferred();
+    const pending = deferred();
+    let first = true;
+    h.hooks[phase] = (...args) => {
+      if (phase === 'sendMessage') assert.equal(args[1].type, 'SS_RESET');
+      if (!first) return phase === 'sendMessage' ? { reset: true } : undefined;
+      first = false;
+      started.resolve();
+      return pending.promise;
+    };
+    const opening = h.send('PRIVACY_OPEN');
+    await started.promise;
+    assert.equal(h.of('createWindow').length, 0, phase);
+    const action = h.send(type);
+    // Clear may queue behind the suspended write/cleanup; let it invalidate first.
+    await new Promise(resolve => setImmediate(resolve));
+    pending.resolve(phase === 'sendMessage' ? { reset: true } : undefined);
+    const result = await action;
+    assert.equal(result.ok, true, `${type} during ${phase}: ${result.error}`);
+    if (type === 'SS_EPFO_CANCEL') assert.deepEqual(result.data, { cancelled: true });
+    failed(await opening, /Privacy capture requires an idle extension/);
+    const state = successful(await h.send('SS_GET'));
+    cleared(h, state);
+    assert.equal(h.session().epfoConnection, undefined);
+    // The rejected opening must release busy and never restore legacy credentials.
+    cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+    for (const name of ['query', 'createWindow', 'fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0, `${type} during ${phase}: ${name}`);
+    assert.equal(h.fills().length, 0);
+    assert.equal(h.timers.size, 0);
+  }
+});
+
+test('a concurrent form action cancels a pending privacy window and cannot leave stale state or busy locked', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  const started = deferred();
+  const pending = deferred();
+  h.hooks.createWindow = () => { started.resolve(); return pending.promise; };
+  const opening = h.send('PRIVACY_OPEN');
+  await started.promise;
+  failed(await h.send('SS_SAVE', { profile: PROFILE, key: KEY, model: 'gpt-4o-mini', file: FILE }), /operation is already running/);
+  pending.resolve({ id: 70 });
+  failed(await opening, /Privacy capture requires an idle extension/);
+  assert.equal(h.of('createWindow').length, 1);
+  assert.deepEqual(h.of('removeWindow').map(call => call.args), [[70]]);
+  const state = successful(await h.send('SS_GET'));
+  cleared(h, state);
+  cleared(h, await saved(h, { profile: state.profile, key: '', file: null }));
+  assert.equal(h.timers.size, 0);
+  for (const name of ['fetch', 'captureVisibleTab', 'executeScript']) assert.equal(h.of(name).length, 0);
+  assert.equal(h.fills().length, 0);
 });
 
 test('SS_SAVE and SS_GET return only file metadata and hasKey, while trusted session retains inputs', async () => {

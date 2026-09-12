@@ -97,12 +97,16 @@ async function connectedAccessibility(page: Page, state: string) {
 }
 
 async function openApp(page: Page, traffic: Request[]) {
-  const metadata = page.waitForResponse(
-    (response) => response.url() === `${API}/capabilities` && response.status() === 200,
-  );
+  // StrictMode can abort the first discovery after its headers arrive. Consume
+  // the completed real request, not an aborted response with no browser body.
+  const metadata = page.waitForEvent('requestfinished', {
+    predicate: (request) => request.url() === `${API}/capabilities`,
+  });
   await page.goto('/');
-  const response = await metadata;
-  const caps = await realResponse(response, 0);
+  const response = await (await metadata).response();
+  expect(response).not.toBeNull();
+  expect(response!.status()).toBe(200);
+  const caps = await realResponse(response!, 0);
   expect(caps.analysis_available).toBe(true);
   expect(caps.checks).toMatchObject({
     model_configured: true,
@@ -150,7 +154,9 @@ function textOnlyRequest(request: Request, text: string, language = 'en') {
 }
 
 async function noGuidance(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Your guidance', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Draft', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Copy draft', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Your sample answer', exact: true })).toHaveCount(
@@ -193,12 +199,26 @@ test('discovers real subset metadata, analyzes own text, renders host citations 
   expect(body.draft.blocks.filter((block: { kind: string }) => block.kind === 'factual')).toEqual([
     { ...body.actions[0], kind: 'factual' },
   ]);
-  await expect(page.getByRole('heading', { name: 'Your guidance', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toBeVisible();
   const card = page.locator('.answer-card');
   await expect(card).not.toContainText(
     /Sample only|Your sample answer|SAMPLE REQUEST|Fictional preview, not a live analysis/i,
   );
-  await expect(card).toContainText('Citations are not independent policy verification');
+  const disclosure = card.locator('.answer-disclosure');
+  await expect(disclosure.locator('summary')).toHaveText('About this answer');
+  await expect(disclosure).toHaveAttribute('open', '');
+  await expect(disclosure).toContainText('Educational guidance only — not legal advice');
+  await expect(disclosure).toContainText('does not verify that the claims are correct or current');
+  await expect(disclosure).toContainText('Sources were not fetched.');
+  await expect(disclosure).toContainText('Not a general chatbot');
+  await expect(disclosure).toContainText(
+    'Abstains or asks for clarification when evidence is thin.',
+  );
+  await expect(disclosure).toContainText(
+    'Checklists and drafts come from cited blocks, not free-form chat.',
+  );
   const evidence = card.locator('.evidence').first();
   await evidence.locator('summary').click();
   await expect(evidence).toContainText(PATH);
@@ -222,6 +242,7 @@ test('discovers real subset metadata, analyzes own text, renders host citations 
   await expect(page.getByRole('tab', { name: 'Draft', exact: true })).toBeFocused();
   await connectedAccessibility(page, 'draft');
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ORIGIN });
+  await page.bringToFront();
   await page.getByRole('button', { name: 'Copy draft', exact: true }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(SOURCE);
   const copied = await page.evaluate(() => navigator.clipboard.readText());
@@ -251,7 +272,9 @@ test('uses native enabled language from actual capabilities without claiming tra
   const body = await realResponse(response, 2);
   expect(body.language).toBe('hi');
   textOnlyRequest(posts(traffic)[0], text, 'hi');
-  await expect(page.getByRole('heading', { name: 'Your guidance', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.answer-card')).toHaveAttribute('lang', 'hi');
   await expect(page.locator('.answer-card')).toContainText('SYNTHETIC परीक्षण');
   await expect(page.locator('.answer-card')).toContainText(
@@ -276,7 +299,9 @@ test('clarifies, preserves the editable notice, and submits a new user-edited re
   const edited = synthetic('supported');
   const second = await submit(page, edited);
   expect((await realResponse(second, 2)).status).toBe('success');
-  await expect(page.getByRole('heading', { name: 'Your guidance', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toBeVisible();
   expect(posts(traffic)).toHaveLength(2);
   textOnlyRequest(posts(traffic)[0], original);
   textOnlyRequest(posts(traffic)[1], edited);
@@ -375,7 +400,9 @@ test('local image stays local: image alone sends nothing, text plus image posts 
   textOnlyRequest(posts(traffic)[0], text);
   expect(posts(traffic)[0].postData()).not.toContain(name);
   expect(posts(traffic)[0].postData()).not.toMatch(/image|base64|iVBORw0|blob:|data:/i);
-  await expect(page.getByRole('heading', { name: 'Your guidance', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Your grounded answer', exact: true }),
+  ).toBeVisible();
 });
 
 test('real browser HTTP body and disabled-language failures occur before fake model work', async ({

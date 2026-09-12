@@ -58,17 +58,26 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news, circular
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news, circular
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Historical 5-year vs 2026 12-month: medium confidence on 2026 details; portal wins.
 
-- https://cleartax.in/s/epf-form-31
-- https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
-- https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
-- https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary (news / blog / forum)
+
+- [blog] https://cleartax.in/s/epf-form-31
+- [blog] https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
+- [news] https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
+- [blog] https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

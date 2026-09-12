@@ -57,15 +57,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, news
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** 20-day charter is widely cited; confirm current Citizen Charter on epfindia. RTI is lawful process, not a 'hack'.
 
-- https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
-- https://epfigms.gov.in/
-- https://righttoinformation.wiki/epfo-claim-rejected-pending-uan-kyc-complaint-india
-- https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://epfigms.gov.in/
+
+### Secondary (news / blog / forum)
+
+- [blog] https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
+- [blog] https://righttoinformation.wiki/epfo-claim-rejected-pending-uan-kyc-complaint-india
+- [news] https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

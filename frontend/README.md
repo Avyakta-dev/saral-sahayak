@@ -24,18 +24,22 @@ For preview-only Vercel hosting preparation, see [the deployment guide](../docs/
 
 ## Connect the application API
 
-The committed `.env.example` contains **public configuration only**. Copy it to an ignored `frontend/.env.local`, set the application API prefix and restart Vite:
+The committed `.env.example` contains **public configuration only**. Copy it to an ignored `frontend/.env.local`, set the application server root and restart Vite:
 
 ```dotenv
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:8000
 VITE_API_TIMEOUT_MS=120000
+VITE_PREVIEW_ONLY=false
 ```
+
+The shared `VITE_API_BASE_URL` convention is a server root, not an `/api/v1` prefix. The client appends `/api/v1` itself. Empty or omitted roots use same-origin `/api/v1`; set `VITE_PREVIEW_ONLY=true` only for an intentionally offline example build.
 
 - This is the Saral Sahayak API, **not an LLM provider URL**. Never place provider keys, passwords or tokens in any `VITE_*` variable; these values are visible in the browser.
 - Absolute production URLs require HTTPS. HTTP is accepted only for loopback development. A root-relative prefix such as `/api/v1` is supported only when a real same-origin backend/reverse proxy serves it. The existing static Vercel SPA fallback is not an API proxy.
 - The backend owner must allow the exact frontend origin through CORS. `localhost` and `127.0.0.1`, schemes and ports differ. The frontend does not weaken CORS or send cookies/authorization headers.
 - Metadata GET requests are capped at five seconds. The analysis timeout defaults to 120 seconds and may be configured from 1,000 to 300,000 ms to suit the approved deployment deadline.
-- An empty API URL starts explicit local preview mode. An invalid configured URL produces a blocked configuration error, not a silent mock fallback.
+- Empty API configuration defaults to same-origin discovery. A static SPA fallback returning HTML is rejected, not mistaken for an available API. An invalid configured URL produces a blocked configuration error, not a silent mock fallback. Explicit example mode remains available.
+- Protected analysis may return `access_denied`, `analysis_capacity` or `request_timeout` even when capabilities report availability. Access denial and capacity saturation are not blindly retried. A protected deployment needs an authenticated/rate-limited **server-side gateway** as described in [protected analysis](../docs/protected-analysis.md); never put its shared token in browser code or headers.
 
 With a configured client, the UI reads `GET /api/v1/capabilities`, derives enabled/default languages and native names from the response, and enables **Analyze text** only when the metadata permits text analysis. Availability indicates configuration/structural readiness, **not verified model connectivity, policy accuracy or language quality**.
 
@@ -58,7 +62,7 @@ Only an explicit Analyze action submits text to `POST /api/v1/analyze`. Images, 
 - Validate PNG/JPEG/WebP MIME and signatures, a 10 MiB file limit, successful decode and a 40-megapixel decoded-dimension limit. SVG, GIF, PDF, corrupt, mismatched and oversized files are refused.
 - `.txt` imports are limited to 64 KiB and 8,000 Unicode code points. Invalid UTF-8, binary controls, blank content and misleading file types are rejected.
 - Requests enforce the original 8,000-codepoint limit and a 32,768-byte serialized JSON budget, including schema defaults. Text is not silently truncated.
-- HTTP responses are streamed with a 1 MiB limit, validated JSON content type/schema and matching response language. Redirects are rejected. Small 400/413/422 envelopes are handled separately from full analysis errors. Unknown/invalid responses produce safe messages without printing raw bodies or configuration.
+- HTTP responses are streamed with a 1 MiB limit, validated JSON content type/schema and matching response language. Redirects are rejected. Small 400/401/413/422/429/504 envelopes are handled separately from full analysis errors. Unknown/invalid responses produce safe messages without printing raw bodies or configuration.
 - There are no automatic retries, accounts, analytics, remote fonts or persisted claim history. Local object URLs are released on removal, replacement, dropped turns, reset and unmount.
 - React renders untrusted content as text. Only validated HTTP(S) citation links can be opened, without opener/referrer access. A citation is not independent policy verification.
 
@@ -85,7 +89,7 @@ npm run test:e2e
 npm run test:api
 ```
 
-`check` runs formatting, TypeScript/production build and Vitest unit/component tests. `test:e2e` runs the separate preview regression suite. `test:api` uses the actual backend factory, analysis service, tools and ledger over loopback HTTP, with a fake model and temporary synthetic corpus; it does not intercept analysis responses or call a real provider.
+`check` runs formatting, TypeScript/production build and Vitest unit/component tests. `test:e2e` starts an isolated example-only Vite server with `VITE_PREVIEW_ONLY=true` and no `.env` reads for preview regression; default same-origin behavior is covered by API UI/client tests. `test:api` uses the actual backend factory, analysis service, tools and ledger over loopback HTTP, with a fake model and temporary synthetic corpus; it does not intercept analysis responses or call a real provider.
 
 ### Real API test prerequisites
 

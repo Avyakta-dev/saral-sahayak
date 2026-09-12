@@ -6,7 +6,7 @@ Anish explicitly accepted issue [24](https://github.com/iotserver24/saral-sahaya
 
 This follow-up implements issue [25](https://github.com/iotserver24/saral-sahayak/issues/25). It is ready for review, not a claim that issue [26](https://github.com/iotserver24/saral-sahayak/issues/26), production language/source quality or deployment acceptance is complete.
 
-Work began by pulling main. While it was in progress, PR 35 merged, the repository transferred to `iotserver24/saral-sahayak`, and shared CI/Vercel/backend changes landed. The work was preserved and moved to `task/shravya-web-ui-integration` from main `4083e28`. Existing hosting/CI work is retained. All changes in this follow-up stay under `frontend/`.
+Work began by pulling main. While it was in progress, PR 35 merged, the repository transferred to `iotserver24/saral-sahayak`, and shared CI/Vercel/backend changes landed. The work was preserved and moved to `task/shravya-web-ui-integration` from main `4083e28`. Existing hosting/CI work is retained. The final reconciliation includes main `3afe6c2`, preserving its live-mode API facade, same-origin/server-root settings, grounded-answer disclosures, readiness helpers and three-attempt retry policy. Protected admission errors are handled without browser tokens. All feature changes in this follow-up stay under `frontend/`; non-frontend merge content matches main.
 
 ## Implemented requirements
 
@@ -25,10 +25,10 @@ Work began by pulling main. While it was in progress, PR 35 merged, the reposito
 ## Validation results
 
 - Production TypeScript/Vite build: passed.
-- Unit/component suite: **788/788 passed** across 12 files, including 155 HTTP client tests, 42 API UI tests and 10 API answer/evidence presentation tests.
-- Preview browser regression: **158/160 passed** on the first post-integration run. The two failures were a stale tab-order assertion that omitted the new Use examples control. After adding that control to the strict keyboard sequence, the affected desktop/mobile tests passed **2/2**. All 160 preview cases were verified across runs, including 36 axe scans; this is not a single clean full rerun claim.
+- Final merged unit/component suite: **839/839 passed** across 14 files with bounded worker concurrency, including 183 HTTP client tests, 51 API UI tests and 11 API answer/evidence presentation tests. One aggregate test initially exceeded its five-second harness budget under concurrent browser load; only that test's budget was increased, assertions retained, and the complete suite reran successfully.
+- Final merged preview browser regression: **160/160 passed in a complete run**, including 36 axe scans. The suite explicitly selects example-only mode; default same-origin capability discovery is independently covered by API/UI tests.
 - Dedicated real HTTP browser acceptance: **20/20 passed** in a complete final run on desktop/mobile Chrome. Connected ready, success, draft, clarification and structured-error axe checks reported no violations. Enter submission, keyboard result tabs and 320/390px overflow checks passed.
-- Fixture HTTP-only smoke: nine supported/clarification/unsupported/provider-failure/timeout/budget/invalid-output/body-validation cases passed, plus readiness and exact-origin CORS checks. Invalid input made zero model calls.
+- Fixture HTTP-only smoke: nine supported/clarification/unsupported/provider-failure/timeout/budget/invalid-output/body-validation cases passed, plus readiness and exact-origin CORS checks. Invalid input made zero model calls. Latest protected server-only admission checks for 401 access denial, 429 capacity and 504 outer request timeout also passed using synthetic server-side credentials; no browser token injection or gateway bypass was used.
 - Occupied backend/Vite port refusal and cleanup were verified: no reuse or termination of unrelated listeners; owned Windows/Linux processes and temporary synthetic corpora cleaned up.
 - Mock contract parity: all 48 original/richer six-language/four-state response variants were accepted by the backend response schema offline.
 - Formatting, fixture Python Ruff checks and scoped TypeScript checks passed. Final run commands and prerequisites are documented in `README.md`.
@@ -44,7 +44,7 @@ On Windows, the real POSIX-secure backend runs through WSL with isolated locked 
 ## Review and remaining boundaries
 
 - Issue 24: already accepted by Anish; its accepted conversational design is retained.
-- Issue 25: implemented and submitted for review. Automated/local synthetic results do not replace the required review.
-- Issue 26: remains gated on completed/reviewed issue 25 and its own language-quality, actual-service/mobile/keyboard and optional-service acceptance. Some relevant automated checks are already included, but Level 3 completion is not claimed.
+- Issue 25: code and reproducible acceptance evidence are submitted for review. Existing merged PRs 48, 51, 57 and 63 are preserved. The issue owner explicitly kept it open for reviewer acceptance and document downloads when a supported endpoint becomes available. Current `downloads_available: false` is respected; no endpoint is fabricated.
+- Issue 26: responsive/keyboard/axe, language presentation and failure-state checks are included as integration regressions. Formal Level 3 acceptance remains gated on reviewed issue 25 and independent language-quality/optional-service evidence. Automated checks do not provide those human approvals, so this task does not mark the issue complete.
 
 No real provider/source fetching, policy correctness, fluent multilingual output, physical-camera capture, OCR, public deployment or successful government outcome is certified. Live provider/credit use and shared backend/security changes require their own authorization. No automatic issue closure or merge is implied.

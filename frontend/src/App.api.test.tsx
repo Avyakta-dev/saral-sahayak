@@ -14,6 +14,7 @@ const languages = () => screen.getByRole('combobox', { name: 'Output language' }
 const analyzeButton = () => screen.getByRole('button', { name: 'Analyze text' });
 const refreshButton = () => screen.getByRole('button', { name: 'Refresh connection' });
 const remark = '  Fictional rejection wording only  ';
+let expectedFetches = 0;
 const settle = async () => {
   await act(async () => {
     await Promise.resolve();
@@ -77,9 +78,11 @@ function useApi() {
 }
 
 beforeEach(() => {
+  expectedFetches = 0;
   vi.useFakeTimers();
   vi.stubEnv('VITE_API_BASE_URL', '');
   vi.stubEnv('VITE_API_TIMEOUT_MS', '');
+  vi.stubEnv('VITE_PREVIEW_ONLY', 'false');
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true,
     value: vi.fn(),
@@ -110,7 +113,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  expect(fetch).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(expectedFetches);
   expect(window.XMLHttpRequest).not.toHaveBeenCalled();
   vi.clearAllTimers();
   vi.useRealTimers();
@@ -157,7 +160,7 @@ describe('API discovery and explicit consent', () => {
       screen.getByText('Distinct answer supplied by the fake analysis service.'),
     ).toBeVisible();
     expect(document.querySelector('.user-message p')?.textContent).toBe(remark);
-    expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument();
   });
@@ -182,7 +185,33 @@ describe('API discovery and explicit consent', () => {
     );
   });
 
-  it('defaults to configured API, but explicit null injection and no configuration stay offline', async () => {
+  it('uses the real same-origin API default with no injected client or base URL', async () => {
+    expectedFetches = 1;
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(caps()), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    render(<App />);
+    await settle();
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/capabilities',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(screen.getByRole('button', { name: 'API' })).toBeVisible();
+    type();
+    expect(analyzeButton()).toBeEnabled();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('uses explicit preview-only configuration without a network request', () => {
+    vi.stubEnv('VITE_PREVIEW_ONLY', 'true');
+    render(<App />);
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Analyze text' })).not.toBeInTheDocument();
+  });
+
+  it('uses configured API unless explicitly injected or configured for preview', async () => {
     const fake = client();
     const configured = vi.spyOn(api, 'getConfiguredApiClient').mockReturnValue(fake);
     const first = render(<App />);
@@ -274,7 +303,7 @@ describe('real response states, edit context and explicit examples', () => {
       fake.analyze.mockResolvedValue(result);
       await ready(fake);
       await submit();
-      expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+      expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
       if (status === 'success') expect(screen.getByText(result.explanation[0].text)).toBeVisible();
       if (status === 'needs_clarification')
         expect(screen.getByText(result.questions[0])).toBeVisible();
@@ -298,7 +327,7 @@ describe('real response states, edit context and explicit examples', () => {
     const context = screen.getByRole('complementary', { name: 'Clarification context' });
     expect(within(context).getByText(clarification.questions[0])).toBeVisible();
     expect(
-      screen.queryByText('Analysis response · verify important guidance'),
+      screen.queryByText('Grounded analysis · educational, not legal advice'),
     ).not.toBeInTheDocument();
     await submit('Revised fictional remark with the requested context');
     expect(fake.analyze).toHaveBeenLastCalledWith(
@@ -318,7 +347,7 @@ describe('real response states, edit context and explicit examples', () => {
     type('Keep this unsent fictional remark');
     examples();
     expect(fake.getCapabilities).toHaveBeenCalledOnce();
-    expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: demo.demoScenarios[0].label }),
@@ -326,16 +355,17 @@ describe('real response states, edit context and explicit examples', () => {
     await tick();
     expect(load).toHaveBeenCalledOnce();
     expect(screen.getByText('Sample only · not real claim advice')).toBeVisible();
-    expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     expect(input()).toHaveValue('Keep this unsent fictional remark');
     useApi();
     await settle();
     expect(fake.getCapabilities).toHaveBeenCalledTimes(2);
     expect(fake.analyze).toHaveBeenCalledOnce();
     expect(screen.getByText('Sample only · not real claim advice')).toBeVisible();
-    expect(screen.getByText('Analysis response · verify important guidance')).toBeVisible();
+    expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     expect(input()).toHaveValue('Keep this unsent fictional remark');
-  });
+    // Timers are already fake; allow DOM visibility queries headroom during parallel browser runs.
+  }, 10_000);
 
   it('Show me an example explicitly cancels metadata discovery and uses offline fixtures', async () => {
     const metadata = deferred<Capabilities>();
@@ -373,6 +403,9 @@ describe('failures and bounded manual retries', () => {
   it.each([
     'network_error',
     'analysis_timeout',
+    'request_timeout',
+    'analysis_capacity',
+    'access_denied',
     'invalid_request',
     'request_too_large',
     'invalid_response',
@@ -397,6 +430,8 @@ describe('failures and bounded manual retries', () => {
   });
 
   it.each([
+    'access_denied',
+    'analysis_capacity',
     'budget_exhausted',
     'model_not_configured',
     'knowledge_unavailable',
@@ -438,6 +473,33 @@ describe('failures and bounded manual retries', () => {
         expect(payload).toEqual({ text: remark, language: 'en' });
     },
   );
+
+  it('bounds request_timeout to two explicit retries', async () => {
+    const fake = client();
+    fake.analyze.mockRejectedValue(new ApiError('request_timeout', 'sanitized'));
+    await ready(fake);
+    await submit();
+    for (let retry = 0; retry < 2; retry += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry analysis' }));
+      await settle();
+    }
+    expect(fake.analyze).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole('button', { name: 'Retry analysis' })).toBeDisabled();
+  });
+
+  it('does not treat available metadata as gateway authorization', async () => {
+    const fake = client();
+    fake.analyze.mockRejectedValue(new ApiError('access_denied', 'PRIVATE_TOKEN'));
+    await ready(fake);
+    expect(screen.getByText('Analysis available (config + structure only)')).toBeVisible();
+    await submit();
+    expect(screen.getByText('Analysis gateway not ready')).toBeVisible();
+    expect(screen.getAllByText(/Do not enter access tokens or provider keys/)[0]).toBeVisible();
+    expect(analyzeButton()).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Retry analysis' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'API' })).toBeVisible();
+    expect(document.body.textContent).not.toContain('PRIVATE_TOKEN');
+  });
 
   it('clears the old error while retrying and prevents duplicate requests', async () => {
     const retry = deferred<AnalyzeResponse>();
@@ -575,7 +637,7 @@ describe('capability readiness, refresh and cancellation', () => {
     });
     expect(languages()).toBeDisabled();
     expect(
-      screen.queryByText('Analysis response · verify important guidance'),
+      screen.queryByText('Grounded analysis · educational, not legal advice'),
     ).not.toBeInTheDocument();
   });
 

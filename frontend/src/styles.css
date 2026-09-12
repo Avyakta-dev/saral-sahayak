@@ -459,6 +459,16 @@ summary::-webkit-details-marker {
   background: transparent;
   padding: 3px 2px;
 }
+.backend-status-checking {
+  color: #6f7866;
+}
+.backend-status-ready {
+  color: #3f6b3a;
+}
+.backend-status-not_ready,
+.backend-status-unreachable {
+  color: #8a5a2b;
+}
 .starter-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -749,6 +759,38 @@ summary::-webkit-details-marker {
   margin-top: 13px;
   max-width: 550px;
 }
+
+.answer-error-code {
+  margin: 0.35rem 0 0;
+  color: #5b6470;
+  font-size: 0.9rem;
+}
+
+.answer-error-code code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.answer-state-warnings {
+  margin: 0.75rem 0 0;
+  padding-left: 1.15rem;
+  color: #4b5563;
+}
+
+.answer-state-warnings li + li {
+  margin-top: 0.35rem;
+}
+
+.answer-retry-actions {
+  margin-top: 0.9rem;
+}
+
+.retry-exhausted {
+  margin: 0.65rem 0 0;
+  color: #6b4f2c;
+  font-size: 0.92rem;
+}
+
 .reply-actions {
   display: flex;
   align-items: center;
@@ -1985,6 +2027,28 @@ mark {
   .api-transport-error h2 {
     font-size: 20px;
   }
+}
+.source-hint {
+  max-width: 530px;
+  margin: 10px auto 0;
+  color: #617355;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.demo-readiness {
+  font-size: 11px;
+  line-height: 1.7;
+  margin-bottom: 9px;
+}
+.demo-readiness > p + p {
+  margin-top: 5px;
+}
+.demo-readiness .backend-status {
+  margin: 0 0 7px;
+  font-size: 11px;
+}
+.conversation-composer .demo-readiness > p:not(.backend-status) {
+  display: none;
 }
 @media (prefers-reduced-motion: reduce) {
   *,

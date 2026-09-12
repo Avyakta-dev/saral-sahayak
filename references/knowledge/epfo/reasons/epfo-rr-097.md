@@ -57,16 +57,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** forum, official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** forum, official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Remark string from member reports; not an invented official code.
 
-- https://www.reddit.com/r/epfoindia/comments/1lwzhcs/my_epfo_claim_got_rejected_form31_after_16_days/
-- https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
-- https://epfigms.gov.in/
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://cleartax.in/s/epf-form-31
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official / circular
+
+- [official] https://epfigms.gov.in/
+
+### Secondary (news / blog / forum)
+
+- [forum] https://www.reddit.com/r/epfoindia/comments/1lwzhcs/my_epfo_claim_got_rejected_form31_after_16_days/
+- [forum] https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- [blog] https://cleartax.in/s/epf-form-31
+
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

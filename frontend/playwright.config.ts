@@ -22,9 +22,11 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'], defaultBrowserType: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run dev',
+    command:
+      "node --input-type=module -e \"import {createServer} from 'vite'; const server = await createServer({envDir:false,server:{host:'127.0.0.1',port:5173,strictPort:true}}); await server.listen();\"",
+    env: { VITE_PREVIEW_ONLY: 'true', VITE_API_BASE_URL: '' },
     url: 'http://127.0.0.1:5173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30_000,
   },
 });

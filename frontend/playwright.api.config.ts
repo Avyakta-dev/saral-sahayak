@@ -9,7 +9,7 @@ const quote = (value: string) => `"${value.replaceAll('"', '\\"')}"`;
 const uvAvailable = spawnSync('uv', ['--version'], { stdio: 'ignore' }).status === 0;
 // Windows Python is just the lifecycle launcher: real tools run in WSL, never
 // with a Windows compatibility shim. FIXTURE_WSL_PYTHON selects existing Linux
-// dependencies (e.g. /tmp/saral-api-issue25-venv/bin/python); no installs here.
+// dependencies (e.g. /home/ctf_2820/.cache/saral-api-issue25-venv/bin/python); no installs here.
 const python = process.env.FIXTURE_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 const backendCommand =
   process.platform !== 'win32' && uvAvailable && !process.env.FIXTURE_PYTHON
@@ -23,9 +23,12 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   workers: 2,
-  timeout: 30_000,
+  // Includes three axe scans, responsive screenshots and real clipboard I/O.
+  // This is not the API deadline, which stays independently bounded below.
+  timeout: 60_000,
   expect: { timeout: 8_000 },
-  outputDir: './test-results/api-integration',
+  // A sibling of preview test-results: its cleanup must not delete our traces.
+  outputDir: './playwright-report-api-artifacts',
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:5174',
@@ -61,7 +64,9 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 30_000,
       env: {
-        VITE_API_BASE_URL: 'http://127.0.0.1:8011/api/v1',
+        // The shared API facade appends /api/v1 to this server root.
+        VITE_API_BASE_URL: 'http://127.0.0.1:8011',
+        VITE_PREVIEW_ONLY: 'false',
         VITE_API_TIMEOUT_MS: '3000',
       },
       gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
