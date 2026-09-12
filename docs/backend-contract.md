@@ -176,9 +176,17 @@ This is an integration sketch requiring an existing trusted root, exact heading 
 
 Default request limits: 12 tool calls, 8 distinct files, 50 listing entries/page, 120 lines and 12 KiB/read, 48 KiB and 12,000 accounted tokens across tool output. Serialized metadata and errors count. Without a tokenizer, each UTF-8 byte is conservatively counted as one token, so the token cap can bind before the byte cap. Local scan limits are 2 MiB/file and 4,096 directory entries. The service also charges the shared limits of 12 model turns and 4,096 cumulative model-output tokens; the budget allows 2 retries, but the current service uses at most one final-output repair. These are not automatic client retries. A retry additionally consumes the attempted tool call/model turn. The shared 30-second deadline and 3-second tool deadline are cooperative monotonic checks, not hard cancellation of blocked filesystem syscalls; use local filesystems, not network mounts. Terminal `BudgetExceeded` must stop orchestration.
 
+The analysis service further clamps every model-requested read to **3,072 text bytes**, including explicit larger requests, and respects smaller caller/host limits. Bootstrap is bounded to 2,048 bytes and 30 lines (or smaller host limits). Continuations are explicit and consume the same request budget.
+
 The model supplies evidence IDs, never citation metadata. The host resolves IDs against immutable read snapshots, constructs path/record ID/heading/line-and-column/URL citations, and calls `AnalyzeResponse.validate_evidence(ledger)` before returning. Unknown IDs and forged metadata fail. Index excerpts and reads without heading context cannot be cited as substantive evidence.
 
 If a claim's remedy excerpt contains no URL, the model must also read and cite a source-bearing section from the **same file and record**, usually its Sources section. The host returns both as separate citations: it does not copy or merge source URLs into the remedy citation. Unrelated global source URLs cannot satisfy this check. This proves read provenance only, not that the translated claim follows from the evidence, that the source is authoritative/current, or that policy assertions are correct. Synthetic documentation examples remain schema-only and intentionally do not pass a production evidence check.
+
+## Opt-in local acceptance diagnostics
+
+Python callers may pass a request-local synchronous callback as `await service.analyze(request, diagnostics=events.append)`. It is disabled by default and is not an HTTP request/response field, logging sink, file writer or provider option. See [issue #29's acceptance report](issue-29-offline-acceptance.md) for coverage and remaining live blockers.
+
+Events are immutable, content-free snapshots: host-controlled phase/outcome, elapsed/remaining seconds, model call allowances and cumulative resource counts. They exclude prompts, user details, file paths/bodies, evidence identifiers, model text, endpoint/key configuration, raw exceptions and provider continuation payloads. No observer state is stored on the shared service. A callback must be fast and nonblocking; its time counts against the existing deadline. Ordinary callback exceptions are ignored, while cancellation of the analysis task still propagates. Collect only these events rather than raw request/provider traces for acceptance debugging; they do not establish semantic grounding or language quality.
 
 ## CORS and remaining integration
 

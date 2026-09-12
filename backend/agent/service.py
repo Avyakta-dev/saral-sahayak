@@ -8,6 +8,7 @@ preempted by asyncio. The injected LLM client remains caller-owned.
 
 import asyncio
 import json
+import time
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -21,6 +22,12 @@ from backend.output_validation import evidence_links
 from backend.tools.budget import Budget, BudgetExceeded, BudgetLimits, KnowledgeError
 from backend.tools.knowledge_files import KnowledgeFiles
 
+from .diagnostics import (
+    AnalysisOutcome,
+    AnalysisPhase,
+    DiagnosticsObserver,
+    RequestDiagnostics,
+)
 from .models import TOOLS, FinalAnalysis, ListFilesArgs, ReadFileArgs
 from .presentation import build_draft, provenance_warning
 
@@ -70,7 +77,8 @@ def _prompt(request: AnalyzeRequest) -> str:
         "language's primary script, preserving canonical IDs, URLs and supplied identities. "
         "Return a single JSON object matching this schema (no markdown fences). Tool calls "
         "may precede the final JSON. Limits include 12 total tool calls, 8 distinct files, "
-        "120 lines/12 KiB per read and a shared 30-second deadline; the host may lower these.\n"
+        "120 lines/3072 UTF-8 text bytes per read and a shared 30-second deadline; "
+        "the host may lower these.\n"
         + json.dumps(FinalAnalysis.model_json_schema(), ensure_ascii=False)
     )
 
@@ -189,11 +197,25 @@ class AnalysisService:
         self.knowledge_root = knowledge_root
         self.budget_limits = budget_limits
 
-    async def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
+    async def analyze(
+        self, request: AnalyzeRequest, *, diagnostics: DiagnosticsObserver | None = None
+    ) -> AnalyzeResponse:
+        """Analyze with an optional fast, synchronous, request-local diagnostics callback."""
+        started = time.monotonic()
+        budget = Budget(self.budget_limits)
+        trace = (
+            RequestDiagnostics(diagnostics, started=started) if diagnostics is not None else None
+        )
+        if trace is not None:
+            trace.emit(budget, AnalysisPhase.START)
         # Raise outside handlers so even __context__ contains no underlying sensitive data.
         failure = None
         try:
-            return await self._analyze(request)
+            response = await self._analyze(request, budget, trace)
+        except asyncio.CancelledError:
+            if trace is not None:
+                trace.emit(budget, AnalysisPhase.TERMINAL, outcome=AnalysisOutcome.CANCELLED)
+            raise
         except AnalysisError as error:
             failure = (error.code, error.message, error.http_status)
         except BudgetExceeded:
@@ -209,11 +231,22 @@ class AnalysisService:
                 failure = ("model_unavailable", "The analysis model is unavailable.", 502)
         except Exception:
             failure = ("analysis_failed", "Analysis could not be completed safely.", 500)
-        # asyncio.CancelledError is a BaseException: never convert or suppress it.
+        else:
+            if trace is not None:
+                trace.emit(budget, AnalysisPhase.TERMINAL, outcome=AnalysisOutcome(response.status))
+            return response
+        if trace is not None:
+            # Never emit arbitrary exception codes, messages or representations.
+            try:
+                outcome = AnalysisOutcome(failure[0])
+            except ValueError:
+                outcome = AnalysisOutcome.ANALYSIS_FAILED
+            trace.emit(budget, AnalysisPhase.TERMINAL, outcome=outcome)
         raise AnalysisError(*failure)
 
-    async def _analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
-        budget = Budget(self.budget_limits)
+    async def _analyze(
+        self, request: AnalyzeRequest, budget: Budget, trace: RequestDiagnostics | None
+    ) -> AnalyzeResponse:
         history = [
             Message(role="system", content=_prompt(request)),
             Message(role="user", content=request.model_dump_json()),
@@ -228,6 +261,8 @@ class AnalysisService:
                 "max_lines": min(30, budget.limits.read_lines),
             }
             index = tools.read_file(**index_args)
+            if trace is not None:
+                trace.emit(budget, AnalysisPhase.INDEX_READ)
             boot = ToolCall(id="host-index", name="read_file", arguments=index_args)
             used_calls.add(boot.id)
             history.extend(
@@ -242,6 +277,14 @@ class AnalysisService:
                 tokens = budget.model_token_allowance(self.client.config.max_output_tokens)
                 seconds = min(budget.remaining_seconds(), self.client.config.timeout_seconds)
                 async with asyncio.timeout(seconds):
+                    if trace is not None:
+                        trace.emit(
+                            budget,
+                            AnalysisPhase.MODEL_START,
+                            call_timeout_seconds=seconds,
+                            model_token_allowance=tokens,
+                        )
+                        budget.check()
                     result = await self.client.complete(
                         history, TOOLS, max_output_tokens=tokens, timeout_seconds=seconds
                     )
@@ -250,6 +293,14 @@ class AnalysisService:
                     result.message.model_dump_json(),
                     tokens=result.usage.output_tokens if result.usage else None,
                 )
+                if trace is not None:
+                    trace.emit(
+                        budget,
+                        AnalysisPhase.MODEL_COMPLETE,
+                        call_timeout_seconds=seconds,
+                        model_token_allowance=tokens,
+                        reported_output_tokens=result.usage.output_tokens if result.usage else None,
+                    )
                 # Preserve provider-owned reasoning/replay signatures exactly as returned.
                 history.append(result.message)
                 if result.tool_calls:
@@ -262,7 +313,11 @@ class AnalysisService:
                             )
                         used_calls.add(call.id)
                         history.append(dispatch_tool(tools, call))
+                        if trace is not None:
+                            trace.emit(budget, AnalysisPhase.TOOL_COMPLETE)
                     continue
+                if trace is not None:
+                    trace.emit(budget, AnalysisPhase.VALIDATION)
                 response = None
                 try:
                     final = FinalAnalysis.model_validate(object_json(result.text))
@@ -277,6 +332,8 @@ class AnalysisService:
                         "invalid_model_output", "The model returned invalid output.", 502
                     )
                 budget.retry()
+                if trace is not None:
+                    trace.emit(budget, AnalysisPhase.REPAIR)
                 repaired = True
                 history.append(
                     Message(
