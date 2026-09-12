@@ -206,6 +206,50 @@ function failed(response, pattern) {
   assert.match(response.error, pattern);
   return response;
 }
+test('EPFO cancellation during tab lookup prevents any later injection or capture', async () => {
+  const h = harness();
+  await h.ready();
+  h.resetCalls();
+  const lookup = deferred();
+  const entered = deferred();
+  h.hooks.query = () => { entered.resolve(); return lookup.promise; };
+  h.hooks.executeScript = () => [{ frameId: 0, documentId: DOCUMENT_ID }];
+  const pending = h.send('SS_EPFO_DETECT');
+  await entered.promise;
+  await h.send('SS_EPFO_CANCEL');
+  lookup.resolve([plain(TAB)]);
+  failed(await pending, /cancelled/);
+  assert.equal(h.of('executeScript').length, 0);
+  assert.equal(h.of('sendMessage').length, 0);
+  assert.equal(h.of('captureVisibleTab').length, 0);
+  assert.equal(h.of('fetch').length, 0);
+});
+
+test('superseded EPFO tab lookup cannot inject after a newer detection completes', async () => {
+  const h = harness();
+  await h.ready();
+  h.resetCalls();
+  const lookup = deferred();
+  const entered = deferred();
+  let queries = 0;
+  h.hooks.query = () => { if (++queries === 1) { entered.resolve(); return lookup.promise; } return [plain(TAB)]; };
+  h.hooks.executeScript = () => [{ frameId: 0, documentId: DOCUMENT_ID }];
+  h.hooks.sendMessage = (tabId, message, target) => {
+    assert.equal(message.type, 'SS_EPFO_DETECT');
+    assert.deepEqual(plain(target), { documentId: DOCUMENT_ID });
+    return { candidates: [{ text: 'Synthetic selected remark', source: 'selection' }], warnings: [] };
+  };
+  const old = h.send('SS_EPFO_DETECT');
+  await entered.promise;
+  const current = await h.send('SS_EPFO_DETECT');
+  assert.equal(current.ok, true);
+  lookup.resolve([plain(TAB)]);
+  failed(await old, /cancelled/);
+  assert.equal(h.of('executeScript').length, 1);
+  assert.equal(h.of('sendMessage').length, 1);
+  assert.equal(h.of('fetch').length, 0);
+});
+
 function privateStateAbsent(state) {
   const json = JSON.stringify(state);
   assert.equal(Object.hasOwn(state, 'key'), false);
