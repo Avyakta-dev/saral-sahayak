@@ -92,10 +92,14 @@ class CaseHistoryStore:
             while len(ids) > self._max_per_session:
                 self._records.pop(ids.pop(0), None)
             while len(self._records) > self._max_records:
-                stale_id, _ = self._records.popitem(last=False)
-                stale_ids = self._by_session.get(record.session_id)
+                # The globally-oldest record can belong to any session, not necessarily
+                # the one just starting here - it must be evicted from its own bucket.
+                stale_id, stale_record = self._records.popitem(last=False)
+                stale_ids = self._by_session.get(stale_record.session_id)
                 if stale_ids and stale_id in stale_ids:
                     stale_ids.remove(stale_id)
+                    if not stale_ids:
+                        del self._by_session[stale_record.session_id]
         return record
 
     def mark_processing(self, case_id: str) -> None:

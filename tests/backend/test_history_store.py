@@ -151,6 +151,31 @@ def test_bounded_store_evicts_oldest_first():
     assert ids[0] not in history_ids
 
 
+def test_global_eviction_cleans_up_the_stale_records_own_session_not_the_caller():
+    """The globally-oldest record can belong to a different session than the one
+    currently calling start() - eviction must remove it from its own bucket, and must
+    drop that session's dict entry entirely once it has no records left, or a store
+    fielding many distinct session ids would grow without bound.
+
+    history()'s own defensive filtering of missing ids means this cannot be observed
+    through the public API alone (a dangling id is silently skipped either way regardless
+    of whether the bug is present), so this test reaches into the store's internal
+    bookkeeping - the thing actually under test.
+    """
+    store = CaseHistoryStore(max_records=1, max_per_session=10)
+    store.start("alice", "en", "alice question 1")
+    # Evicts alice's only record - but the caller here is "bob", not "alice". A buggy
+    # implementation that cleans up the *caller's* bucket instead of the stale record's
+    # own bucket leaves alice's dangling id in place forever.
+    store.start("bob", "en", "bob question 1")
+    assert store._by_session.get("alice", []) == [], "alice's evicted id must not dangle"
+
+    # Symmetrically, evicts bob's only record while carol is the caller.
+    store.start("carol", "en", "carol question 1")
+    assert "bob" not in store._by_session, "an empty session bucket must not linger forever"
+    assert list(store._by_session) == ["carol"]
+
+
 def test_invalid_bounds_rejected():
     with pytest.raises(ValueError):
         CaseHistoryStore(max_records=0)

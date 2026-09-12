@@ -110,6 +110,44 @@ async def test_failure_is_recorded_and_never_cached():
     assert store.find_cached("en", "Question that fails") is None
 
 
+async def test_cross_session_cache_hit_never_carries_the_first_callers_details():
+    """The exact-match cache is deliberately global (see HANDOFF-history-cache.md), so a
+    second, unrelated session can hit a slot a different session filled - that is the
+    whole point. What must never happen: any field derived from the first caller's own
+    submitted details reaching a later, different caller. Only `draft` is caller-specific
+    (rebuilt fresh every time, see build_draft) - classification/explanation/actions/
+    citations are grounded purely in the shared knowledge corpus and the fingerprinted
+    text, never in `details`, so they are safe to share across sessions.
+    """
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    alice = HistoryTrackingService(inner, store, session_id="alice")
+    bob = HistoryTrackingService(inner, store, session_id="bob")
+
+    await alice.analyze(
+        AnalyzeRequest(
+            text="My claim was rejected",
+            language="en",
+            details={"claimant_name": "Alice", "claim_id": "alice-claim-1"},
+        )
+    )
+    assert len(inner.calls) == 1
+
+    bob_response = await bob.analyze(
+        AnalyzeRequest(
+            text="my   claim WAS rejected",
+            language="en",
+            details={"claimant_name": "Bob", "claim_id": "bob-claim-2"},
+        )
+    )
+    assert len(inner.calls) == 1, "the identical text must still hit the shared cache"
+    assert bob_response.classification.reason_id == "epfo-rr-001"
+    # Bob's own draft, never Alice's - the only caller-specific field never leaks across.
+    assert not any(block.text == "Alice" for block in bob_response.draft.blocks)
+    assert not any("alice-claim-1" in block.text for block in bob_response.draft.blocks)
+    assert any(block.text == "Bob" for block in bob_response.draft.blocks)
+
+
 async def test_sessions_never_share_history_or_bleed_into_each_others_view():
     store = CaseHistoryStore()
     inner = StubInner(synthetic_response())

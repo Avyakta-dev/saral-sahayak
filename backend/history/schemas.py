@@ -2,18 +2,12 @@
 this is read-only bookkeeping metadata, never analysis output, so it never needs to
 satisfy AnalyzeResponse's evidence/citation invariants."""
 
-from typing import Literal
-
 from pydantic import Field
 
 from backend.api.schemas import ContractModel
 from backend.languages import LanguageCode
 
-from .models import CaseStatus
-
-# Mirrors AnalyzeResponse.status (backend/api/schemas.py): outcome is always assigned
-# from that field, so it is exactly this closed set, never an arbitrary string.
-CaseOutcome = Literal["success", "needs_clarification", "unsupported", "error"]
+from .models import CaseOutcome, CaseStatus
 
 
 class HistoryCase(ContractModel):
