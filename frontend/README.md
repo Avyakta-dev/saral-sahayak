@@ -74,7 +74,9 @@ npm run test:e2e
 
 `check` runs formatting, TypeScript/production build and Vitest unit/component tests. Playwright uses installed Google Chrome on desktop and Pixel-sized mobile layouts, with axe accessibility scans. Browser tests use synthetic canvas-generated image files and test camera-input routing, not physical camera hardware. No real provider/backend connection is required.
 
-Set `PLAYWRIGHT_CHANNEL` to an installed compatible channel such as `msedge` if necessary. E2E starts the development server if needed. Screenshots/traces/reports under `test-results/` and `playwright-report/` are ignored and contain synthetic test content only.
+Set `PLAYWRIGHT_CHANNEL` to an installed compatible channel such as `msedge` if necessary. For the version-matched browser used in CI, run `npx playwright install chromium` and then `PLAYWRIGHT_CHANNEL=chromium npm run test:e2e` (PowerShell: `$env:PLAYWRIGHT_CHANNEL='chromium'; npm run test:e2e`). E2E starts the development server if needed. Screenshots/traces/reports under `test-results/` and `playwright-report/` are ignored and contain synthetic test content only.
+
+The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull requests and pushes to `main`. It verifies Python/backend and knowledge integrity, extension tests and syntax, frontend formatting/build/unit tests, and Chromium desktop/mobile E2E including accessibility and local-data privacy checks. It uses no provider credentials or live analysis requests. Failed browser runs retain synthetic test artifacts for seven days. Adding this workflow does not configure branch protection or make these checks mandatory for merging.
 
 ## Integration boundary
 
