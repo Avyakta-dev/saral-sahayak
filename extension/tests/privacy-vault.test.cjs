@@ -236,3 +236,70 @@ test('reentrant cancellation and callback exceptions cannot resurrect state', ()
   rejected(vault, () => vault.begin(binding()));
   assert.throws(() => new Vault({ extra: 'private' }), /^Error: VAULT_INVALIDATED$/);
 });
+
+test('restoreLocal exports values once after review and blocks early consumeFill', () => {
+  const { vault } = harness();
+  vault.begin(binding());
+  vault.approve([entry()], binding());
+  assert.throws(() => vault.restoreLocal(binding()), /VAULT_INVALIDATED/);
+  const { vault: early } = harness();
+  early.begin(binding());
+  early.approve([entry()], binding());
+  early.markReviewed(early.seal(artifact(), binding()), binding());
+  assert.throws(() => early.consumeFill(['field-1'], binding()), /VAULT_INVALIDATED/);
+  const { vault: ready } = harness();
+  ready.begin(binding());
+  ready.approve([entry(), entry({ slot: 'field-2', label: 'contact phone', value: '' })], binding());
+  ready.markReviewed(ready.seal(artifact(), binding()), binding());
+  const restored = ready.restoreLocal(binding());
+  assert.equal(restored.stage, 'restored');
+  assert.equal(restored.slots[0].value, 'Synthetic Person');
+  assert.equal(restored.slots[1].value, null);
+  assert.equal(ready.snapshot(binding()).stage, 'restored');
+  assert.throws(() => ready.restoreLocal(binding()), /VAULT_INVALIDATED/);
+});
+
+test('consumeFill releases selected filled slots once and blocks empty or duplicate selection', () => {
+  const { vault } = harness();
+  vault.begin(binding());
+  vault.approve([
+    entry(),
+    entry({ slot: 'field-2', label: 'contact email', value: 'person@example.invalid' }),
+    entry({ slot: 'field-3', label: 'contact phone', value: '' })
+  ], binding());
+  vault.markReviewed(vault.seal(artifact(), binding()), binding());
+  vault.restoreLocal(binding());
+  assert.throws(() => vault.consumeFill([], binding()), /VAULT_INVALIDATED/);
+  const { vault: vault2 } = harness();
+  vault2.begin(binding());
+  vault2.approve([
+    entry(),
+    entry({ slot: 'field-2', label: 'contact email', value: 'person@example.invalid' }),
+    entry({ slot: 'field-3', label: 'contact phone', value: '' })
+  ], binding());
+  vault2.markReviewed(vault2.seal(artifact(), binding()), binding());
+  vault2.restoreLocal(binding());
+  assert.throws(() => vault2.consumeFill(['field-1', 'field-1'], binding()), /VAULT_INVALIDATED/);
+  const { vault: vault3 } = harness();
+  vault3.begin(binding());
+  vault3.approve([
+    entry(),
+    entry({ slot: 'field-2', label: 'contact email', value: 'person@example.invalid' }),
+    entry({ slot: 'field-3', label: 'contact phone', value: '' })
+  ], binding());
+  vault3.markReviewed(vault3.seal(artifact(), binding()), binding());
+  vault3.restoreLocal(binding());
+  assert.throws(() => vault3.consumeFill(['field-3'], binding()), /VAULT_INVALIDATED/);
+  const { vault: vault4 } = harness();
+  vault4.begin(binding());
+  vault4.approve([
+    entry(),
+    entry({ slot: 'field-2', label: 'contact email', value: 'person@example.invalid' })
+  ], binding());
+  vault4.markReviewed(vault4.seal(artifact(), binding()), binding());
+  vault4.restoreLocal(binding());
+  const released = vault4.consumeFill(['field-2', 'field-1'], binding());
+  assert.deepEqual(released.map(item => item.slot), ['field-2', 'field-1']);
+  assert.equal(released[0].value, 'person@example.invalid');
+  assert.throws(() => vault4.snapshot(binding()), /VAULT_INVALIDATED/);
+});

@@ -95,6 +95,7 @@ Session state includes your key, raw profile values, raw file bytes, captured fi
 - `mapping.js`: profile/file validation and model-output allowlisting/grounding.
 - `content.js`: DOM metadata capture and approved field/file writes.
 - `popup.html`, `popup.css`, `popup.js`: profile, disclosure, screenshot preview, editable review and results.
+- `privacy/`: local vault (#53) plus host-template restore and explicit per-field/batch Fill (never Submit). Analyze/upload remain disabled in privacy mode.
 - `tests/`: dependency-free automated tests and synthetic browser fixtures.
 
 ## Checks
