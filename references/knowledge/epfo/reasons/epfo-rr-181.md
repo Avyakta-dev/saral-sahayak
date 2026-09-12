@@ -62,20 +62,20 @@ member
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** 2025-26 channel shift; cite FAT circular and contemporary news. Offline review flag: older portal Activate-UAN steps in epfo-rr-007 may be stale for the same member journey; do not treat either record alone as current-policy proof.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[circular]** EPFO UAN allotment/activation via UMANG Face Authentication (FAT) manual 2025-26 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
-- **[official]** UMANG — https://web.umang.gov.in
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
+- [official] https://web.umang.gov.in
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[news]** TaxGuru: UAN activation via UMANG Face Authentication — https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
-- **[news]** Mint: EPFO account blocked / UAN / KYC pending fixes (UMANG) — https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
-- **[news]** Business Today: UAN activation shifts to UMANG — https://www.businesstoday.in/personal-finance/news/story/epfo-revamps-unified-member-portal-uan-activation-shifts-to-umang-what-it-means-for-subscribers-540985-2026-07-04
+- [news] https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
+- [news] https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
+- [news] https://www.businesstoday.in/personal-finance/news/story/epfo-revamps-unified-member-portal-uan-activation-shifts-to-umang-what-it-means-for-subscribers-540985-2026-07-04
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

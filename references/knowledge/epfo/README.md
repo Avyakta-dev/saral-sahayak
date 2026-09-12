@@ -6,18 +6,7 @@
 
 This collection contains 181 educational dataset records, not government rejection codes. Portal remarks are commonly reported text, and source confidence/date metadata are preserved without implying current-policy verification. See [sources](./sources.md) for provenance and gaps.
 
-Index claim-type labels are compact navigation shortcuts. Full names remain in each reason file's Classification section and in [claim types](./claim-types-overview.md): Form 19, Form 10C, Form 10D, Form 31, Form 13, Form 20, Form 5IF, CCF (Composite Claim Form), UMANG/portal, IW (International Worker), Form 14.
-
-## Offline grounding flags (navigation only)
-
-Curated offline review flags for agreed ambiguous/conflict cases. These are not verified policy corrections and do not authorize ready guidance without reading the linked reason files and their Sources sections.
-
-- **UAN activation channel conflict** — `epfo-rr-007` vs `epfo-rr-181`: Do not merge Fix steps; read both Sources sections and clarify the active channel. Links: [`epfo-rr-007`](reasons/epfo-rr-007.md), [`epfo-rr-181`](reasons/epfo-rr-181.md).
-- **2026 withdrawal thresholds** — `epfo-rr-039`, `epfo-rr-040`, `epfo-rr-096`: Secondary/gazette-unchecked; withhold definitive percentages until authoritative text is reviewed. Links: [`epfo-rr-039`](reasons/epfo-rr-039.md), [`epfo-rr-040`](reasons/epfo-rr-040.md), [`epfo-rr-096`](reasons/epfo-rr-096.md).
-- **Short EPS service currency** — `epfo-rr-035`: Older FAQ material; do not treat skip-Form-10C guidance as independently verified current entitlement. Links: [`epfo-rr-035`](reasons/epfo-rr-035.md).
-- **Ambiguous KYC pending** — `epfo-rr-010` vs `epfo-rr-016`: Ask which KYC row and exact status before assigning employer vs bank/NPCI action. Links: [`epfo-rr-010`](reasons/epfo-rr-010.md), [`epfo-rr-016`](reasons/epfo-rr-016.md).
-- **Name mismatch subtype overlap** — `epfo-rr-001` and `epfo-rr-012`: Shared applicability is not an exclusive lookup; preserve JD requirement caveats. Links: [`epfo-rr-001`](reasons/epfo-rr-001.md), [`epfo-rr-012`](reasons/epfo-rr-012.md).
-- **Overlap / transfer-only scope** — `epfo-rr-041` and `epfo-rr-070`: StaffNews reproduction is secondary; do not generalize transfer-only guidance to settlements. Links: [`epfo-rr-041`](reasons/epfo-rr-041.md), [`epfo-rr-070`](reasons/epfo-rr-070.md).
+Index claim-type labels are compact navigation shortcuts. Full names remain in each reason file's Classification section and in [claim types](./claim-types-overview.md): Form 19, Form 10C, Form 10D, Form 31, Form 13, Form 20, Form 5IF, CCF (Composite Claim Form), UMANG/portal, IW (International Worker), Form 14. Offline grounding flags for agreed conflict/ambiguity cases are listed after the category sections so the opening bytes keep reason links reachable within a bounded first read.
 
 ## KYC_Identity
 
@@ -229,6 +218,17 @@ Curated offline review flags for agreed ambiguous/conflict cases. These are not 
 - `epfo-rr-117` — Wrong Regional Office jurisdiction or physical claim filed at incorrect PF office (Form 19, Form 31, Form 10C, Form 10D, Form 20, Form 5IF, Form 13, CCF, UMANG/portal) ([read reason](reasons/epfo-rr-117.md))
 - `epfo-rr-126` — Vague demographic mismatch remark without naming the field — refile without KYC/JD fix (Form 19, Form 31, Form 10C, Form 13, UMANG/portal, CCF) ([read reason](reasons/epfo-rr-126.md))
 - `epfo-rr-148` — Regional Office bifurcation or jurisdiction remapping mid-claim sending file to wrong RO (Form 19, Form 13, Form 10D, Form 20, UMANG/portal, CCF) ([read reason](reasons/epfo-rr-148.md))
+
+## Offline grounding flags (navigation only)
+
+Curated offline review flags for agreed ambiguous/conflict cases. These are not verified policy corrections and do not authorize ready guidance without reading the linked reason files and their Sources sections.
+
+- **UAN activation channel conflict** — `epfo-rr-007` vs `epfo-rr-181`: Do not merge Fix steps; read both Sources sections and clarify the active channel. Links: [`epfo-rr-007`](reasons/epfo-rr-007.md), [`epfo-rr-181`](reasons/epfo-rr-181.md).
+- **2026 withdrawal thresholds** — `epfo-rr-039`, `epfo-rr-040`, `epfo-rr-096`: Secondary/gazette-unchecked; withhold definitive percentages until authoritative text is reviewed. Links: [`epfo-rr-039`](reasons/epfo-rr-039.md), [`epfo-rr-040`](reasons/epfo-rr-040.md), [`epfo-rr-096`](reasons/epfo-rr-096.md).
+- **Short EPS service currency** — `epfo-rr-035`: Older FAQ material; do not treat skip-Form-10C guidance as independently verified current entitlement. Links: [`epfo-rr-035`](reasons/epfo-rr-035.md).
+- **Ambiguous KYC pending** — `epfo-rr-010` vs `epfo-rr-016`: Ask which KYC row and exact status before assigning employer vs bank/NPCI action. Links: [`epfo-rr-010`](reasons/epfo-rr-010.md), [`epfo-rr-016`](reasons/epfo-rr-016.md).
+- **Name mismatch subtype overlap** — `epfo-rr-001` and `epfo-rr-012`: Shared applicability is not an exclusive lookup; preserve JD requirement caveats. Links: [`epfo-rr-001`](reasons/epfo-rr-001.md), [`epfo-rr-012`](reasons/epfo-rr-012.md).
+- **Overlap / transfer-only scope** — `epfo-rr-041` and `epfo-rr-070`: StaffNews reproduction is secondary; do not generalize transfer-only guidance to settlements. Links: [`epfo-rr-041`](reasons/epfo-rr-041.md), [`epfo-rr-070`](reasons/epfo-rr-070.md).
 
 ## Supporting references
 

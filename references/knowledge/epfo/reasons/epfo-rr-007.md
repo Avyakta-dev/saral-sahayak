@@ -66,20 +66,20 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** OCS FAQ Q2(a). Offline review flag: activation channel guidance conflicts with epfo-rr-181 (UMANG Face Authentication path). Read both records and their Sources; do not combine into one authoritative checklist until current channel rules are verified.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- **[official]** Composite Claim Form (Aadhaar) instructions — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
-- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
+- [official] https://unifiedportal-mem.epfindia.gov.in/memberinterface/
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
-- **[blog]** HR Software Delhi: PF withdrawal process / rejections — https://hrsoftwaredelhi.com/pf-withdrawal-process/
+- [blog] https://cleartax.in/c/pf-withdrawal-online
+- [blog] https://hrsoftwaredelhi.com/pf-withdrawal-process/
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

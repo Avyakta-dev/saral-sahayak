@@ -65,22 +65,22 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Circular number WSU/TransferClaim/E-52972/2025-26/07 dated 20/May/2025 is documented via StaffNews full text. It is about transfer claims, not a blanket ban on settlement rejections.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[circular]** Revamped Form 13 functionality (2025-26 PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[news]** StaffNews: full text overlap circular 20 May 2025 — https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- **[news]** News18: overlap should not reject transfer claims — https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
-- **[news]** Financial Express: transfer overlap game-changer — https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
-- **[news]** AscentHR: overlap circular note — https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
-- **[blog]** Zerodha Z-Connect: service overlap and merge — https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
-- **[blog]** Kustodian: EPF claim rejected reasons — https://kustodian.life/resources/epf-claim-rejected-reasons-guide
+- [news] https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- [news] https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
+- [news] https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
+- [news] https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
+- [blog] https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
+- [blog] https://kustodian.life/resources/epf-claim-rejected-reasons-guide
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

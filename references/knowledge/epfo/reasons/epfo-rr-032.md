@@ -59,12 +59,12 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Quoted from official MembersFAQ OTCP. Some later digital flows may have reduced printout dependence; check live portal.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFO OTCP Members FAQ (employer rejection reasons, 15-day printout) — https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- **[official]** EPFO OTCP for employers — https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
+- [official] https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- [official] https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
 
 ## Complete source record
 

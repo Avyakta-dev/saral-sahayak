@@ -137,7 +137,7 @@ def test_empty_fields_and_source_type_summary_are_explicit(records):
             "record-level summary; not a positional zip with URLs"
             in content["Sources and verification"]
         )
-        assert "Catalog labels below come from `source_links.json`" in content[
+        assert "Per-URL labels below come from `source_links.json`" in content[
             "Sources and verification"
         ]
 

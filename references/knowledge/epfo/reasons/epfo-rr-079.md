@@ -62,19 +62,19 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** 20-day charter is widely cited; confirm current Citizen Charter on epfindia. RTI is lawful process, not a 'hack'.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+- [official] https://epfigms.gov.in/
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** RTI Wiki: rejected without reason — https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
-- **[blog]** RTI Wiki: claim rejected pending UAN KYC — https://righttoinformation.wiki/epfo-claim-rejected-pending-uan-kyc-complaint-india
-- **[news]** Outlook Money: why EPFO rejects claims (MoS reply) — https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
+- [blog] https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
+- [blog] https://righttoinformation.wiki/epfo-claim-rejected-pending-uan-kyc-complaint-india
+- [news] https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

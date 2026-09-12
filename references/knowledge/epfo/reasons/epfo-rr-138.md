@@ -65,20 +65,20 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Edge case combining dual-employment compliance with EDLI; ET break-in-service clarification may help contiguous jobs but not true concurrent dual employment.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
-- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+- [official] https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[news]** Economic Times: EDLI weekend/holiday not a break — https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
-- **[blog]** ClearTax EDLI scheme explainer — https://cleartax.in/s/edli
-- **[blog]** Kustodian: EDLI claim process — https://kustodian.life/resources/provident-fund/edli-claim-process
+- [news] https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
+- [blog] https://cleartax.in/s/edli
+- [blog] https://kustodian.life/resources/provident-fund/edli-claim-process
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

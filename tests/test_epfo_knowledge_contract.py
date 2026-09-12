@@ -149,11 +149,11 @@ def test_generated_sources_separate_official_from_secondary():
         )
     )
     text = (OUTPUT / "reasons" / f"{sample['id']}.md").read_text(encoding="utf-8")
-    assert "### Official and circular sources" in text
-    assert "### Secondary reporting (news, blog, forum)" in text
+    assert "### Official / circular" in text
+    assert "### Secondary (news / blog / forum)" in text
     for url in sample["source_urls"]:
         entry = catalog[url]
-        assert f"**[{entry['source_type']}]** {entry['title']} — {url}" in text
+        assert f"[{entry['source_type']}] {url}" in text
 
 
 def test_index_is_compact_and_surfaces_grounding_flags():

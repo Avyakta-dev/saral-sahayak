@@ -186,8 +186,9 @@ def short_claim_types(record: dict) -> str:
 
 
 def format_source_line(url: str, catalog: dict[str, dict]) -> str:
+    """Compact labeled URL for bounded reads; full titles live in sources.md."""
     entry = catalog[url]
-    return f"- **[{entry['source_type']}]** {entry['title']} — {url}"
+    return f"- [{entry['source_type']}] {url}"
 
 
 def sources_and_verification(record: dict, catalog: dict[str, dict]) -> str:
@@ -200,9 +201,9 @@ def sources_and_verification(record: dict, catalog: dict[str, dict]) -> str:
         f"- **Last verified in source record:** {record['last_verified']}",
         f"- **Notes/caveats:** {record['notes'] or '_No additional note recorded._'}",
         "",
-        "Catalog labels below come from `source_links.json` and separate official/circular hosts "
-        "from secondary news/blog/forum reporting. Labels are archived metadata; the generator "
-        "does not fetch URLs or re-verify current policy.",
+        "Per-URL labels below come from `source_links.json` (official/circular vs secondary). "
+        "Titles and citation counts are in [sources.md](../sources.md). Labels are archived "
+        "metadata; the generator does not fetch URLs or re-verify current policy.",
         "",
     ]
     official = [
@@ -214,18 +215,18 @@ def sources_and_verification(record: dict, catalog: dict[str, dict]) -> str:
         if catalog[url]["source_type"] in SECONDARY_SOURCE_TYPES
     ]
     if official:
-        lines.append("### Official and circular sources")
+        lines.append("### Official / circular")
         lines.append("")
         lines.extend(format_source_line(url, catalog) for url in official)
         lines.append("")
     if secondary:
-        lines.append("### Secondary reporting (news, blog, forum)")
+        lines.append("### Secondary (news / blog / forum)")
         lines.append("")
         lines.extend(format_source_line(url, catalog) for url in secondary)
         lines.append("")
         lines.append(
-            "_Secondary reporting is not statutory text. Prefer official/circular sources when "
-            "present, preserve caveats, and abstain rather than forcing current-policy certainty._"
+            "_Secondary reporting is not statutory text; prefer official/circular sources and "
+            "preserve caveats rather than forcing current-policy certainty._"
         )
         lines.append("")
     if not official and not secondary:
@@ -318,17 +319,9 @@ def render_index(records: list[dict]) -> str:
         "",
         "This collection contains 181 educational dataset records, not government rejection codes. Portal remarks are commonly reported text, and source confidence/date metadata are preserved without implying current-policy verification. See [sources](./sources.md) for provenance and gaps.",
         "",
-        "Index claim-type labels are compact navigation shortcuts. Full names remain in each reason file's Classification section and in [claim types](./claim-types-overview.md): Form 19, Form 10C, Form 10D, Form 31, Form 13, Form 20, Form 5IF, CCF (Composite Claim Form), UMANG/portal, IW (International Worker), Form 14.",
-        "",
-        "## Offline grounding flags (navigation only)",
-        "",
-        "Curated offline review flags for agreed ambiguous/conflict cases. These are not verified policy corrections and do not authorize ready guidance without reading the linked reason files and their Sources sections.",
+        "Index claim-type labels are compact navigation shortcuts. Full names remain in each reason file's Classification section and in [claim types](./claim-types-overview.md): Form 19, Form 10C, Form 10D, Form 31, Form 13, Form 20, Form 5IF, CCF (Composite Claim Form), UMANG/portal, IW (International Worker), Form 14. Offline grounding flags for agreed conflict/ambiguity cases are listed after the category sections so the opening bytes keep reason links reachable within a bounded first read.",
         "",
     ]
-    for title, ids, guidance, linked in GROUNDING_FLAGS:
-        links = ", ".join(f"[`{rid}`](reasons/{rid}.md)" for rid in linked)
-        index.append(f"- **{title}** — {ids}: {guidance} Links: {links}.")
-    index.append("")
     for category, items in groups.items():
         index += [f"## {category}", ""]
         for record in items:
@@ -339,6 +332,16 @@ def render_index(records: list[dict]) -> str:
             )
         index.append("")
     index += [
+        "## Offline grounding flags (navigation only)",
+        "",
+        "Curated offline review flags for agreed ambiguous/conflict cases. These are not verified policy corrections and do not authorize ready guidance without reading the linked reason files and their Sources sections.",
+        "",
+    ]
+    for title, ids, guidance, linked in GROUNDING_FLAGS:
+        links = ", ".join(f"[`{rid}`](reasons/{rid}.md)" for rid in linked)
+        index.append(f"- **{title}** — {ids}: {guidance} Links: {links}.")
+    index += [
+        "",
         "## Supporting references",
         "",
         "- [Sources and caveats](./sources.md)",
@@ -425,10 +428,10 @@ def validate_output(records: list[dict], output: Path = OUTPUT) -> None:
             if expected_line not in text:
                 raise ValueError(f"{record['id']}: missing labeled source line for {url}")
             if entry["source_type"] in OFFICIAL_SOURCE_TYPES:
-                if "### Official and circular sources" not in text:
+                if "### Official / circular" not in text:
                     raise ValueError(f"{record['id']}: missing official/circular source grouping")
             if entry["source_type"] in SECONDARY_SOURCE_TYPES:
-                if "### Secondary reporting (news, blog, forum)" not in text:
+                if "### Secondary (news / blog / forum)" not in text:
                     raise ValueError(f"{record['id']}: missing secondary source grouping")
     if len(list((output / "reasons").glob("*.md"))) != 181:
         raise ValueError("reason file count is not exactly 181")

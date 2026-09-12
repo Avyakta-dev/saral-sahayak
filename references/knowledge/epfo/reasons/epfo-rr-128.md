@@ -61,19 +61,19 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+- [official] https://epfigms.gov.in/
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** Kustodian: EPF claim rejected because of EPS (2026) — https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
-- **[news]** Economic Times: Bombay HC higher EPS pension recordkeeping — https://economictimes.indiatimes.com/wealth/legal/will/higher-eps-pension-epfo-cant-use-the-excuse-of-employers-deficient-system-of-recordkeeping-as-a-ground-to-deny-higher-pension-to-employees-rules-bombay-hc/articleshow/130464158.cms
-- **[news]** Financial Express: why EPS claims get rejected — https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
+- [blog] https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
+- [news] https://economictimes.indiatimes.com/wealth/legal/will/higher-eps-pension-epfo-cant-use-the-excuse-of-employers-deficient-system-of-recordkeeping-as-a-ground-to-deny-higher-pension-to-employees-rules-bombay-hc/articleshow/130464158.cms
+- [news] https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

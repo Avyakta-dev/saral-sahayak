@@ -62,16 +62,16 @@ member
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
-- **[blog]** Axis Max Life: EPF Form 31 eligibility — https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
-- **[blog]** IndiaFilings: EPF Form 31 — https://www.indiafilings.com/learn/epf-form-31
-- **[blog]** Bajaj Finserv: EPF withdrawal rules — https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
+- [blog] https://cleartax.in/s/epf-form-31
+- [blog] https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
+- [blog] https://www.indiafilings.com/learn/epf-form-31
+- [blog] https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

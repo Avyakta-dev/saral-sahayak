@@ -65,23 +65,23 @@ member
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes. Offline review flag: withhold definitive 12-month/purpose-code entitlement until an authoritative current instrument is reviewed.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- [official] https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
-- **[blog]** TaxBuddy: Form 31 partial withdrawal — https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
-- **[blog]** Shriram Life: Form 31 rules 2026 — https://www.shriramlife.com/blog/advice/form-31-in-epfo
-- **[blog]** Jagran Josh: EPF Scheme 2026 3-day settlement — https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
-- **[blog]** Kustodian: EPF Scheme 2026 withdrawal rules — https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
-- **[blog]** PensionBazaar: EPF withdrawal rules 2026 — https://www.pensionbazaar.com/epf/epf-withdrawal-rules/
-- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- [blog] https://cleartax.in/c/pf-withdrawal-online
+- [blog] https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
+- [blog] https://www.shriramlife.com/blog/advice/form-31-in-epfo
+- [blog] https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
+- [blog] https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
+- [blog] https://www.pensionbazaar.com/epf/epf-withdrawal-rules/
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

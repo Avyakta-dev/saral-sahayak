@@ -65,20 +65,20 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Do not invent country tables; point to EPFO IW page and specific agreement texts.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFO International Workers page — https://www.epfindia.gov.in/site_en/International_workers.php
+- [official] https://www.epfindia.gov.in/site_en/International_workers.php
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** GConnect: SSA/international workers brochure summary — https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
-- **[blog]** KPMG: simplifying PF withdrawal for International Workers — https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
-- **[news]** TaxGuru: Online system for Certificate of Coverage — https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
-- **[blog]** Key4Comply: EPF International Workers SSA/CoC 2026 — https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
+- [blog] https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
+- [blog] https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+- [news] https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
+- [blog] https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

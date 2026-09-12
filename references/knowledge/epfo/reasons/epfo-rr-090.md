@@ -63,18 +63,18 @@ mixed
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Forum remarks are real; exact statutory para labels vary by scheme edition.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[forum]** Reddit: Form 31 unemployment insufficient service — https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
-- **[forum]** Reddit: PF and EPS being deposited by employers — https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
-- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
-- **[news]** Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026 — https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- **[blog]** KnowMoney: EPFO 3.0 withdrawal rules 2026 — https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+- [forum] https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
+- [forum] https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
+- [blog] https://cleartax.in/s/epf-form-31
+- [news] https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- [blog] https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- [blog] https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 

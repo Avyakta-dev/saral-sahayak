@@ -62,19 +62,19 @@ member
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** FEMA guidance from NRI explainers; EPFO still requires Indian account.
 
-Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+Per-URL labels below come from `source_links.json` (official/circular vs secondary). Titles and citation counts are in [sources.md](../sources.md). Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
 
-### Official and circular sources
+### Official / circular
 
-- **[official]** EPFO International Workers page — https://www.epfindia.gov.in/site_en/International_workers.php
-- **[circular]** Circular removing cancelled-cheque image upload where NPCI verified — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+- [official] https://www.epfindia.gov.in/site_en/International_workers.php
+- [circular] https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
 
-### Secondary reporting (news, blog, forum)
+### Secondary (news / blog / forum)
 
-- **[blog]** NRI Information: EPF/PPF rules for NRIs — https://nriinformation.com/returning-to-india/nri-provident-fund-guide
-- **[blog]** NRI Information: receiving Indian pension abroad — https://nriinformation.com/nri-info/indian-pension-abroad
+- [blog] https://nriinformation.com/returning-to-india/nri-provident-fund-guide
+- [blog] https://nriinformation.com/nri-info/indian-pension-abroad
 
-_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
+_Secondary reporting is not statutory text; prefer official/circular sources and preserve caveats rather than forcing current-policy certainty._
 
 ## Complete source record
 
