@@ -29,6 +29,7 @@ import { canRetryAnalysis, retriesRemaining } from './lib/analysisRetry';
 import {
   statusFromCapabilities,
   unreachableStatus,
+  liveTransportFailureMessage,
   unavailableFailureMessage,
   type BackendStatus,
 } from './lib/backendStatus';
@@ -411,10 +412,11 @@ export default function App() {
       } catch (cause) {
         if (controller.signal.aborted || (cause instanceof Error && cause.name === 'AbortError'))
           return;
-        const message =
+        const message = liveTransportFailureMessage(
           cause instanceof Error && cause.message
             ? cause.message
-            : 'The analysis service could not be reached.';
+            : 'The analysis service could not be reached.',
+        );
         setTurns((previous) =>
           previous.map((turn) => (turn.id === id ? { ...turn, failure: message } : turn)),
         );

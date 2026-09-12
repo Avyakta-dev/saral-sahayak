@@ -64,19 +64,21 @@ curl -sS http://127.0.0.1:8000/health/ready
 curl -sS http://127.0.0.1:8000/api/v1/capabilities
 ```
 
-Or the content-free checker:
+Or the content-free checker (prints JSON with `failure_mode` + `operator_hints`; never loads `.env` secrets):
 
 ```sh
 python -m scripts.check_demo_readiness
 python -m scripts.check_demo_readiness --base-url http://127.0.0.1:8000
 ```
 
-| Symptom | Likely cause |
+| Symptom / `failure_mode` | Likely cause |
 | --- | --- |
-| Connection refused | Backend not listening on `127.0.0.1:8000` |
-| `/health/ready` 503 / `analysis_available: false` | Missing model config and/or corpus structure gate — UI should show an honest unavailable message, not a fixture |
+| Connection refused / `backend_unreachable` | Backend not listening on `127.0.0.1:8000` |
+| Probe timeout / `probe_timeout` | Process hung or wrong host:port; raise `--timeout` only after confirming the listener |
+| `/health/ready` 503 / `analysis_not_ready` | Missing model config and/or corpus structure gate — UI should show an honest unavailable message, not a fixture |
 | Browser CORS error | `CORS_ORIGINS` missing the exact page origin (scheme/host/port) |
 | Analyze 504 / timeout | Raise reviewed budgets; do not invent success |
+| Protected analyze 401 / 429 | Browser must not send `ANALYSIS_ACCESS_TOKEN`; use `ANALYSIS_ACCESS_MODE=local` for loopback demos |
 
 ## 3. Start frontend pointed at the backend
 
@@ -126,8 +128,33 @@ That runs the HTTP readiness probe first, then delegates to `scripts.run_agent_a
 - [Docker backend packaging](docker-backend-deployment.md) and [Vercel frontend prep](vercel-deployment.md) are hosting hygiene. A container or Vercel build alone is **not** an accepted integrated demo.
 - Public paid-model exposure still needs protected analysis / gateway controls ([protected analysis](protected-analysis.md)). CORS is not authentication.
 
+
+## 7. Rehearsal checklist (tested scope)
+
+Fill **Observed** only when that row was actually executed in this environment. Use `not_run` rather than inventing live Azure or UI success. This table documents scope; it does **not** close issue #29 or #30.
+
+| Check | Expected | Observed | Result |
+| --- | --- | --- | --- |
+| Content-free readiness probe (default, no `--allow-live`) | JSON `schema_version` `demo-readiness-1.1` with `failure_mode` / `operator_hints`; `closes_issue_29`/`closes_issue_30` false | Offline unit tests cover ready / not-ready / unreachable / timeout / mismatch paths | pass (offline) |
+| Backend up without model credentials | `/health/live` 200; `/health/ready` 503; `analysis_available` false; `failure_mode=analysis_not_ready` | `not_run` in this PR slice unless an operator records a local loopback probe here | not_run |
+| Backend up with local model config (no provider call in probe) | Probe `analysis_ready` true; hints say config+structure only | `not_run` (do not invent) | not_run |
+| Vite UI status line | Shows unreachable / not ready / ready (config+structure) without silent fixture swap | Covered by frontend unit tests for status helpers; full browser rehearsal `not_run` | pass (unit) / not_run (browser) |
+| Synthetic UI paste → live analyze | Contract-shaped response; AnswerCard `mode="live"`; no auto-submit | `not_run` | not_run |
+| Opt-in `--allow-live` single synthetic case | Content-free acceptance JSON; `contract_status_match` only | Historical post-#52 English success recorded in [live-acceptance-status](live-acceptance-status.md); not re-run in this slice | not_run (this slice) |
+| Multilingual live matrix | Independent language evaluation | `not_run` | not_run |
+| Hosted HTTPS + protected analysis public demo | Approved CORS + gateway controls | `not_run` | not_run |
+
+**One-command HTTP smoke (content-free):** with the API already listening,
+
+```sh
+python -m scripts.check_demo_readiness
+```
+
+Exit `0` with `readiness_ok` true means the three GETs behaved; `analysis_ready` may still be false. Exit `0` is **not** live analyze acceptance.
+
 ## Honesty limits (do not over-claim)
 
-- Related to issue **30** (and live-status docs for **29**): this runbook advances reproducible demo setup; it does **not** mark either issue complete.
+- Related to issue **30** (and live-status docs for **29**): this runbook advances reproducible demo setup and clearer failure modes; it does **not** mark either issue complete.
 - One successful synthetic analyze or acceptance match is progress evidence, not full Level 2 matrix completion or Level 3 “done when.”
+- Prefer the rehearsal table’s `not_run` markers over implied live success.
 - OCR, downloads, voice, PM-JAY, and live-government integration remain out of scope here.

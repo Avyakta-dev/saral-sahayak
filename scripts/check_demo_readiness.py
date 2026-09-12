@@ -4,6 +4,7 @@ Default mode never loads provider settings or .env secrets. It only GETs
 /health/live, /health/ready and /api/v1/capabilities.
 
 Opt-in --allow-live delegates to scripts.run_agent_acceptance after the probe.
+Reports include failure_mode + operator_hints so demo failures stay understandable.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ CASE_IDS = (
 )
 LANGUAGES = ("en", "hi", "kn", "ta", "te", "ml")
 MAX_MODEL_CALLS = 12
+SCHEMA_VERSION = "demo-readiness-1.1"
 
 
 class SafeParser(argparse.ArgumentParser):
@@ -76,6 +78,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def _is_timeout_reason(reason: object) -> bool:
+    if isinstance(reason, TimeoutError):
+        return True
+    text = str(reason).lower()
+    return "timed out" in text or "timeout" in text
+
+
 def _get_json(url: str, timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(url, method="GET", headers={"Accept": "application/json"})
     try:
@@ -85,11 +94,12 @@ def _get_json(url: str, timeout: float) -> dict[str, Any]:
     except urllib.error.HTTPError as error:
         status = int(error.code)
         body = error.read().decode("utf-8", errors="replace")
-    except urllib.error.URLError:
+    except urllib.error.URLError as error:
+        code = "timeout" if _is_timeout_reason(getattr(error, "reason", None)) else "unreachable"
         return {
             "ok": False,
             "http_status": None,
-            "error_code": "unreachable",
+            "error_code": code,
             "body": None,
         }
     except TimeoutError:
@@ -109,6 +119,133 @@ def _get_json(url: str, timeout: float) -> dict[str, Any]:
             "body": None,
         }
     return {"ok": 200 <= status < 300, "http_status": status, "error_code": None, "body": parsed}
+
+
+def _gate_hints(checks: dict[str, bool] | None) -> list[str]:
+    if not checks:
+        return [
+            "Capabilities did not list boolean gate checks; inspect /health/ready and /api/v1/capabilities.",
+        ]
+    hints: list[str] = []
+    if checks.get("model_configured") is False:
+        hints.append(
+            "Model configuration missing: set LLM_BASE_URL, LLM_API_KEY, LLM_MODEL in a local ignored .env "
+            "(keep LLM_API_STYLE=responses)."
+        )
+    if checks.get("knowledge_structure_ready") is False:
+        hints.append(
+            "Knowledge corpus structure gate failed: use a clean checkout with the public Markdown corpus."
+        )
+    if not hints:
+        hints.append(
+            "analysis_available is false without a known false gate; compare /health/ready and capabilities checks."
+        )
+    return hints
+
+
+def classify_report(report: dict[str, Any]) -> tuple[str, list[str]]:
+    """Return content-free failure_mode + operator_hints for demo operators/judges."""
+    errors = report.get("probe_errors") or {}
+    live_err = errors.get("live")
+    ready_err = errors.get("ready")
+    caps_err = errors.get("capabilities")
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else None
+
+    if report.get("analysis_ready") is True:
+        return (
+            "ok_analysis_configured",
+            [
+                "HTTP probe OK and analysis_available is true (model config + corpus structure only).",
+                "Not connectivity, policy, or language-quality verification; not Level 3 done-when.",
+                "Optional next: authorized --allow-live with an explicit --case and --max-model-calls ceiling.",
+            ],
+        )
+
+    if live_err == "timeout" or ready_err == "timeout" or caps_err == "timeout":
+        return (
+            "probe_timeout",
+            [
+                "A readiness HTTP request timed out before a complete response.",
+                "Confirm the API process is healthy on the expected host:port and raise --timeout only if needed.",
+            ],
+        )
+
+    if live_err == "unreachable":
+        return (
+            "backend_unreachable",
+            [
+                "Could not connect to the backend (connection refused/DNS/network).",
+                "Start: uv run uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000",
+                "For the Vite UI, set CORS_ORIGINS to the exact browser origin (http://127.0.0.1:5173).",
+            ],
+        )
+
+    if live_err == "non_json" or ready_err == "non_json" or caps_err == "non_json":
+        return (
+            "non_json_response",
+            [
+                "A probe endpoint returned a non-JSON body; confirm you are hitting this backend, not another service.",
+            ],
+        )
+
+    if not report.get("live_ok"):
+        return (
+            "live_probe_failed",
+            [
+                "GET /health/live did not return an OK JSON object.",
+                "Confirm the process is backend.main:create_app and the base URL has no path prefix.",
+            ],
+        )
+
+    ready_status_code = report.get("ready_http_status")
+    if ready_status_code not in (200, 503):
+        return (
+            "ready_unexpected_status",
+            [
+                f"GET /health/ready returned HTTP {ready_status_code!s}; expected 200 (ready) or 503 (not_ready).",
+            ],
+        )
+
+    if not (
+        report.get("capabilities_http_status") == 200
+        and isinstance(report.get("analysis_available"), bool)
+    ):
+        return (
+            "capabilities_probe_failed",
+            [
+                "GET /api/v1/capabilities did not return OK JSON with boolean analysis_available.",
+            ],
+        )
+
+    # Inconsistent ready vs capabilities flags — still useful for operators.
+    if ready_status_code == 200 and report.get("analysis_available") is False:
+        return (
+            "ready_capabilities_mismatch",
+            [
+                "/health/ready was HTTP 200 but capabilities.analysis_available is false.",
+                "Treat analysis as not ready; re-check both endpoints before a live demo.",
+            ]
+            + _gate_hints(checks),
+        )
+
+    if ready_status_code == 503 and report.get("analysis_available") is True:
+        return (
+            "ready_capabilities_mismatch",
+            [
+                "/health/ready was HTTP 503 but capabilities.analysis_available is true.",
+                "Do not claim analysis_ready; inspect process state before a live demo.",
+            ],
+        )
+
+    if report.get("analysis_available") is False:
+        return ("analysis_not_ready", _gate_hints(checks))
+
+    return (
+        "probe_incomplete",
+        [
+            "Readiness probe did not reach analysis_ready; see probe_errors and checks.",
+        ],
+    )
 
 
 def probe(base_url: str, timeout: float) -> dict[str, Any]:
@@ -134,8 +271,8 @@ def probe(base_url: str, timeout: float) -> dict[str, Any]:
         ready_status = ready["body"]["status"]
 
     live_ok = bool(live.get("ok") and isinstance(live.get("body"), dict))
-    report = {
-        "schema_version": "demo-readiness-1.0",
+    report: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
         "base_url_host": urllib.request.urlparse(base_url).hostname,
         "live_ok": live_ok,
         "ready_http_status": ready.get("http_status"),
@@ -162,6 +299,9 @@ def probe(base_url: str, timeout: float) -> dict[str, Any]:
         "closes_issue_29": False,
         "closes_issue_30": False,
     }
+    failure_mode, operator_hints = classify_report(report)
+    report["failure_mode"] = failure_mode
+    report["operator_hints"] = operator_hints
     return report
 
 
@@ -198,6 +338,8 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "allow_live_skipped": True,
                     "reason": "analysis_not_ready",
+                    "failure_mode": report.get("failure_mode"),
+                    "operator_hints": report.get("operator_hints"),
                     "closes_issue_29": False,
                     "closes_issue_30": False,
                 },

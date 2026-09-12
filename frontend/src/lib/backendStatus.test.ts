@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  liveTransportFailureMessage,
   probeBackendStatus,
   statusFromCapabilities,
   unavailableFailureMessage,
@@ -74,5 +75,25 @@ describe('probeBackendStatus', () => {
       ),
     );
     await expect(probeBackendStatus()).resolves.toMatchObject({ kind: 'ready' });
+  });
+});
+
+describe('liveTransportFailureMessage', () => {
+  it('keeps CORS guidance from the API client', () => {
+    const raw =
+      'Could not reach the analysis service. Check that the backend is running, VITE_API_BASE_URL matches, and CORS_ORIGINS includes this exact page origin.';
+    expect(liveTransportFailureMessage(raw)).toBe(raw);
+  });
+
+  it('clarifies protected-mode denial without mentioning tokens in the label only', () => {
+    expect(liveTransportFailureMessage('Analysis access denied.')).toMatch(/protected mode/i);
+  });
+
+  it('clarifies capacity limits', () => {
+    expect(liveTransportFailureMessage('Analysis capacity is limited.')).toMatch(/429/);
+  });
+
+  it('clarifies timeouts', () => {
+    expect(liveTransportFailureMessage('Analysis timed out.')).toMatch(/timed out/i);
   });
 });
