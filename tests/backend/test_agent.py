@@ -10,6 +10,7 @@ from backend.agent.models import FinalAnalysis
 from backend.agent.service import (
     _FINISH_NUDGE,
     _has_answerable_evidence,
+    _repair_message,
     _should_stop_tools,
     build_response,
     dispatch_tool,
@@ -537,6 +538,50 @@ async def test_repair_rejects_further_tool_calls(root):
         await AnalysisService(client, root).analyze(AnalyzeRequest(text="Synthetic"))
     assert error.value.code == "invalid_model_output"
     assert len(client.calls) == 3
+
+
+def test_repair_message_truncates_and_requires_same_file_sources():
+    detail = "Claim requires source evidence from the same file.\n" + ("pad " * 200)
+    message = _repair_message(detail)
+    assert "failed host validation: Claim requires source evidence from the same file." in message
+    assert "same file's Sources evidence_id" in message
+    assert "Do not call tools" in message
+    # Detail is whitespace-collapsed and truncated to 400 chars before the rest of the template.
+    reason = message.split("failed host validation: ", 1)[1].split(". Correct it once", 1)[0]
+    assert len(reason) <= 400 and "\n" not in reason
+    assert _repair_message("").startswith(
+        "Your final object failed host validation: output/provenance validation failed"
+    )
+
+
+async def test_repair_includes_concrete_same_file_sources_error(root):
+    """Live Azure failure mode: valid JSON omitting same-file Sources on the claim."""
+    first = tool_result(read_call("fix"), read_call("sources", "Sources"))
+
+    def missing_sources(history):
+        ids = read_ids(history)
+        assert len(ids) >= 2
+        return text_result(payload(ids[:1]))
+
+    def repaired(history):
+        repair_msgs = [
+            m.content
+            for m in history
+            if m.role == "user" and m.content and "failed host validation:" in m.content
+        ]
+        assert repair_msgs
+        assert "Claim requires source evidence from the same file." in repair_msgs[-1]
+        assert "same file's Sources evidence_id" in repair_msgs[-1]
+        assert "Do not call tools" in repair_msgs[-1]
+        return text_result(payload(read_ids(history)))
+
+    client = FakeClient(first, missing_sources, repaired)
+    response = await AnalysisService(client, root).analyze(AnalyzeRequest(text="Synthetic"))
+    assert response.status == "success"
+    assert len(client.calls) == 3
+    assert [("Fix", []), ("Sources", [URL])] == [
+        (c.heading, c.source_urls) for c in response.citations
+    ]
 
 
 def test_answerable_evidence_helper_requires_same_record_sources(root):
