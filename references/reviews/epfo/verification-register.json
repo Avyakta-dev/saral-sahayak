@@ -1,0 +1,98 @@
+[
+  {
+    "id": "epfo-verification-001-2026-form31-rules",
+    "assertion_to_verify": "Whether the reported 2026 Form 31 regime introduced a uniform 12-month membership threshold, revised purpose groupings and a 25% retained balance, and which claims and effective dates it covers.",
+    "evidence": {
+      "record_id": "epfo-rr-039",
+      "heading": "Sources and verification",
+      "excerpt": "Pre-2026 purpose-wise service years varied; 2026 uniform 12-month rule is secondary-sourced. Confidence medium on exact 2026 purpose codes because official gazette text was not independently fetched (epfindia 403). Do not invent purpose codes."
+    },
+    "source_url": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf",
+    "authority_basis": "The selected URL is the actual official OCS FAQ cited by rr039, but it is an older instrument and insufficient authority for the claimed 2026 changes. The record attributes those changes to secondary explainers, including Kustodian and Jagran Josh, rather than independently reviewed current scheme text. Record-level source types are not URL-position aligned.",
+    "gap": "Offline review only: no URL was fetched and no policy was verified. The official gazette/current scheme text, amendments, commencement, purpose definitions and transition rules are unexamined. The archive's report of an earlier 403 is not a fetch result from this review; its last_verified date and medium confidence are not current-policy verification.",
+    "acceptance_requirement": "In a separately authorized verification round, obtain and inspect authoritative gazette/scheme provisions and applicable EPFO circulars; record exact supporting clauses, effective dates, purpose scope, service and balance rules, exceptions and supersession. Reconcile the secondary reports and older purpose-specific rules. Until then, do not confirm the reported thresholds, invent purpose codes, or calculate a ready-to-claim entitlement from them.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  },
+  {
+    "id": "epfo-verification-002-uan-activation-channel",
+    "assertion_to_verify": "Whether UAN allotment/activation has shifted exclusively to UMANG Aadhaar Face Authentication, whether website activation is discontinued, and the effective scope and exceptions to that channel change.",
+    "evidence": {
+      "record_id": "epfo-rr-181",
+      "heading": "Classification",
+      "excerpt": "2025-26 EPFO communications and news (Business Today, Mint) state UAN allotment/activation moved to UMANG with Aadhaar Face Authentication; website activation paths discontinued."
+    },
+    "source_url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf",
+    "authority_basis": "The archive cites this EPFO-hosted FAT manual/circular alongside secondary reporting. It is a primary-source candidate, not a document whose contents, currency or exclusive-channel mandate have been checked here. rr007 still instructs website activation, so the preserved records conflict on the route.",
+    "gap": "Offline review only: the FAT instrument and any amendments were not fetched. Its effective date, distinction between allotment and activation, covered member categories, alternative paths and supersession of rr007's instructions remain unverified. High source confidence and the archived date do not resolve the conflict.",
+    "acceptance_requirement": "In a separately authorized verification round, read the official FAT instrument and subsequent official notices, capture clauses establishing dates, scope, discontinuation and any exceptions, and distinguish activation from claim submission. Reconcile rr007 and rr181 against those provisions. Do not infer universal exclusivity merely from a FAT manual title or secondary headlines, or claim tested live availability without a separate authorized check.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  },
+  {
+    "id": "epfo-verification-003-conditional-cheque-waiver",
+    "assertion_to_verify": "Whether cancelled-cheque/passbook image upload is waived after successful bank/NPCI verification, for which claim types and channels, and how residual upload demands should be handled.",
+    "evidence": {
+      "record_id": "epfo-rr-106",
+      "heading": "Classification",
+      "excerpt": "EPFO circular on removal of cancelled-cheque image upload where NPCI verification succeeded; Times Now reporting cheque upload no longer required for large claim volumes. Mint still notes unclear cheque scans reject non-NPCI accounts."
+    },
+    "source_url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf",
+    "authority_basis": "The selected EPFO-hosted removal circular is recorded as the primary instrument. Times Now and Mint are secondary reporting, not interchangeable statutory authority. The record describes a conditional waiver; a bank account merely appearing under KYC does not establish that condition.",
+    "gap": "Offline review only: no circular text or current portal behavior was fetched or checked. The effective date, covered forms, precise verification requirement, exceptions and authority for proceeding without an image are unverified. rr106 has no additional source note, which does not establish unrestricted applicability.",
+    "acceptance_requirement": "In a separately authorized verification round, inspect the circular and any superseding instructions for exact eligibility, forms, channels, commencement and exceptions. Separate successful NPCI verification from ordinary KYC listing and distinguish non-verified image-quality cases from residual prompts after verification. Require explicit support before recommending waiver or alleging a policy violation; do not bypass a prompt or guarantee approval from secondary summaries.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  },
+  {
+    "id": "epfo-verification-004-overlap-transfer-scope",
+    "assertion_to_verify": "Whether the recorded 20 May 2025 instruction prevents rejection of Form 13 transfers solely for overlapping service, while preserving necessary clarification and source-office verification rather than guaranteeing all settlements.",
+    "evidence": {
+      "record_id": "epfo-rr-070",
+      "heading": "Sources and verification",
+      "excerpt": "Full circular text reproduced on StaffNews. Applies to transfer claims, not automatically to all settlements."
+    },
+    "source_url": "https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html",
+    "authority_basis": "StaffNews is a secondary reproduction, not an official EPFO host. The archive attributes circular WSU/TransferClaim/E-52972/2025-26/07 dated 20 May 2025 to that reproduction. The record-level circular/news labels do not authenticate this URL as an official original; the separately listed Revamped Form 13 PDF cannot be assumed to be the same instrument.",
+    "gap": "Offline review only: neither the reproduction nor an official original was fetched. Authenticity, completeness, current force, clarification conditions and the relationship to other Form 13 instructions remain unverified. No blanket prohibition on settlement rejections or guarantee of approval is established.",
+    "acceptance_requirement": "In a separately authorized verification round, obtain an official or otherwise authenticated original and compare its number, date and operative text with the StaffNews reproduction. Record exact transfer-only scope, overlap-per-se treatment, clarification exceptions and any superseding provisions. Preserve the reproduction label unless authenticated, and do not extend the instruction to Form 19, Form 31 or pension settlements without separate authority.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  },
+  {
+    "id": "epfo-verification-005-short-eps-service",
+    "assertion_to_verify": "Whether members with less than six months of eligible EPS service are currently excluded from Form 10C withdrawal benefit and should be told to file only Form 19, as rr035 asserts.",
+    "evidence": {
+      "record_id": "epfo-rr-035",
+      "heading": "Fix",
+      "excerpt": "If truly under 6 months, file only Form 19; skip 10C."
+    },
+    "source_url": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf",
+    "authority_basis": "rr035 identifies OCS FAQ Q4 as its primary official source and also lists an October 2017 eligibility FAQ, secondary guidance and a forum. An older official FAQ may describe historical online filing conditions rather than establish current substantive EPS entitlement; high archived confidence does not establish currency.",
+    "gap": "Offline review only: no source or amendment was fetched. Current EPS provisions, withdrawal-benefit calculation rules, treatment of short service, aggregation across member IDs, effective dates and possible supersession of the FAQ have not been examined. Neither the asserted exclusion nor an alternative entitlement is verified here.",
+    "acceptance_requirement": "In a separately authorized verification round, inspect current authoritative EPS scheme/amendment text, relevant benefit tables and EPFO instructions. Establish treatment of service below six months, aggregation and applicable dates, distinguishing online filing restrictions from entitlement. Reconcile any amendments with the FAQ before advising a member to forgo Form 10C; do not substitute an invented eligibility threshold or a guaranteed payout.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  },
+  {
+    "id": "epfo-verification-006-joint-declaration-name-correction",
+    "assertion_to_verify": "Whether the current Joint Declaration name-correction process requires the minor/major document proofs and employer or closed-establishment approvals described in rr001, and which member circumstances those requirements cover.",
+    "evidence": {
+      "record_id": "epfo-rr-001",
+      "heading": "Fix",
+      "excerpt": "Upload supporting ID proofs as required for minor vs major name change under the Joint Declaration SOP (Aadhaar is mandatory; major changes need more documents, e.g. passport/PAN/school certificate; full name change may need Gazette notification)."
+    },
+    "source_url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf",
+    "authority_basis": "The archive cites an EPFO-hosted Joint Declaration SOP as the primary instrument and lists news/blog explanations separately. The SOP URL is genuine record provenance, not evidence that this review inspected its text or established that every archived requirement remains current. rr012's initials-expansion subtype also depends on the SOP's classification.",
+    "gap": "Offline review only: the SOP and subsequent amendments or simplified workflows were not fetched. The present minor/major definitions, evidence counts, mandatory Aadhaar scope, employer approval rules, permissible attestors and closed-establishment exceptions remain unverified. The archive's last_verified date must not be treated as this review's verification date.",
+    "acceptance_requirement": "In a separately authorized verification round, inspect the official SOP and later applicable instructions, recording exact name-change classifications, required evidence and counts, approval routes, exceptions and effective dates. Distinguish initials expansion, salutation removal and legal name change, and reconcile any newer simplified correction route before presenting a mandatory document checklist or ready-to-use JD draft. Do not assume all claimants require the same documents or employer approval.",
+    "fetch_status": "not_attempted",
+    "verified_on": null,
+    "review_date": "2026-09-12"
+  }
+]
