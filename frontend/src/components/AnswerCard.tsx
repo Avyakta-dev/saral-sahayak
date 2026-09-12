@@ -220,7 +220,11 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
                 <FileText className="document-tile-icon" size={24} aria-hidden="true" />
                 <div>
                   <p>{document.text}</p>
-                  <Evidence ids={document.citation_ids} citations={response.citations} mode={mode} />
+                  <Evidence
+                    ids={document.citation_ids}
+                    citations={response.citations}
+                    mode={mode}
+                  />
                 </div>
               </div>
             ))
@@ -273,7 +277,11 @@ function AnswerTabs({ response, mode }: { response: AnalyzeResponse; mode: Answe
                   />
                   <div className="step-content">
                     <label htmlFor={`${id}-step-${index}`}>{action.text}</label>
-                    <Evidence ids={action.citation_ids} citations={response.citations} mode={mode} />
+                    <Evidence
+                      ids={action.citation_ids}
+                      citations={response.citations}
+                      mode={mode}
+                    />
                   </div>
                 </li>
               ))}

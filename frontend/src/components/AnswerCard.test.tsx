@@ -7,11 +7,8 @@ import { getWalkthrough, walkthroughRemark } from '../lib/walkthrough';
 import AnswerCard, { AnswerCard as NamedAnswerCard } from './AnswerCard';
 
 const sample = () => getWalkthrough('en');
-const renderCard = (
-  response = sample(),
-  onEdit = vi.fn(),
-  mode: 'live' | 'sample' = 'sample',
-) => render(<AnswerCard response={response} onEdit={onEdit} mode={mode} />);
+const renderCard = (response = sample(), onEdit = vi.fn(), mode: 'live' | 'sample' = 'sample') =>
+  render(<AnswerCard response={response} onEdit={onEdit} mode={mode} />);
 
 async function expectEvidence(container: HTMLElement, response: AnalyzeResponse, ids: string[]) {
   await userEvent.click(within(container).getByText(ids.length > 1 ? 'Sources' : 'Source'));
@@ -415,9 +412,7 @@ describe('AnswerCard', () => {
     await userEvent.click(screen.getByText('About this answer'));
     expect(screen.getByText(/Educational guidance only/)).toBeVisible();
     expect(screen.getByText('Not a general chatbot')).toBeVisible();
-    expect(
-      screen.getByText(/Cites EPFO Markdown paths and original source URLs/),
-    ).toBeVisible();
+    expect(screen.getByText(/Cites EPFO Markdown paths and original source URLs/)).toBeVisible();
     expect(screen.getByText(/Abstains or asks for clarification/)).toBeVisible();
     expect(screen.getByText(/Checklists and drafts come from cited blocks/)).toBeVisible();
     await userEvent.click(screen.getByRole('tab', { name: 'Overview' }));
@@ -432,7 +427,7 @@ describe('AnswerCard', () => {
     expect(screen.getByText('Sample only · not real claim advice')).toBeVisible();
   });
 
-    it('treats supplied markup as inert text', async () => {
+  it('treats supplied markup as inert text', async () => {
     const response = sample();
     const markup = '<img src=x onerror=alert(1)><script>alert(1)</script>';
     response.explanation[0].text = markup;

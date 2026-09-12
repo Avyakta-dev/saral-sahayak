@@ -139,7 +139,9 @@ describe('analyzeRemark', () => {
   it('surfaces transport error messages when the body is not an AnalyzeResponse', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(
-        JSON.stringify({ error: { code: 'request_too_large', message: 'Request exceeds 32 KiB.' } }),
+        JSON.stringify({
+          error: { code: 'request_too_large', message: 'Request exceeds 32 KiB.' },
+        }),
         { status: 413, headers: { 'Content-Type': 'application/json' } },
       ),
     );

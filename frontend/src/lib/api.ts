@@ -95,13 +95,14 @@ export async function fetchCapabilities(signal?: AbortSignal): Promise<Capabilit
   const data = await readJsonBody(response);
   if (!response.ok) {
     throw new Error(
-      transportErrorMessage(
-        data,
-        `Capabilities request failed with HTTP ${response.status}.`,
-      ),
+      transportErrorMessage(data, `Capabilities request failed with HTTP ${response.status}.`),
     );
   }
-  if (!data || typeof data !== 'object' || typeof (data as Capabilities).analysis_available !== 'boolean') {
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    typeof (data as Capabilities).analysis_available !== 'boolean'
+  ) {
     throw new Error('Capabilities response was missing analysis_available.');
   }
   return data as Capabilities;

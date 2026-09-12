@@ -372,7 +372,11 @@ test('real remarks and follow-ups never silently become a canned answer', async 
   await sendRemark(page);
   await noSample(page);
   await expect(
-    page.getByText(/analysis service|Analysis is not available|non-JSON|not available on this server/i).first(),
+    page
+      .getByText(
+        /analysis service|Analysis is not available|non-JSON|not available on this server/i,
+      )
+      .first(),
   ).toBeVisible();
   await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
   await expect(page.getByText(/never substitutes a canned sample/)).toBeVisible();
@@ -422,9 +426,7 @@ test('explicit sample takes 700ms, preserves unsent text, and shows only the com
   await page.getByRole('button', { name: /Show me an example/ }).click();
   await expect(page.getByText('Opening the sample walkthrough…', { exact: true })).toBeVisible();
   await expect(input(page)).toHaveAttribute('readonly', '');
-  await expect(
-    page.getByRole('button', { name: 'Stop request', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop request', exact: true })).toBeVisible();
   await expect(page.getByRole('tablist')).toHaveCount(0);
   await page.clock.runFor(699);
   await expect(page.getByRole('tablist')).toHaveCount(0);
