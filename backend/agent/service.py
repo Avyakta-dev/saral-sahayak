@@ -56,24 +56,32 @@ _GUIDANCE_HEADINGS = frozenset(
 _FINISH_NUDGE = (
     "Host note: stop tool use now. Return one FinalAnalysis JSON object immediately using only "
     "evidence_ids already returned in this history. Do not re-read the same path or heading, and "
-    "do not paginate unless a cited URL was cut. If guidance plus same-file source URLs for a "
-    "candidate reason (including initials/name-mismatch comparison evidence) are already present, "
-    "prefer a grounded success; otherwise clarify or abstain. No invented IDs, URLs or identities."
+    "do not paginate unless a cited URL was cut. Every explanation/action/required_document claim "
+    "that cites a non-Sources excerpt must also cite that same file's Sources evidence_id on the "
+    "same claim. If guidance plus same-file Sources for a candidate reason (including "
+    "initials/name-mismatch comparison evidence) are already present, prefer a grounded success; "
+    "otherwise clarify or abstain. No invented IDs, URLs or identities."
 )
 
 _FINISH_TOOL_MESSAGE = (
     "Further reads are blocked to preserve the shared evidence budget for a validated final "
-    "answer. Emit FinalAnalysis JSON now using evidence_ids already in this history. Prefer "
-    "success when a reason, explanation, actions and same-file source URLs are present; otherwise "
-    "clarify or abstain. Do not invent evidence or identities."
+    "answer. Emit FinalAnalysis JSON now using evidence_ids already in this history. On every "
+    "claim, pair non-Sources excerpts with that same file's Sources evidence_id. Prefer success "
+    "when a reason, explanation, actions and same-file source URLs are present; otherwise clarify "
+    "or abstain. Do not invent evidence or identities."
 )
 
-_REPAIR_MESSAGE = (
-    "Your final object failed output/provenance validation. Correct it once using the same "
-    "schema, requested language and evidence IDs from this history. Do not call tools. No "
-    "citation metadata or draft fields. If evidence is insufficient, clarify or abstain. Do not "
-    "invent evidence or identities."
-)
+
+def _repair_message(detail: str) -> str:
+    """One-shot repair with the concrete host validation failure (truncated)."""
+    reason = " ".join(detail.split())[:400].strip() or "output/provenance validation failed"
+    return (
+        f"Your final object failed host validation: {reason}. Correct it once using the same "
+        "schema, requested language and evidence IDs from this history. Every claim that cites a "
+        "non-Sources excerpt must also cite that same file's Sources evidence_id on that claim. "
+        "Do not call tools. No citation metadata or draft fields. If evidence is insufficient, "
+        "clarify or abstain. Do not invent evidence or identities."
+    )
 
 
 def _prompt(request: AnalyzeRequest) -> str:
@@ -104,9 +112,11 @@ def _prompt(request: AnalyzeRequest) -> str:
         "Success requires a reason actually read, explanation, actions, and original source URLs "
         "actually returned by tools. Every explanation/action/required document uses evidence_ids "
         "from the tool responses. No invented IDs, citation metadata, paths or URLs. An excerpt "
-        "whose heading is null, and README index evidence, cannot be cited. If a Fix section "
-        "has no URL, read that SAME FILE's Sources section and cite BOTH evidence IDs on that "
-        "claim. Do not borrow unrelated source URLs. Include only factual supported guidance; "
+        "whose heading is null, and README index evidence, cannot be cited. If a cited excerpt "
+        "has no source URLs (typical for What it means / Fix / Required documents), that SAME "
+        "claim must also cite the SAME FILE's Sources and verification evidence_id so provenance "
+        "sees same-file source URLs. Cite BOTH IDs on every such claim, including explanation. "
+        "Do not borrow unrelated source URLs. Include only factual supported guidance; "
         "never invent names, claim numbers, dates, amounts, guarantees or completed actions. "
         "All prose must contain meaningful nonblank text. Warnings, questions and classification "
         "prose must contain no URLs or link syntax. Evidence-bearing prose may include only plain "
@@ -411,11 +421,12 @@ class AnalysisService:
                 if trace is not None:
                     trace.emit(budget, AnalysisPhase.VALIDATION)
                 response = None
+                validation_detail = ""
                 try:
                     final = FinalAnalysis.model_validate(object_json(result.text))
                     response = build_response(final, request, tools.ledger)
-                except (ValueError, TypeError, RecursionError):
-                    pass
+                except (ValueError, TypeError, RecursionError) as exc:
+                    validation_detail = str(exc)
                 budget.check()
                 if response is not None:
                     return response
@@ -427,4 +438,4 @@ class AnalysisService:
                 if trace is not None:
                     trace.emit(budget, AnalysisPhase.REPAIR)
                 repaired = True
-                history.append(Message(role="user", content=_REPAIR_MESSAGE))
+                history.append(Message(role="user", content=_repair_message(validation_detail)))
