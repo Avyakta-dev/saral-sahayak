@@ -5,13 +5,13 @@
 > **Primary demo:** EPFO claim rejection  
 > **Stretch goal:** PM-JAY and voice only after the EPFO flow is stable
 
-**Status:** The FastAPI foundation, typed schemas, model adapters, bounded Markdown file tools and offline tests exist; the real agent and deployment are not implemented. Valid analysis requests currently return 503 / `agent_not_implemented`. The [current Markdown agent design](markdown-agent-design.md) is the architecture source of truth; use the [implemented backend contract](../../docs/backend-contract.md) for actual wire schemas. Markdown conversion is separate; verify its artifacts independently.
+**Status:** Anish's Level 2 implementation has explicitly resumed. The backend now has an analysis service reusing the typed schemas, adapters, bounded Markdown tools and evidence ledger; this is not completion of Level 2 or a verified deployment. The production corpus remains absent. Analysis gates missing model configuration/corpus structure with 503, not `agent_not_implemented`. The [current Markdown agent design](markdown-agent-design.md) is the architecture source of truth; use the [implemented backend contract](../../docs/backend-contract.md) for actual wire schemas. Markdown conversion and semantic/source verification remain separate. No live provider requests or push in this round.
 
 ## Current priority override
 
 This override takes precedence over the older hourly schedule, image/download screens, completion deadlines and demo/definition-of-done requirements below; those remain longer-term planning context, not instructions to implement them now.
 
-- **Anish:** Level 2 agent implementation is paused until explicitly resumed. He retains backend/agent, integration and future multilingual API ownership. Current schemas accept only `en`/`hi`; extra languages are separate future work, not an extension change.
+- **Anish:** Level 2 agent implementation has explicitly resumed, not completed. He retains backend/agent, integration and multilingual API ownership. Current schemas accept `en`, `hi`, `kn`, `ta`, `te`, `ml` with unchanged `en` default. `GET /api/v1/capabilities` exposes only configured enabled languages, names/native names and `quality_verified: false`; `analysis_available` checks configuration and corpus structure only, not model connectivity or translation quality.
 - **Ajay:** prioritize Chrome/Brave MV3 extension assistance on the same backend, following the [five-level extension guide](../ajay-extension-guide.md), one requested level at a time with stop/report checkpoints. Popup first, optional service worker only as needed: offline paste shell → four synthetic states → click-only selection and editable preview → explicit Analyze transport → security/accessibility/browser handoff. OCR and document downloads remain deferred Ajay responsibilities, not reassigned.
 - **Shravya:** retain web UI ownership and coordinate state labels, language controls and citation/accessibility consistency with Ajay. Avyakta retains knowledge/evidence ownership.
 - **Dependencies:** Levels 1–3 are offline. Level 4 can test extension-context transport and genuine 503; live analysis depends on Anish's agent and verified knowledge. No silent synthetic fallback, extension keys, broad collection or backend CORS workaround. Existing tests remain intact.
@@ -104,8 +104,8 @@ A generated resubmission/appeal/request draft using the information supplied by 
 
 ### Language
 
-- English
-- Hindi
+- English (`en`, unchanged default), Hindi (`hi`), Kannada (`kn`), Tamil (`ta`), Telugu (`te`), Malayalam (`ml`) are accepted by the API.
+- Offer only languages returned by read-only capabilities, not a hardcoded set. API acceptance and fake-model tests are not translation-quality guarantees; all `quality_verified` flags remain false.
 
 ### Grounding
 
@@ -199,6 +199,8 @@ Each reason must retain its title, aliases, category, claim types, severity, mes
 
 `references/epfo-claim-rejection-rag-dataset/` remains the import source/archive, including its historical chunks, not runtime input or fallback retrieval. PDFs/text remain historical product context. Generated paths describe the agreed output contract; verify actual output before declaring readiness.
 
+The implemented `check_corpus` gate requires all 181 reasons and all five top-level documents, regular nonempty UTF-8 Markdown with headings and no symlinks. It checks exact index links to `reasons/epfo-rr-NNN.md` and each reason's own ID plus a valid literal HTTP(S) URL. This is structural checking only, not semantic, source-currency or translation verification.
+
 ### Tools and safety
 
 Anish implements read-only `list_files` and `read_file`, with relative paths resolved under the fixed public `references/knowledge/epfo/` root. Reject absolute/traversal/symlink paths and non-Markdown reads; no repository-wide access, private files, shell, writes, code execution or automatic URL fetching. Reference documents and uploads are untrusted data, never executable instructions.
@@ -207,7 +209,7 @@ Enforce the [design's safety budgets](markdown-agent-design.md#initial-safety-bu
 
 ### Evidence behavior
 
-Read the index, select plausible reason files, compare relevant sections and supporting guidance, then confirm classification or ask clarification. Only generate actions supported by evidence actually read. Cite Markdown path, canonical record ID/exact heading and original source URLs at claim level; preserve source authority and uncertainty. For unknown, ambiguous, conflicting or insufficient evidence, clarify or abstain. Missing knowledge or tool failure is an explicit error, not permission to invent guidance.
+Read the index, select plausible reason files, compare relevant sections and supporting guidance, then confirm classification or ask clarification. Only generate actions supported by evidence actually read. The model supplies evidence IDs; the host builds and validates citation metadata from the request-local ledger. If a remedy excerpt lacks URLs, read a source-bearing section from the same file and cite both separately, never merge URL metadata or borrow unrelated catalog links. Cite Markdown path, canonical record ID/exact heading and original source URLs at claim level; preserve source authority and uncertainty. For unknown, ambiguous, conflicting or insufficient evidence, clarify or abstain. Missing knowledge or tool failure is an explicit error, not permission to invent guidance.
 
 ---
 
@@ -221,7 +223,7 @@ Turn bureaucratic/technical language into simple language.
 
 - Plain language
 - Short explanation
-- English/Hindi
+- Requested enabled language; independently review translation fidelity
 - No unnecessary jargon
 - Must stay grounded in Markdown sections actually read and attach claim-level citations
 
@@ -269,9 +271,9 @@ Turn bureaucratic/technical language into simple language.
 
 ### Purpose
 
-Generate a ready-to-use document.
+The current host assembles a localized request template from validated cited action blocks and literal supplied details/placeholders. It does not accept a free model-generated draft or invented identities. Schema/provenance validation does not establish linguistic fidelity or policy correctness; review before use.
 
-Possible outputs:
+Broader future outputs (not the current wire contract):
 
 - Resubmission request
 - Appeal/request letter
@@ -399,7 +401,7 @@ or
 [ Upload image ]
 
 Language:
-[ English ] [ हिन्दी ]
+[ Enabled names/native names from capabilities; default English ]
 
 [ Analyze Rejection ]
 ```
@@ -553,13 +555,13 @@ A web frontend that works with labelled synthetic data first and the real API la
 
 ### Main deliverable
 
-Follow the [five-level extension guide](../ajay-extension-guide.md), beginning with an offline permission-free paste shell and stopping/reporting after each requested level. Real analysis depends on Anish's paused agent work; do not substitute fixtures for live errors or change backend contracts.
+Follow the [five-level extension guide](../ajay-extension-guide.md), beginning with an offline permission-free paste shell and stopping/reporting after each requested level. Production analysis still depends on the absent corpus and authorized model/grounding evaluation despite resumed agent implementation; do not substitute fixtures for live errors or change backend contracts.
 
 ---
 
 # 8. Repository Structure
 
-Existing documentation/source references and proposed generator/runtime paths are shown together below. This older target layout is not an inventory: the FastAPI foundation, schemas, adapters, file tools and tests already exist, while agent modules remain planned. Consult the implemented backend contract before creating files. Ajay's proposed `extension/` layout is in the extension guide. Generator implementation is separate.
+Existing documentation/source references and proposed generator/runtime paths are shown together below. This older target layout is not an inventory: the FastAPI foundation, schemas, adapters, file tools, evidence ledger and `backend/agent/` service now exist; the historical multi-agent module layout below is not the implemented structure. Consult the implemented backend contract before creating files. Ajay's proposed `extension/` layout is in the extension guide. Generator implementation is separate.
 
 ```text
 saral-sahayak/
@@ -680,7 +682,7 @@ tests/               # existing tests preserved; coordinate shared changes
 documents/           # deferred OCR/document-download work, not reassigned
 ```
 
-Backend/agent and future multilingual API changes belong to Anish. The extension must not modify them to bypass the paused Level 2 dependency.
+Backend/agent and multilingual API changes belong to Anish. The extension must not modify them to bypass model/corpus readiness gates; Anish's Level 2 is resumed, not declared complete.
 
 ### Shared / protected
 
@@ -697,7 +699,7 @@ README.md
 
 # 11. 19-Hour Execution Plan
 
-**Scheduling note:** the [current priority override](#current-priority-override) supersedes all hourly assignments and deadlines below. Do not resume Anish's Level 2 or start Ajay's deferred OCR/download tasks to meet these older milestones. Ajay's requested level and stop/report acceptance, not elapsed hours, control his next step.
+**Scheduling note:** the [current priority override](#current-priority-override) supersedes all hourly assignments and deadlines below. Anish's explicitly resumed Level 2 is not automatically complete; do not start Ajay's deferred OCR/download tasks to meet these older milestones. Ajay's requested level and stop/report acceptance, not elapsed hours, control his next step.
 
 ## Hours 0–2 — Foundation
 

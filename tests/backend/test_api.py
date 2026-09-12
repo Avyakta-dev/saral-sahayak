@@ -62,7 +62,8 @@ def test_four_synthetic_response_contracts_round_trip_through_fastapi(state):
     with TestClient(fixture_app) as fixture_client:
         response = fixture_client.get("/synthetic-fixture")
     assert response.status_code == 200
-    assert response.json() == payload
+    # Legacy examples omit the new optional citation columns; serialization adds defaults.
+    assert response.json() == result.model_dump()
     assert AnalyzeResponse.model_validate_json(response.content) == result
     for citation in result.citations:
         assert "/synthetic-examples/" in citation.path
@@ -89,7 +90,7 @@ def test_live_is_not_readiness_even_with_complete_synthetic_config(
         ready = test_client.get("/health/ready")
         analysis = test_client.post("/api/v1/analyze", json={"text": "Synthetic input"})
     assert live.status_code == 200
-    assert live.json() == {"status": "alive", "version": "0.1.0"}
+    assert live.json() == {"status": "alive", "version": "0.2.0"}
     assert ready.status_code == 503
     assert ready.json() == {
         "status": "not_ready",
@@ -97,14 +98,15 @@ def test_live_is_not_readiness_even_with_complete_synthetic_config(
             "model_configured": configured,
             "model_connectivity_verified": False,
             "knowledge_index_present": index_present,
+            "knowledge_structure_ready": False,
             "knowledge_content_verified": False,
-            "agent_implemented": False,
+            "agent_implemented": True,
         },
     }
     assert analysis.status_code == 503
     result = AnalyzeResponse.model_validate(analysis.json())
     assert result.status == "error"
-    assert result.error.code == "agent_not_implemented"
+    assert result.error.code == ("knowledge_unavailable" if configured else "model_not_configured")
     assert result.classification is None and result.draft is None
     assert not any(
         (result.explanation, result.actions, result.required_documents, result.citations)
@@ -125,7 +127,7 @@ def test_invalid_provider_configuration_does_not_break_liveness(tmp_path):
     assert SECRET not in response.text
 
 
-@pytest.mark.parametrize("language", ["en", "hi"])
+@pytest.mark.parametrize("language", ["en", "hi", "kn", "ta", "te", "ml"])
 def test_utf8_input_preserves_language_but_never_echoes_user_data(client, language):
     payload = {
         "text": "केवल काल्पनिक परीक्षण — " + SECRET,
@@ -139,7 +141,7 @@ def test_utf8_input_preserves_language_but_never_echoes_user_data(client, langua
     )
     assert response.status_code == 503
     assert response.json()["language"] == language
-    assert response.json()["error"]["code"] == "agent_not_implemented"
+    assert response.json()["error"]["code"] == "model_not_configured"
     assert SECRET not in response.text
 
 
@@ -221,6 +223,19 @@ def test_utf8_byte_limit_is_distinct_from_character_limit(client):
     )
     assert response.status_code == 413
     assert response.json()["error"]["code"] == "request_too_large"
+
+
+@pytest.mark.parametrize(("characters", "status"), [(8000, 503), (8001, 422)])
+def test_unicode_character_limit_accepts_exact_boundary(client, characters, status):
+    body = json.dumps({"text": "\U0001f642" * characters}, ensure_ascii=False).encode("utf-8")
+    assert len(body) < 32768
+    response = client.post(
+        "/api/v1/analyze", content=body, headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == (
+        "model_not_configured" if status == 503 else "invalid_request"
+    )
 
 
 def test_input_normalization_and_missing_details_are_explicit():
@@ -343,6 +358,34 @@ def test_unsafe_citation_locations_are_rejected(field, value):
         AnalyzeResponse.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    ("columns", "valid"),
+    [
+        ({}, True),
+        ({"start_column": None, "end_column": None}, True),
+        ({"start_column": 0, "end_column": 0}, True),
+        ({"start_column": 0, "end_column": 12}, True),
+        ({"start_column": 12, "end_column": 0, "end_line": 2}, True),
+        ({"start_column": 0}, False),
+        ({"end_column": 12}, False),
+        ({"start_column": -1, "end_column": 12}, False),
+        ({"start_column": 0, "end_column": -1}, False),
+        ({"start_column": 12, "end_column": 0}, False),
+    ],
+)
+def test_citation_columns_are_optional_paired_and_ordered(columns, valid):
+    payload = example("success")["citations"][0]
+    payload.update(start_line=1, end_line=1)
+    payload.update(columns)
+    if valid:
+        citation = Citation.model_validate(payload)
+        assert citation.start_column == columns.get("start_column")
+        assert citation.end_column == columns.get("end_column")
+    else:
+        with pytest.raises(ValidationError):
+            Citation.model_validate(payload)
+
+
 def test_reversed_citation_range_is_rejected():
     payload = example("success")
     payload["citations"][0].update(start_line=2, end_line=1)
@@ -385,3 +428,43 @@ def test_response_evidence_matches_actual_temporary_read_and_rejects_forgery(tmp
         with pytest.raises(EvidenceError):
             forged.validate_evidence(files.ledger)
         result.validate_evidence(files.ledger)  # Forgery did not mutate the host snapshot.
+
+
+def test_evidence_validation_rejects_erasing_actual_reason_record_id(tmp_path):
+    reasons = tmp_path / "reasons"
+    reasons.mkdir()
+    (reasons / "epfo-rr-001.md").write_text(
+        "# SYNTHETIC REASON ONLY\n"
+        "epfo-rr-001 is a fictional test label. https://example.invalid/reason\n",
+        encoding="utf-8",
+    )
+    with KnowledgeFiles(tmp_path) as files:
+        read = files.read_file("reasons/epfo-rr-001.md", heading="SYNTHETIC REASON ONLY")
+        assert read.record_id == "epfo-rr-001"
+        citation = Citation(
+            id=read.evidence_id,
+            path=read.path,
+            record_id=read.record_id,
+            heading=read.heading,
+            start_line=read.start_line,
+            end_line=read.end_line,
+            start_column=read.start_column,
+            end_column=read.end_column,
+            source_urls=list(read.source_urls),
+        )
+        payload = example("success")
+        payload.update(
+            explanation=[{"text": "Synthetic fixture only.", "citation_ids": [citation.id]}],
+            actions=[],
+            required_documents=[],
+            draft=None,
+            citations=[citation.model_dump()],
+        )
+        result = AnalyzeResponse.model_validate(payload)
+        result.validate_evidence(files.ledger)
+        forged = result.model_copy(
+            update={"citations": [citation.model_copy(update={"record_id": None})]}
+        )
+        with pytest.raises(EvidenceError):
+            forged.validate_evidence(files.ledger)
+        result.validate_evidence(files.ledger)

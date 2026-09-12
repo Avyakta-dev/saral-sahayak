@@ -143,6 +143,21 @@ class Budget:
         self._bytes += size
         self._tokens += tokens
 
+    def remaining_seconds(self) -> float:
+        """Return the live request deadline allowance; never reset the clock."""
+        self.check()
+        return max(0.0, self._deadline - self._clock())
+
+    def model_token_allowance(self, ceiling: int | None = None) -> int:
+        """Remaining cumulative model output, optionally capped by the provider."""
+        self.check()
+        if ceiling is not None and (type(ceiling) is not int or ceiling <= 0):
+            raise ValueError("ceiling must be a positive integer")
+        remaining = self.limits.model_output_tokens - self._model_tokens
+        if remaining <= 0:
+            self._fail("model-output")
+        return remaining if ceiling is None else min(remaining, ceiling)
+
     def begin_model_turn(self) -> None:
         self._turns += 1
         self.check()

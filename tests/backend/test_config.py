@@ -1,5 +1,6 @@
 """Environment mapping tests: never read the developer's environment or .env."""
 
+import json
 import os
 
 import pytest
@@ -26,6 +27,7 @@ def test_defaults_are_unconfigured():
     assert settings.llm_anthropic_version == "2023-06-01"
     assert settings.llm_extra_headers == {}
     assert settings.cors_origins == []
+    assert settings.supported_languages == ["en", "hi", "kn", "ta", "te", "ml"]
 
 
 @pytest.mark.parametrize("style", ["responses", "chat_completions", "messages"])
@@ -73,6 +75,25 @@ def test_partial_configuration_is_not_configured(monkeypatch, missing):
         if name != missing:
             monkeypatch.setenv(name, value)
     assert Settings(_env_file=None).llm_config() is None
+
+
+@pytest.mark.parametrize("languages", [["en"], ["en", "hi"], ["ml", "en", "te", "ta", "kn", "hi"]])
+def test_supported_languages_json_environment_mapping(monkeypatch, languages):
+    monkeypatch.setenv("SUPPORTED_LANGUAGES", json.dumps(languages))
+    assert Settings(_env_file=None).supported_languages == languages
+
+
+@pytest.mark.parametrize("languages", [[], ["hi"], ["en", "en"], ["en", "fr"], ["EN"]])
+def test_supported_languages_must_be_unique_known_and_include_english(monkeypatch, languages):
+    monkeypatch.setenv("SUPPORTED_LANGUAGES", json.dumps(languages))
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_supported_language_defaults_are_not_shared():
+    first = Settings(_env_file=None)
+    first.supported_languages.remove("hi")
+    assert Settings(_env_file=None).supported_languages == ["en", "hi", "kn", "ta", "te", "ml"]
 
 
 def test_provider_specific_variables_do_not_silently_configure_model(monkeypatch):

@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.languages import LANGUAGES, LanguageCode
 from backend.llm import LLMConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +26,14 @@ class Settings(BaseSettings):
     llm_extra_headers: dict[str, SecretStr] = Field(default_factory=dict)
     llm_anthropic_version: str = "2023-06-01"
     cors_origins: list[str] = Field(default_factory=list)
+    supported_languages: list[LanguageCode] = Field(default_factory=lambda: list(LANGUAGES))
+
+    @field_validator("supported_languages")
+    @classmethod
+    def language_set(cls, value: list[LanguageCode]) -> list[LanguageCode]:
+        if not value or len(value) != len(set(value)) or "en" not in value:
+            raise ValueError("Supported languages must be unique and include default English")
+        return value
 
     @field_validator("llm_base_url", "llm_model")
     @classmethod

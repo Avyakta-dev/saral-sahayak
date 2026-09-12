@@ -1,12 +1,12 @@
 # Team work levels
 
-These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownership) and [current Markdown agent design](planning/markdown-agent-design.md) into an ordered handoff. They are milestones, not completion claims. The FastAPI foundation, adapters, bounded file tools and offline tests exist; real agent orchestration does not, and valid analysis requests return 503. Inspect code, generator output and tests within task permissions before reporting progress.
+These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownership) and [current Markdown agent design](planning/markdown-agent-design.md) into an ordered handoff. They are milestones, not completion claims. The backend analysis service now reuses the foundation's adapters, bounded file tools and evidence ledger. The production corpus is still absent, so analysis remains gated by model configuration and corpus structure. Inspect code, generator output and tests within task permissions before reporting progress.
 
-**Current priority:** Anish's Level 2 implementation is paused until he explicitly resumes it. Ajay follows five smaller extension levels in the [extension guide](ajay-extension-guide.md), starting at Level 1 only and stopping after each requested level. Existing tests stay. Current languages are only `en`/`hi`; future multilingual APIs remain Anish's separate work.
+**Current priority:** Anish's Level 2 implementation has explicitly resumed; no level is automatically complete. This round stays local with no push or live provider requests. Ajay independently follows five smaller extension levels in the [extension guide](ajay-extension-guide.md), starting at Level 1 only and stopping after each requested level. Existing tests stay. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, defaults to `en`, and exposes enabled languages through capabilities; acceptance is not verified multilingual quality. Anish retains backend/language ownership.
 
 ## Shared rules
 
-- The three broad levels below apply to Anish, Avyakta and Shravya; Ajay uses the five smaller extension levels in his section and guide. Anish's pause overrides general parallel-work instructions.
+- The three broad levels below apply to Anish, Avyakta and Shravya; Ajay independently uses the five smaller extension levels in his section and guide. Resuming Anish's Level 2 does not authorize advancing Ajay's levels or declare either track complete.
 - **Level 1:** agree interfaces and build a minimal independently testable component.
 - **Level 2:** integrate a working end-to-end EPFO text path.
 - **Level 3:** harden accessibility, error handling and the demo; attempt stretch features only after core acceptance.
@@ -31,19 +31,19 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 ### Level 2 — working grounded text pipeline
 
-**Paused:** do not implement or resume this level until Anish explicitly requests it. He retains ownership; Ajay must not fill this dependency by changing backend code. The existing foundation and tests remain intact.
+**Resumed by explicit request:** the analysis service and six-language contract now exist, reusing the file tools and ledger; the production corpus remains absent. This is not a completed milestone. Configuration/structural checks and fake-model tests do not establish semantic correctness, live provider compatibility or fluent output. Ajay must not fill remaining dependencies by changing backend code. Preserve the foundation and tests.
 
 - Wire extraction, evidence-guided classification and bounded agent-selected Markdown reads into explanation, fix and draft stages. Do not introduce an alias scoring/retrieval service.
 - Select relevant sections from the index and candidate files, preserve caveats and source metadata, and avoid full-corpus prompt stuffing.
-- Coordinate independent generation only after evidence selection; draft from supported actions and actual user details/placeholders.
-- Validate citations against the file sections and original URLs actually read; integrate UI and document service.
+- Generate requested-language guidance only after evidence selection; the host assembles a localized request draft from validated action blocks and literal user details/placeholders, never free model-generated draft identities.
+- Resolve model evidence IDs into host ledger citations; cite a remedy section and its same-file source section separately when URLs require another read. Provenance validation is not semantic verification. Integrate UI and, later, document service.
 - Test a supported rejection plus unknown, ambiguous, malformed and dependency/tool-failure cases.
 
 **Done when:** a text rejection yields a sourced explanation, actionable checklist and usable draft where supported, while unsupported cases explicitly clarify or abstain.
 
 ### Level 3 — reliable integrated demo
 
-- Integrate Hindi, optional image extraction and downloads as ready.
+- Independently evaluate all enabled languages; integrate optional image extraction and downloads as ready.
 - Harden timeouts, validation, safe configuration, citation verification, prompt-injection resistance and budget exhaustion behavior.
 - Document run/deploy steps and verify deployment only when authorized.
 - Freeze working contracts and rehearse the demo; defer PM-JAY and voice until EPFO is stable.
@@ -104,7 +104,7 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 ### Level 3 — accessibility and demo polish
 
-- Integrate Hindi and optional image input when supported.
+- Discover enabled languages through capabilities, review their presentation/quality independently, and integrate optional image input when supported.
 - Validate mobile layouts, readable typography, focus states, long citations/content and download feedback.
 - Test shared synthetic cases and remove misleading placeholders/demo content.
 
@@ -114,7 +114,7 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 **Read first:** [extension guide and copy-paste agent prompt](ajay-extension-guide.md), [backend contract](../docs/backend-contract.md), [design acceptance cases](planning/markdown-agent-design.md#responsibilities-and-acceptance). The guide contains the exact files to read, small deliverables, acceptance checks and structured status format for each level.
 
-Build a Chrome/Brave MV3 popup using the same backend; a service worker is optional, not a starting requirement. “One-click assistance” is user-initiated entry/capture, never automatic submission. Preview/edit comes before a separate explicit Analyze action. Shravya owns web UI/shared consistency; Anish owns agent/backend and future language APIs. Ajay's OCR/image work and document downloads remain deferred, not reassigned.
+Build a Chrome/Brave MV3 popup using the same backend; a service worker is optional, not a starting requirement. “One-click assistance” is user-initiated entry/capture, never automatic submission. Preview/edit comes before a separate explicit Analyze action. Shravya owns web UI/shared consistency; Anish owns agent/backend and multilingual APIs. Ajay's OCR/image work and document downloads remain deferred, not reassigned.
 
 | Level | Small deliverable | Acceptance and stop/report checkpoint |
 | --- | --- | --- |
@@ -124,4 +124,4 @@ Build a Chrome/Brave MV3 popup using the same backend; a service worker is optio
 | 4 | Real backend transport | Minimal backend `host_permissions`; requests from extension context, not content scripts; explicit demo/live modes and genuine current 503, no silent fallback or extension-origin CORS workaround. Report transport and remaining agent dependency; stop. |
 | 5 | Security/accessibility/browser regression and handoff | Check Chrome/Brave, limits, aborts, stale async completions, safe sources and transient storage. Record pass/fail/not-run; ZIP only if asked, no store publishing. Stop. |
 
-Levels 1–3 need no live agent. Level 4's successful analysis remains blocked until Anish resumes and implements the agent; honest 503 transport testing is useful but not end-to-end success. Current language codes are only `en`/`hi`. Keep existing backend tests, no keys or broad data collection, and follow the guide's 8,000-character/32,768-byte UTF-8 body limits. Start **Level 1 only**, then wait for an explicit request before each next level.
+Levels 1–3 need no live agent. Level 4's successful production analysis still depends on the absent corpus and authorized model/grounding evaluation; resumed agent implementation and honest 503 transport tests are not end-to-end success. Read capabilities and offer only enabled languages rather than hardcoding the six accepted codes; none has verified quality. Keep existing backend tests, no keys or broad data collection, and follow the guide's 8,000-character/32,768-byte UTF-8 body limits. Start **Level 1 only**, then wait for an explicit request before each next level.
