@@ -65,6 +65,48 @@ Synthetic input was `Synthetic Brave acceptance: name mismatch. नाम मे
 
 Brave's Developer mode and unpacked extension remain enabled for review. Existing unrelated tabs/extensions were not altered. No desktop screenshots were committed because browser chrome includes unrelated tabs. The observed popup behavior closes the formerly untested Brave basic-load/paste/edit/keyboard-clear gap; comprehensive assistive/network acceptance and reviewer sign-off remain outstanding.
 
+## Brave individual focus stops and worker-network observation — 2026-09-13
+
+Follow-up baseline: `2a33a84`, after PR #79 merged. The loaded popup, styles, popup scripts, background worker and EPFO bridge have no file differences between the earlier loaded `c0452dc` revision and this baseline. No runtime files, browser permissions or tests were changed for this run.
+
+### Keyboard results
+
+Used the actual Brave toolbar popup with a fresh, unconnected session. Each forward Tab below was followed by its own accessibility observation; this is no longer inferred from a repeated nine-Tab command. The ordered observed focus stops were:
+
+1. Open local-only privacy capture.
+2. Detect EPFO rejection.
+3. Rejection remark.
+4. Connect backend.
+5. Full name.
+6. Email address.
+7. Phone number.
+8. Address.
+9. One less thing to upload / native file control (not activated).
+10. AI setup disclosure.
+11. OpenAI API key, after Enter expanded AI setup (left empty).
+12. Model (unchanged `gpt-4o-mini`).
+13. Save profile & settings (not activated).
+14. Save & scan page (not activated).
+15. Clear session.
+
+**PASS: individual forward focus stops for the initial profile view with AI setup expanded.** Disabled candidate/language/consent/Analyze/Cancel controls were skipped. This does not cover enabled analysis controls, later workflow views, or the complete reverse sequence. Enter expanded AI setup without saving settings. The synthetic remark `Synthetic Level 1 keyboard check.` remained in its field during navigation. Enter on Clear emptied the remark, collapsed AI setup and displayed both clear statuses. Shift+Tab from Clear reached Save & scan page. Escape dismissed the popup; reopening displayed the initial empty/ready state.
+
+An initial key call explicitly scoped to the main browser window dismissed the old popup and moved focus on the extensions page. It is excluded from the passing traversal above. Subsequent keys used the browser's current popup focus, and every reported destination was independently observed.
+
+### Visual observation limitation
+
+App-window screenshots omitted the popup even while the accessibility tree contained it. A full-display screenshot did show it. After Clear, the footer control was partly clipped at the lower edge; Ctrl+End scrolled the complete Clear label and its focus outline into view. **PASS only for keyboard scrolling to the visible footer; automatic focus visibility is not established.** This observation needs a repeatable visual check before attributing it to a CSS defect. No unrelated browser screenshots were committed. Zoom, contrast, complete reverse traversal and spoken screen-reader announcements remain **NOT RUN**; accessibility names/states are not evidence of spoken output.
+
+### Worker Network panel
+
+Opened the extension card's service-worker inspector and selected Network before reopening the toolbar popup. The inspected context was `background.js`. Recording was enabled, All request types selected, the filter empty, no throttling applied, and no log-clear action was taken during the observation interval.
+
+Reopened the actual popup, entered `Synthetic network observation: name mismatch.`, replaced it with `Synthetic network observation: edited.` using Ctrl+A and text entry, and activated Clear. The exact text changes and subsequent empty remark/both clear statuses were verified. The worker Network panel remained an empty request table with `Currently recording network activity`; its final state was verified visually as well as through accessibility.
+
+**PASS for no recorded worker requests during this specific open/entry/edit/Clear interval.** This is a bounded DevTools observation, not packet capture, not a cold-worker lifecycle test (the inspector can keep it alive), and not coverage of the popup's separate network target. Native clipboard paste was not repeated during this recording. No backend connection, Detect, scan, Analyze, Fill, provider credential, or private data was used. No HTTP 503, Analyze payload, live provider result, or extension-wide zero-egress certification is claimed. Full popup-plus-worker network coverage remains outstanding.
+
+The worker inspector was left open on Network. Extension data used in this run were cleared. No settings were saved. **Issue 6 remains open:** Chrome individual focus-stop coverage, full assistive/visual checks and complete network coverage still need acceptance evidence; this report does not substitute mocks or source inspection for them.
+
 ## Manifest beyond original Level 1
 
 Current `manifest.json` is MV3 with `background.js`, `activeTab`, `scripting`, `storage`, OpenAI host permission and loopback host permission. There is no manifest-declared persistent content script. The popup includes a general form assistant and a separate EPFO path. It is **not** a zero-permission/offline-only extension. Keys/profile/file state currently use trusted extension session storage; this is not the approved future isolated privacy vault.
