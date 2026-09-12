@@ -109,6 +109,12 @@ class ImagePipeline:
         self.client = client
         self.storage = storage if storage is not None else R2Storage(config)
         self._image_host = urlsplit(config.endpoint).hostname
+        if not self._image_host:
+            # ImageConfig.https_origin already guarantees a truthy hostname, so this
+            # should never fire; it exists so a broken invariant fails loud here rather
+            # than silently turning extract_rejection_text's host guard into a no-op
+            # (a falsy allowed_host would compare equal to a URL with no host too).
+            raise StorageError(_UNAVAILABLE)
         self._clock = clock
         # Deliberately process-local: restarts/other workers reject rather than guess
         # authorization from a filename. Deploy one worker or use sticky routing.

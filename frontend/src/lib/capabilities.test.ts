@@ -107,7 +107,12 @@ describe('capabilitiesSchema', () => {
     // An older frontend build must not fail closed on a new additive capability flag
     // it doesn't know about yet - this is the exact class of bug this PR already fixed
     // once (history_available breaking a fully-.strict() schema).
-    expect(capabilitiesSchema.safeParse({ ...value, unexpected: true }).success).toBe(true);
+    const result = capabilitiesSchema.safeParse({ ...value, unexpected: true });
+    expect(result.success).toBe(true);
+    // Stripped, not retained: an unrecognized top-level key must not survive into the
+    // parsed object, so a backend-controlled key nothing here validated can never ride
+    // along into app code that spreads/iterates the parsed capabilities.
+    expect(result.success && 'unexpected' in result.data).toBe(false);
   });
 
   it.each([

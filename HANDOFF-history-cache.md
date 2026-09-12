@@ -82,7 +82,12 @@ New module: `backend/history/`
     carries user-supplied claimant name / claim id — must never leak to another
     caller's replay).
   - Optional append-only JSONL persistence (`history_persist_path`); rows contain only
-    the hash + outcome metadata, never raw text — verified by a dedicated test.
+    the hash + outcome metadata, never raw text — verified by a dedicated test. This
+    log is write-only: nothing reads it back into the live in-process cache, and the
+    per-process HMAC key means a restart makes every prior row's fingerprint
+    unmatchable against a fresh one anyway. It is audit/debug data, not a durable
+    cache - the "saving money" effect (no second run for a repeat question) only
+    holds within one running process's lifetime.
   - Bounded by `max_records` / `max_per_session` with FIFO eviction.
 - `service.py` — `HistoryTrackingService`: wraps either `AnalysisService` or the
   existing `_SharedBudgetService` (image path) behind the identical

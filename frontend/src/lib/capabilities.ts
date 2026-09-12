@@ -42,12 +42,14 @@ export const capabilitiesSchema = z
     downloads_available: z.boolean(),
     history_available: z.boolean(),
   })
-  // Passthrough (not .strict()) at the top level only: an older frontend build talking
-  // to a newer backend must tolerate an additive capability flag it doesn't know about
-  // yet, rather than fail closed and disable the whole app. This is exactly the failure
-  // this PR already hit once (a new history_available field breaking .strict()).
-  // Nested objects stay .strict() - those are not meant to gain fields independently.
-  .passthrough()
+  // Deliberately neither .strict() nor .passthrough() at the top level: an older
+  // frontend build talking to a newer backend must tolerate an additive capability
+  // flag it doesn't know about yet, rather than fail closed and disable the whole app
+  // (exactly the failure this PR already hit once, from a new history_available
+  // field breaking .strict()). Zod's plain default already does this by silently
+  // stripping unrecognized keys, which gets the same forward-compat without also
+  // retaining a backend-controlled key nothing here validated. Nested objects stay
+  // .strict() - those are not meant to gain fields independently.
   .superRefine((capabilities, context) => {
     const codes = capabilities.languages.map(({ code }) => code);
     if (new Set(codes).size !== codes.length) {
