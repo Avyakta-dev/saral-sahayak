@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.languages import LANGUAGES, LanguageCode
@@ -23,12 +23,24 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_timeout_seconds: float = Field(default=25, gt=0, le=120)
     analysis_request_seconds: float = Field(default=30, gt=0, le=120)
+    analysis_access_mode: Literal["local", "protected"] = "local"
+    analysis_access_token: SecretStr = Field(default=SecretStr(""), repr=False)
+    analysis_requests_per_minute: int = Field(default=10, ge=1, le=600)
+    analysis_max_concurrent: int = Field(default=2, ge=1, le=32)
     llm_connect_timeout_seconds: float = Field(default=5, gt=0, le=30)
     llm_max_output_tokens: int = Field(default=2000, gt=0, le=16000)
     llm_extra_headers: dict[str, SecretStr] = Field(default_factory=dict)
     llm_anthropic_version: str = "2023-06-01"
     cors_origins: list[str] = Field(default_factory=list)
     supported_languages: list[LanguageCode] = Field(default_factory=lambda: list(LANGUAGES))
+
+    @model_validator(mode="after")
+    def protected_access(self):
+        if self.analysis_access_mode == "protected":
+            token = self.analysis_access_token.get_secret_value()
+            if not 32 <= len(token) <= 256 or any(not 33 <= ord(c) <= 126 for c in token):
+                raise ValueError("Protected analysis requires a 32-256 character ASCII token")
+        return self
 
     @field_validator("supported_languages")
     @classmethod
