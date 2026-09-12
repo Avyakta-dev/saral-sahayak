@@ -116,6 +116,29 @@ function harness(t) {
   };
 }
 
+for (const ending of ['cancel', 'expiry', 'supersession']) {
+  test(`late selected values are scrubbed after ${ending}`, async t => {
+    const h = harness(t);
+    const port = await h.start();
+    const pending = deferred();
+    const original = h.chrome.tabs.sendMessage;
+    const values = [{ slot: 'field-1', label: 'applicant name', value: 'Synthetic Person' }];
+    h.chrome.tabs.sendMessage = (id, message, options) => message.type === 'PRIVACY_READ'
+      ? pending.promise : original(id, message, options);
+    await h.capture(port);
+    let newer;
+    if (ending === 'cancel') await port.send({ type: 'cancel' });
+    else if (ending === 'expiry') await h.advance(120000);
+    else newer = await h.start();
+    pending.resolve(values);
+    await flush();
+    assert.equal(values[0].value, '', 'discarded response must be scrubbed even before vault admission');
+    assert.equal(h.rasters.length, 0);
+    assert.equal(port.output.some(message => message.type === 'preview'), false);
+    if (newer) assert.equal(newer.output.at(-1).type, 'inspected');
+  });
+}
+
 test('open requires an HTTP(S) source; opening/connecting never inspects or reads values', async t => {
   for (const url of ['', 'chrome://settings', 'file:///tmp/example', 'chrome-extension://synthetic-extension/privacy/privacy.html']) {
     const h = harness(t); h.tab.url = url;
