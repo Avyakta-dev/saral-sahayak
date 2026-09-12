@@ -30,6 +30,12 @@ Related to [issue 17](https://github.com/iotserver24/saral-sahayak/issues/17) (v
 | `raster.js` | Fully opaque crop placeholder (no original pixels) |
 | `privacy.html` / `privacy.js` / `privacy.css` | Developer UI including restore + per-field/batch Fill approval |
 
+## Inspection retirement and worker loss
+
+`PRIVACY_INVALIDATED` carries the retired page-inspection generation, never field values. The controller accepts revocation only for its currently bound generation and exact sender/tab/document. Retiring a previous inspection must not cancel a newly opened request on the same document. After accepting an INSPECT reply, the controller immediately CHECKs that generation before exposing candidate metadata; a mutation during reply delivery therefore still fails closed. Old/type-only notifications cannot authorize capture: every capture/review/Fill still performs its own current-generation check.
+
+This fixes a reproduced stale-notification race that can occur when a page controller outlives its worker context. It does not prove the cause of every observed Chrome disconnect or prevent genuine worker suspension. Worker loss still clears the UI and requires recapture. Reload the extension and source page together when updating the protocol; an old adapter may lack the new notification generation, but operation-time checks remain mandatory.
+
 ## Verification
 
 Run from the repository root with Node.js 22:

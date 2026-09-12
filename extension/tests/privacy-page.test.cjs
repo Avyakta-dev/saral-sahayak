@@ -337,13 +337,14 @@ test('strict messages reject extra fields and non-string generations using fixed
   }
 });
 
-test('pending and delivered mutations invalidate with a data-free notification', async () => {
+test('pending and delivered mutations notify only the exact retired generation', async () => {
   for (const deliver of [false, true]) {
     const f = fixture(); const scan = await f.inspect(); const observer = f.observers[0];
     observer.queue(); if (deliver) observer.deliver();
     const check = await f.check(scan.generation);
     assert.equal(check.valid, false); assert.notEqual(check.generation, scan.generation);
-    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED' }]);
+    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
+    assert.notEqual(f.messages[0].generation, check.generation);
     assert.equal(observer.active, false); assert.equal(f.timers.size, 0); assert.equal(f.events.count(), 0);
     assert.deepEqual(await f.read(scan.generation), { error: 'PRIVACY_STALE' });
     assert.equal(f.fields[0].reads, 0);
@@ -357,7 +358,7 @@ test('lifecycle, capture-phase field/scroll events and navigation invalidate, ne
     assert.equal((await f.check(scan.generation)).valid, false, event);
     assert.equal(f.queries(), queries); assert.equal(f.fields[0].reads, 0);
     assert.equal(f.timers.size, 0); assert.equal(f.events.count(), 0);
-    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED' }]);
+    assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
   }
   for (const [target, event] of [['visualViewport', 'resize'], ['visualViewport', 'scroll'], ['navigation', 'navigate'], ['navigation', 'currententrychange']]) {
     const f = fixture(); const scan = await f.inspect(); f.env[target].fire(event);
@@ -418,8 +419,12 @@ test('absolute TTL checked on operations and pure timer cleanup does not inspect
 });
 
 test('RESET disconnects and clears, INSPECT reinstalls monitors with a fresh generation', async () => {
-  const f = fixture(); const first = await f.inspect();
+  const field = new Input({ autocomplete: 'name', id: 'private-person-123', title: 'PRIVATE_TITLE' });
+  field.raw = 'PRIVATE_VALUE';
+  const f = fixture([field]); const first = await f.inspect();
+  assert.deepEqual(f.messages, []);
   assert.deepEqual(await f.send({ type: 'PRIVACY_RESET' }), { reset: true });
+  assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: first.generation }]);
   assert.equal(f.observers[0].active, false); assert.equal(f.events.count(), 0); assert.equal(f.timers.size, 0);
   assert.equal((await f.check(first.generation)).valid, false);
   const second = await f.inspect();
@@ -428,6 +433,16 @@ test('RESET disconnects and clears, INSPECT reinstalls monitors with a fresh gen
   const third = await f.inspect();
   assert.notEqual(third.generation, second.generation);
   assert.equal(f.observers[1].active, false); assert.equal(f.observers[2].active, true); assert.equal(f.timers.size, 1);
+  assert.deepEqual(f.messages, [
+    { type: 'PRIVACY_INVALIDATED', generation: first.generation },
+    { type: 'PRIVACY_INVALIDATED', generation: second.generation }
+  ]);
+  assert.notEqual(f.messages[1].generation, third.generation);
+  assert.deepEqual(await f.check(second.generation), { valid: false, generation: third.generation });
+  assert.deepEqual(await f.check(third.generation), { valid: true, generation: third.generation });
+  for (const privateData of [field.raw, field.attributes.id, field.attributes.title, f.env.location.href, 'NEVER_EXPORT']) {
+    assert.ok(!JSON.stringify(f.messages).includes(privateData));
+  }
   assert.deepEqual(await f.read(first.generation), { error: 'PRIVACY_STALE' });
   assert.equal(f.fields[0].reads, 0);
 });
@@ -606,7 +621,11 @@ function assertClean(f) {
   assert.equal(f.timers.size, 0);
   assert.equal(f.events.count(), 0);
   assert.ok(f.observers.every(observer => !observer.active));
-  assert.ok(f.messages.every(message => JSON.stringify(message) === '{"type":"PRIVACY_INVALIDATED"}'));
+  for (const message of f.messages) {
+    assert.deepEqual(Object.keys(message).sort(), ['generation', 'type']);
+    assert.equal(message.type, 'PRIVACY_INVALIDATED');
+    assert.match(message.generation, /^[a-f0-9]{32}-\d+$/);
+  }
 }
 
 test('Fill exempts only its own capture-phase notifications and fills all exact input/textarea fields', async () => {
@@ -617,7 +636,7 @@ test('Fill exempts only its own capture-phase notifications and fills all exact 
   assert.deepEqual(result.results.map(item => item.status), ['filled', 'filled']);
   assert.deepEqual(f.fields.map(field => field.writes), [1, 1]);
   assert.deepEqual(f.fields.map(field => field.events), [['input', 'change'], ['input', 'change']]);
-  assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED' }]);
+  assert.deepEqual(f.messages, [{ type: 'PRIVACY_INVALIDATED', generation: scan.generation }]);
   assertClean(f);
   assert.deepEqual(await f.fill(), { error: 'PRIVACY_STALE' });
   assert.equal((await f.check(scan.generation)).valid, false);
