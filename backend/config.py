@@ -97,16 +97,17 @@ class Settings(BaseSettings):
     def history_persist_path_is_a_plausible_file(cls, value: str) -> str:
         if not value:
             return value
-        path = Path(value).expanduser()
+        # resolve(), not just expanduser(): this is an operator-configured deployment
+        # setting (env var at process startup), never client input, but resolving
+        # symlinks means the path validated here and the path history_store() later
+        # opens for append are always the exact same canonical location.
+        path = Path(value).expanduser().resolve()
         if path.exists() and path.is_dir():
             raise ValueError("history_persist_path must be a file path, not a directory")
         if not path.parent.is_dir():
             raise ValueError(
                 f"history_persist_path's parent directory does not exist: {path.parent}"
             )
-        # Return the expanded form: history_store() does a bare Path(...) on this value
-        # without re-expanding "~", so a returned "~/x" would resolve relative to the
-        # working directory instead of the home directory validated above.
         return str(path)
 
     @field_validator("cors_origins")

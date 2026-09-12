@@ -195,12 +195,16 @@ class CaseHistoryStore:
         ).hexdigest()
         entry = record.model_copy(update={"session_id": pseudonym})
         try:
-            with self._persist_path.open("a", encoding="utf-8") as handle:
-                handle.write(entry.model_dump_json() + "\n")
-            # A new file's mode depends on the process umask, which may be more
-            # permissive than intended for a file other local accounts could then read.
-            # Cheap and idempotent to reassert on every write rather than only on
-            # first creation.
+            # A file opened via Path.open("a") that doesn't exist yet is created with
+            # a mode governed by the process umask (typically 0o644) - briefly
+            # world-readable before any chmod() runs. os.open's mode argument is
+            # applied atomically at creation, closing that window; the chmod below is
+            # belt-and-braces for a file that already existed under a looser mode.
+            fd = os.open(self._persist_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            try:
+                os.write(fd, (entry.model_dump_json() + "\n").encode("utf-8"))
+            finally:
+                os.close(fd)
             os.chmod(self._persist_path, 0o600)
         except OSError:
             pass

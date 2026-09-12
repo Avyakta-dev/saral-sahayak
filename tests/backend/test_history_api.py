@@ -149,15 +149,23 @@ def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call
         asyncio.run(http.aclose())
 
 
-def test_a_caller_who_knows_another_sessions_id_can_read_its_history(complete_corpus, monkeypatch):
-    """X-Session-Id is a deliberately non-confidential convenience-cache partition key,
-    not an authorization boundary (see _session_id's docstring in backend/main.py) -
-    there is no login system for it to authenticate against. This test documents and
-    proves that accepted behavior, rather than leaving it an unproven assumption: a
-    caller who sends someone else's chosen session id reads exactly what that value's
-    original sender would. What must never happen instead (and is covered elsewhere) is
-    a caller's own submitted `details` or raw claim text ever appearing in another
-    session's view - only non-identifying metadata is exposed here.
+def test_known_and_accepted_idor_spoofed_session_can_read_other_history(
+    complete_corpus, monkeypatch
+):
+    """DOCUMENTS AN ACCEPTED INTERIM RISK, NOT A DESIRED PROPERTY.
+
+    There is no account system; X-Session-Id is a client-chosen cache partition key,
+    not an auth boundary (see _session_id's docstring in backend/main.py). This test
+    pins the CURRENT (insecure-by-design-for-now) contract on purpose, so the behavior
+    can't drift silently - it must stay red/updated, not be mistaken for a requirement,
+    when real session tokens land (at which point replace this with one asserting the
+    read is rejected).
+
+    What this test does NOT accept: the *content* widening silently into a real leak.
+    It pins the exposed field set to exactly what HistoryCase declares - status,
+    outcome, reason_id, language, from_cache, created_at, updated_at, case_id - so a
+    future field addition (raw text, submitted details, model output) fails this test
+    instead of silently becoming a cross-session confidentiality breach.
     """
     app, http, calls = _client(complete_corpus, monkeypatch)
     try:
@@ -171,8 +179,20 @@ def test_a_caller_who_knows_another_sessions_id_can_read_its_history(complete_co
 
             spoofed = client.get("/api/v1/history", headers={"X-Session-Id": "victim-chosen-id"})
             assert spoofed.status_code == 200
-            assert len(spoofed.json()["cases"]) == 1
-            assert spoofed.json()["cases"][0]["reason_id"] == "epfo-rr-001"
+            cases = spoofed.json()["cases"]
+            assert len(cases) == 1
+            assert cases[0]["reason_id"] == "epfo-rr-001"
+            allowed_fields = {
+                "case_id",
+                "status",
+                "outcome",
+                "reason_id",
+                "language",
+                "from_cache",
+                "created_at",
+                "updated_at",
+            }
+            assert set(cases[0]) == allowed_fields
     finally:
         import asyncio
 

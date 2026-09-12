@@ -19,12 +19,20 @@ class CaseRecord(BaseModel):
     one-way fingerprint of the (language, text) pair, and the public, knowledge-grounded
     outcome fields the response already exposes (reason_id, outcome). This is what makes
     it safe to keep as a growing dataset rather than a snapshot of one request.
+
+    Every field here is treated as non-confidential: it is readable by anyone who
+    presents this record's session_id (see _session_id's docstring in backend/main.py -
+    that header is a partition key, not authentication). Do NOT add raw question text,
+    OCR output, submitted claim details, or model output here; those belong on the
+    AnalyzeResponse path, never on a record keyed only by a client-supplied id.
     """
 
     # store.py mutates fields in place across the started -> processing ->
     # completed/failed lifecycle (record.status = ..., record.reason_id = ...); without
     # this, Field bounds below would only ever be checked once, at construction.
-    model_config = ConfigDict(validate_assignment=True)
+    # extra="forbid" is a second tripwire: an accidental new attribute (e.g. a
+    # `record.details = ...`) raises instead of silently persisting.
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     case_id: str = Field(min_length=1, max_length=64)
     # Matches _MAX_SESSION_ID_LENGTH in backend/main.py, the only place this is set.

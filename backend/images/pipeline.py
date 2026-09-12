@@ -110,7 +110,13 @@ class ImagePipeline:
         self.storage = storage if storage is not None else R2Storage(config)
         _endpoint = urlsplit(config.endpoint)
         self._image_host = _endpoint.hostname
-        self._image_port = _endpoint.port
+        try:
+            # .port raises ValueError for an out-of-range/non-numeric port instead of
+            # returning None; ImageConfig.https_origin doesn't validate port syntax, so
+            # this must not escape as an unhandled ValueError past this typed error.
+            self._image_port = _endpoint.port
+        except ValueError:
+            raise StorageError(_UNAVAILABLE) from None
         if not self._image_host:
             # ImageConfig.https_origin already guarantees a truthy hostname, so this
             # should never fire; it exists so a broken invariant fails loud here rather

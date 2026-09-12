@@ -398,6 +398,15 @@ def test_lifecycle_is_a_required_dependency():
         pipeline(lifecycle_configured=False)
 
 
+def test_an_out_of_range_configured_port_fails_with_the_typed_storage_error():
+    """ImageConfig.https_origin doesn't validate port syntax, and urlsplit(...).port
+    raises a bare ValueError (not None) for an out-of-range port - that must not escape
+    construction as an unhandled exception, defeating the documented fail-loud-with-
+    StorageError invariant."""
+    with pytest.raises(StorageError):
+        pipeline(endpoint=f"{ENDPOINT}:99999")
+
+
 async def test_cancellation_during_provider_still_deletes_both_objects():
     entered = asyncio.Event()
 
