@@ -66,7 +66,9 @@ TOOLS = (
             "reasons/epfo-rr-001.md), exact heading or start_line, or continuation cursor. "
             "Returns immutable evidence_id, exact heading, line/column range and literal URLs. "
             "An excerpt with heading=null is navigation only and cannot be cited. "
-            "The host clamps every read to at most 3072 text bytes to reserve source evidence budget."
+            "Do not re-read the same path and heading already returned. "
+            "The host clamps every read to at most 3072 text bytes to reserve source evidence budget "
+            "and may refuse further reads once enough citable evidence is present."
         ),
         parameters=ReadFileArgs.model_json_schema(),
     ),
