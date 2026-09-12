@@ -4,7 +4,9 @@
 
 This is the current architecture source of truth for Saral Sahayak. It supersedes retrieval architecture in the historical product PDFs, text companions and archived dataset instructions. The [hackathon plan](hackathon-plan.md) supplies the implementation schedule and scope; [team work levels](../team-work-levels.md) supply milestones.
 
-This is a design, not an implemented application. Runtime code, file-reading tools, dependencies, tests and deployment are not implemented yet. Markdown knowledge conversion is a separate generator task, not part of this documentation update; verify its output before claiming the corpus is ready.
+The FastAPI foundation, typed schemas, model protocol adapters, bounded Markdown file tools and offline tests exist; the real analysis agent and deployment are not implemented. Valid analysis requests return 503 / `agent_not_implemented`. See the [implemented backend contract](../../docs/backend-contract.md) for concrete API behavior rather than proposed shapes below. Markdown knowledge conversion is separate; verify its output before claiming corpus readiness.
+
+**Current priority:** Anish's Level 2 agent implementation is paused until explicitly resumed. Ajay owns the planned Chrome/Brave MV3 extension using the same backend, with a popup and optional service worker, following the [five-level extension guide](../ajay-extension-guide.md). Start with an offline paste shell, then synthetic states, click-only selection with editable preview, explicit Analyze transport and regression/handoff. No automatic transmission, provider keys or backend/CORS workarounds. Requests belong in extension context with minimal backend host permissions, not content scripts; current Settings accepts only HTTP(S) CORS origins. OCR/document downloads remain Ajay's deferred work, not reassigned. Shravya owns web UI and shared consistency. Anish retains backend/agent and future multilingual API ownership; current schemas allow only `en`/`hi`. Existing tests remain intact.
 
 ## Decision and scope
 
@@ -94,16 +96,16 @@ Every substantive policy explanation, recommended action and factual assertion i
 
 Assign each evidence item a citation ID and attach citation IDs to explanation claims, individual fix steps and draft assertions. The UI must show path, record ID/heading and original URLs, not just a detached bibliography. A URL's presence is necessary but not sufficient: confirm that the cited section supports the specific claim and note when the underlying source has not been independently checked.
 
-Proposed response states are `success`, `needs_clarification`, `unsupported` and `error`. Include classification (`reason_id`, category and qualitative confidence with rationale), explanation, fixes, draft, citations, warnings and clarification questions as applicable. Classification confidence must be distinct from archived source confidence; do not invent calibrated probabilities. Anish and Shravya must agree the concrete schema before implementation.
+Response states are `success`, `needs_clarification`, `unsupported` and `error`. Use the [implemented versioned schema and fixtures](../../docs/backend-contract.md) for exact fields and state invariants; the current endpoint only returns error/503. Classification confidence must be distinct from archived source confidence; do not invent calibrated probabilities. Anish owns schema changes, coordinated with Shravya and Ajay; extension work consumes the existing contract.
 
 For unknown, ambiguous, contradictory, stale or insufficient evidence, ask only the clarifying facts needed or abstain with a clear limitation. Do not present unsupported fixes or drafts as ready to use. A missing corpus or failed tool produces an explicit error, not an ungrounded fallback. Never fabricate user identifiers, circular numbers, legal guarantees or citations.
 
 ## Responsibilities and acceptance
 
-- **Anish:** API/schema, file tools, containment and budget enforcement, tool-using agent orchestration, LLM integration, citation validation, integration and deployment.
+- **Anish:** API/schema, file tools, containment/budgets, agent/LLM integration, citations, deployment and future multilingual APIs. Level 2 implementation paused until explicitly resumed.
 - **Avyakta:** research, Markdown knowledge authoring/curation, index clarity, evidence verification, source authority/currency, caveats and coverage review. No retriever implementation ownership.
-- **Shravya:** mock-first UI, real API integration, visible citations, clarification/abstention/error states, accessibility and downloads.
-- **Ajay:** synthetic fixtures, OCR, draft templates/downloads, regression/security tests, Hindi checks, run/demo documentation and support.
+- **Shravya:** mock-first web UI, real API integration, citations, clarification/abstention/error states and accessibility; shared consistency with Ajay.
+- **Ajay:** [five-level extension work](../ajay-extension-guide.md), synthetic fixtures, browser/security regression and handoff first. OCR and document downloads deferred, not reassigned; preserve existing tests.
 
 Before declaring a working flow, test supported and paraphrased reasons, similar reasons, unknown remarks, missing facts, stale/conflicting sources, citation fidelity, forged citation paths/headings/URLs, traversal/absolute/symlink paths, document prompt injection, missing knowledge, budget exhaustion and dependency failure. Inspect traces to confirm only bounded Markdown evidence enters the prompt. Validate all generated record/index links separately from application tests. Never claim tests or deployment ran until they actually did.
 

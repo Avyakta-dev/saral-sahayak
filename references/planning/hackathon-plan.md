@@ -5,7 +5,17 @@
 > **Primary demo:** EPFO claim rejection  
 > **Stretch goal:** PM-JAY and voice only after the EPFO flow is stable
 
-**Status:** This is an implementation plan, not a completed application. Runtime code, file-reading tools, dependencies and deployment are not implemented yet. The [current Markdown agent design](markdown-agent-design.md) is the architecture source of truth above this plan and the historical PDFs/text. Markdown conversion is a separate generator task; verify its artifacts independently of runtime progress.
+**Status:** The FastAPI foundation, typed schemas, model adapters, bounded Markdown file tools and offline tests exist; the real agent and deployment are not implemented. Valid analysis requests currently return 503 / `agent_not_implemented`. The [current Markdown agent design](markdown-agent-design.md) is the architecture source of truth; use the [implemented backend contract](../../docs/backend-contract.md) for actual wire schemas. Markdown conversion is separate; verify its artifacts independently.
+
+## Current priority override
+
+This override takes precedence over the older hourly schedule, image/download screens, completion deadlines and demo/definition-of-done requirements below; those remain longer-term planning context, not instructions to implement them now.
+
+- **Anish:** Level 2 agent implementation is paused until explicitly resumed. He retains backend/agent, integration and future multilingual API ownership. Current schemas accept only `en`/`hi`; extra languages are separate future work, not an extension change.
+- **Ajay:** prioritize Chrome/Brave MV3 extension assistance on the same backend, following the [five-level extension guide](../ajay-extension-guide.md), one requested level at a time with stop/report checkpoints. Popup first, optional service worker only as needed: offline paste shell → four synthetic states → click-only selection and editable preview → explicit Analyze transport → security/accessibility/browser handoff. OCR and document downloads remain deferred Ajay responsibilities, not reassigned.
+- **Shravya:** retain web UI ownership and coordinate state labels, language controls and citation/accessibility consistency with Ajay. Avyakta retains knowledge/evidence ownership.
+- **Dependencies:** Levels 1–3 are offline. Level 4 can test extension-context transport and genuine 503; live analysis depends on Anish's agent and verified knowledge. No silent synthetic fallback, extension keys, broad collection or backend CORS workaround. Existing tests remain intact.
+- **Workflow:** preserve existing work; when authorized, use a temporary task branch such as `task/extension-shell` from `main`, not a permanent personal branch. This documentation update does not create code, branches or packaging.
 
 **Architecture decision:** a tool-using agent reads bounded sections of public Markdown under `references/knowledge/epfo/` and cites file path, canonical record ID/heading and original source URLs. No embeddings, vector database, RAG/chunk pipeline or deterministic alias retriever; never load the entire corpus into the prompt. The original dataset remains source/archive only.
 
@@ -526,35 +536,30 @@ A reliable, source-backed Markdown knowledge collection covering all 181 canonic
 
 ### Main deliverable
 
-A complete frontend that works with mocked data first and the real API later.
+A web frontend that works with labelled synthetic data first and the real API later; coordinate shared states, language controls, citations and accessibility with Ajay's extension.
 
 ---
 
-## Ajay — Documents / OCR / Testing / Support
+## Ajay — Browser Extension / Testing / Handoff
 
 ### Owns
 
-- Image input handling
-- OCR/vision support
-- Document generation
-- PDF/DOCX templates
-- Test fixtures
-- Sample rejection inputs
-- Regression/security testing
-- Run/test/demo documentation
-- Hindi checks
-- Demo samples
-- PPT/demo support
+- Chrome/Brave MV3 popup using the same backend, optional service worker only as needed
+- User-click selection capture, editable preview and explicit Analyze; paste fallback
+- Synthetic four-state fixtures, safe response/citation display, browser/security regression
+- Shared UI consistency with Shravya and contract coordination with Anish
+- Run/test/demo handoff; existing tests stay intact
+- Deferred, not reassigned: OCR/image support, document generation/templates and downloads
 
 ### Main deliverable
 
-Reliable supporting systems and a tested, demo-ready build.
+Follow the [five-level extension guide](../ajay-extension-guide.md), beginning with an offline permission-free paste shell and stopping/reporting after each requested level. Real analysis depends on Anish's paused agent work; do not substitute fixtures for live errors or change backend contracts.
 
 ---
 
 # 8. Repository Structure
 
-Existing documentation/source references and proposed generator/runtime paths are shown together below. Runtime modules are not implemented; the Python module layout is a proposal, not an installed stack. Generator implementation is separate from application implementation.
+Existing documentation/source references and proposed generator/runtime paths are shown together below. This older target layout is not an inventory: the FastAPI foundation, schemas, adapters, file tools and tests already exist, while agent modules remain planned. Consult the implemented backend contract before creating files. Ajay's proposed `extension/` layout is in the extension guide. Generator implementation is separate.
 
 ```text
 saral-sahayak/
@@ -670,10 +675,12 @@ frontend/
 ## Ajay
 
 ```text
-documents/
-tests/
-tests/fixtures/
+extension/           # proposed current priority; see five-level guide
+tests/               # existing tests preserved; coordinate shared changes
+documents/           # deferred OCR/document-download work, not reassigned
 ```
+
+Backend/agent and future multilingual API changes belong to Anish. The extension must not modify them to bypass the paused Level 2 dependency.
 
 ### Shared / protected
 
@@ -689,6 +696,8 @@ README.md
 ---
 
 # 11. 19-Hour Execution Plan
+
+**Scheduling note:** the [current priority override](#current-priority-override) supersedes all hourly assignments and deadlines below. Do not resume Anish's Level 2 or start Ajay's deferred OCR/download tasks to meet these older milestones. Ajay's requested level and stop/report acceptance, not elapsed hours, control his next step.
 
 ## Hours 0–2 — Foundation
 
@@ -1050,7 +1059,7 @@ Build in parallel:
       ┌────────┼────────┐
       ↓        ↓        ↓
   Avyakta   Shravya    Ajay
- Knowledge   UI      Docs/Test
+ Knowledge   UI      Extension
       └────────┼────────┘
                ↓
           Final Product

@@ -8,6 +8,8 @@ This branch contains the backend foundation: typed API contracts, configurable m
 
 The health endpoint can report a running server, but readiness and analysis explicitly report not-ready until agent integration is implemented. See the [backend contract and local setup](docs/backend-contract.md).
 
+**Current work priority:** Anish's Level 2 agent implementation is paused until he explicitly resumes it. Ajay's next task is Chrome/Brave MV3 extension assistance, using the same backend and the [five-level extension guide](references/ajay-extension-guide.md): offline paste popup → synthetic states → click-only selection/preview → explicit Analyze transport → security/accessibility handoff. This is a plan, not an implemented extension. Ajay's OCR/document downloads are deferred, not reassigned; existing tests remain. Shravya owns the web UI and shared presentation consistency. Anish retains agent/backend and future multilingual API ownership; the current contract accepts only `en`/`hi`, not additional languages.
+
 The planned tool-using agent reads selected Markdown sections under `references/knowledge/epfo/` and bases answers on those sections and their original source URLs. It does not use embeddings, a vector database, a RAG/chunk pipeline or a deterministic alias retriever. It must not load the whole corpus into a prompt.
 
 ## Start here with your coding agent

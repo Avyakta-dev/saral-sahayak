@@ -1,9 +1,12 @@
 # Team work levels
 
-These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownership) and [current Markdown agent design](planning/markdown-agent-design.md) into an ordered handoff. They are milestones, not completion claims. Inspect actual code, generator output and tests before reporting progress; the application and runtime file tools are not implemented yet.
+These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownership) and [current Markdown agent design](planning/markdown-agent-design.md) into an ordered handoff. They are milestones, not completion claims. The FastAPI foundation, adapters, bounded file tools and offline tests exist; real agent orchestration does not, and valid analysis requests return 503. Inspect code, generator output and tests within task permissions before reporting progress.
+
+**Current priority:** Anish's Level 2 implementation is paused until he explicitly resumes it. Ajay follows five smaller extension levels in the [extension guide](ajay-extension-guide.md), starting at Level 1 only and stopping after each requested level. Existing tests stay. Current languages are only `en`/`hi`; future multilingual APIs remain Anish's separate work.
 
 ## Shared rules
 
+- The three broad levels below apply to Anish, Avyakta and Shravya; Ajay uses the five smaller extension levels in his section and guide. Anish's pause overrides general parallel-work instructions.
 - **Level 1:** agree interfaces and build a minimal independently testable component.
 - **Level 2:** integrate a working end-to-end EPFO text path.
 - **Level 3:** harden accessibility, error handling and the demo; attempt stretch features only after core acceptance.
@@ -27,6 +30,8 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 **Done when:** the backend starts, contracts/mocks are testable, and file tools independently pass containment and budget checks without reading outside the public knowledge root.
 
 ### Level 2 — working grounded text pipeline
+
+**Paused:** do not implement or resume this level until Anish explicitly requests it. He retains ownership; Ajay must not fill this dependency by changing backend code. The existing foundation and tests remain intact.
 
 - Wire extraction, evidence-guided classification and bounded agent-selected Markdown reads into explanation, fix and draft stages. Do not introduce an alias scoring/retrieval service.
 - Select relevant sections from the index and candidate files, preserve caveats and source metadata, and avoid full-corpus prompt stuffing.
@@ -78,7 +83,7 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 ## Shravya — frontend and user experience
 
-**Read first:** [citation/response design](planning/markdown-agent-design.md#citation-and-response-contract), [frontend/API plan](planning/hackathon-plan.md), historical [PRD](text/saral-sahayak-prd.md) and [presentation](pdfs/setu-inferentia-public.pdf).
+**Read first:** [citation/response design](planning/markdown-agent-design.md#citation-and-response-contract), [frontend/API plan](planning/hackathon-plan.md), historical [PRD](text/saral-sahayak-prd.md) and [presentation](pdfs/setu-inferentia-public.pdf). Shravya retains web UI ownership and coordinates shared labels, response states, citations and accessibility with Ajay's [extension work](ajay-extension-guide.md); this does not transfer the web UI to him.
 
 ### Level 1 — mock-driven core screens
 
@@ -105,32 +110,18 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 **Done when:** agreed UI flows work against the actual API on mobile and with keyboard navigation.
 
-## Ajay — OCR, documents, testing and support
+## Ajay — browser extension, testing and handoff
 
-**Read first:** [design acceptance cases](planning/markdown-agent-design.md#responsibilities-and-acceptance), [extractor/draft/testing plan](planning/hackathon-plan.md), source [claim types](epfo-claim-rejection-rag-dataset/docs/claim-types-overview.md) and [playbooks](epfo-claim-rejection-rag-dataset/docs/resolution-playbooks.md). Source/archive reads here are for authoring fixtures, not runtime access.
+**Read first:** [extension guide and copy-paste agent prompt](ajay-extension-guide.md), [backend contract](../docs/backend-contract.md), [design acceptance cases](planning/markdown-agent-design.md#responsibilities-and-acceptance). The guide contains the exact files to read, small deliverables, acceptance checks and structured status format for each level.
 
-### Level 1 — fixtures and document contract
+Build a Chrome/Brave MV3 popup using the same backend; a service worker is optional, not a starting requirement. “One-click assistance” is user-initiated entry/capture, never automatic submission. Preview/edit comes before a separate explicit Analyze action. Shravya owns web UI/shared consistency; Anish owns agent/backend and future language APIs. Ajay's OCR/image work and document downloads remain deferred, not reassigned.
 
-- Create synthetic inputs for common categories, unknown/ambiguous remarks and missing fields.
-- Agree extraction and document-generation interfaces with Anish.
-- Prepare templates with explicit placeholders for missing personal information and source references for factual assertions.
-- Establish tests for citation paths/headings/URLs, missing knowledge, denied traversal/symlinks, document prompt injection and budget limits, plus reproducible demo cases.
+| Level | Small deliverable | Acceptance and stop/report checkpoint |
+| --- | --- | --- |
+| 1 | Minimal paste popup | Opens unpacked; paste/edit/clear work; no permissions, network or backend changes. Report checks and stop. |
+| 2 | Four labelled synthetic fixture states | Render success, clarification, unsupported and error as safe text, never `innerHTML`; clear prior results. Report all states and stop. |
+| 3 | User-click selection capture | Use `activeTab`/`scripting` only if needed, preview/edit, no transmission on capture; paste fallback on restricted pages. Report permissions/fallback checks and stop. |
+| 4 | Real backend transport | Minimal backend `host_permissions`; requests from extension context, not content scripts; explicit demo/live modes and genuine current 503, no silent fallback or extension-origin CORS workaround. Report transport and remaining agent dependency; stop. |
+| 5 | Security/accessibility/browser regression and handoff | Check Chrome/Brave, limits, aborts, stale async completions, safe sources and transient storage. Record pass/fail/not-run; ZIP only if asked, no store publishing. Stop. |
 
-**Done when:** fixtures contain no real personal data, templates do not invent details, and tool/document contracts are testable independently.
-
-### Level 2 — extraction and downloads
-
-- Add optional image/vision extraction with validation and a text-paste fallback.
-- Generate downloads from approved structured backend content, preserving citations; coordinate extractor changes with Anish.
-- Test malformed/oversized/unreadable input, missing data, document encoding, download behavior and unsupported-case handling.
-
-**Done when:** supported images extract safely, unsupported inputs fail clearly, and generated documents preserve approved content and provenance.
-
-### Level 3 — regression, Hindi and demo support
-
-- Test end-to-end supported, unsupported, ambiguous, conflicting-source, prompt-injection, budget-exhaustion and failure cases.
-- Check Hindi readability and document font coverage alongside English.
-- Verify downloaded files open correctly and contain no unintended user data.
-- Support run/test documentation and demo rehearsal using verified behavior; record limitations.
-
-**Done when:** regression results are recorded, demo assets are privacy-safe, and the team knows what is and is not supported.
+Levels 1–3 need no live agent. Level 4's successful analysis remains blocked until Anish resumes and implements the agent; honest 503 transport testing is useful but not end-to-end success. Current language codes are only `en`/`hi`. Keep existing backend tests, no keys or broad data collection, and follow the guide's 8,000-character/32,768-byte UTF-8 body limits. Start **Level 1 only**, then wait for an explicit request before each next level.
