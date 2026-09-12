@@ -7,13 +7,12 @@ never a "similar" or fuzzy match, which would drift toward the alias/vector retr
 the project's design explicitly rules out. See backend/history/service.py.
 """
 
-from .models import DEFAULT_SESSION_ID, CaseRecord, CaseStatus
+from .models import CaseRecord, CaseStatus
 from .schemas import HistoryCase, HistoryResponse
 from .service import HistoryTrackingService
 from .store import CaseHistoryStore, fingerprint
 
 __all__ = [
-    "DEFAULT_SESSION_ID",
     "CaseRecord",
     "CaseStatus",
     "CaseHistoryStore",

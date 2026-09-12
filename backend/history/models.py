@@ -6,8 +6,6 @@ from pydantic import BaseModel, Field
 
 from backend.languages import LanguageCode
 
-DEFAULT_SESSION_ID = "anonymous"
-
 CaseStatus = Literal["started", "processing", "completed", "failed"]
 # Mirrors AnalyzeResponse.status (backend/api/schemas.py): outcome is always assigned
 # from that field, so it is exactly this closed set, never an arbitrary string.

@@ -14,17 +14,14 @@ from typing import Any
 from backend.agent.presentation import build_draft
 from backend.api.schemas import AnalyzeRequest, AnalyzeResponse
 
-from .models import DEFAULT_SESSION_ID
 from .store import CaseHistoryStore
 
 
 class HistoryTrackingService:
-    def __init__(
-        self,
-        inner: Any,
-        store: CaseHistoryStore,
-        session_id: str = DEFAULT_SESSION_ID,
-    ):
+    def __init__(self, inner: Any, store: CaseHistoryStore, session_id: str):
+        # No default: a shared fallback session id would silently collapse every
+        # caller that omits one into a single bucket. The only real caller
+        # (backend.main) always derives a per-request id via _session_id(request).
         self._inner = inner
         self._store = store
         self._session_id = session_id
