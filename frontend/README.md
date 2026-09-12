@@ -20,7 +20,24 @@ npm run preview
 
 Production preview uses <http://127.0.0.1:4173> by default.
 
-For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory. This is not a deployed or API-connected service.
+### Live backend (optional)
+
+From the repository root, run the FastAPI app (Python 3.12+, uv):
+
+```sh
+uv sync --frozen
+uv run uvicorn backend.main:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+In `frontend/`, point Vite at that origin (no trailing slash). An empty value means same-origin relative `/api/...` paths:
+
+```sh
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
+
+Copy `VITE_API_BASE_URL=` from the root [`.env.example`](../.env.example). **LLM keys and `ANALYSIS_ACCESS_TOKEN` stay server-side only** — never put them in `VITE_*`, browser code, or frontend settings. Submitting a remark calls `POST /api/v1/analyze` only when you send; nothing auto-submits. The sample walkthrough still uses local fixtures via **Show me an example**.
+
+For preview-only Vercel hosting preparation, see [the deployment guide](../docs/vercel-deployment.md). Use the repository root with the root `vercel.json`, not `frontend/` as Vercel's Root Directory.
 
 ## Use the interface
 
@@ -32,7 +49,7 @@ For preview-only Vercel hosting preparation, see [the deployment guide](../docs/
 - Language selection changes future sample output, not English interface controls or earlier replies.
 - Edit a message to return its wording/image to the composer. New chat or reload clears temporary state. Only the latest six turns are retained in memory.
 
-**Sending your own text or image does not return a canned sample as though it were analysis.** It shows an honest connection limitation instead. Only the explicit example button loads sample guidance.
+**Sending your own text** calls the live analyze API when a backend is reachable; failures show an honest unavailable message (never a silent canned sample). **Images alone** still show that OCR is not connected. Only the explicit example button loads sample guidance.
 
 ## Working local input versus backend capabilities
 
@@ -44,11 +61,15 @@ Implemented locally:
 - Original-text 8,000-codepoint validation and serialized trimmed `{text, language}` 32,768-byte validation. Input is not silently truncated.
 - Object URL cleanup on removal, replacement, dropped conversation turns, reset and unmount. Stale file selections and cancelled sample responses cannot reappear later.
 
-Not connected or implemented by this frontend:
+Connected when configured:
 
-- Analysis API, LLM calls, OCR, PDF reading, voice, document downloads and live-government integration.
+- `src/lib/api.ts` → `GET /api/v1/capabilities` and `POST /api/v1/analyze` using `VITE_API_BASE_URL` (or same-origin). Live turns render in AnswerCard `mode="live"` with grounded / not-chatbot disclosures and evidence citations.
+
+Still not implemented by this frontend:
+
+- LLM calls or secrets in the browser, OCR, PDF reading, voice, document downloads and live-government integration.
 - No claim assessment or extraction from an attached image. Local file selection is not a server upload.
-- No accounts, analytics, remote fonts, local/session storage or persisted claim history. Text/images stay in browser memory; no analysis requests are sent.
+- No accounts, analytics, remote fonts, local/session storage or persisted claim history.
 
 Use fictional or properly redacted material. The interface never needs Aadhaar, PAN, UAN or bank details for testing. The sample is neither verified advice nor a usable claim draft. Original fixture citations and `example.invalid` URLs are imaginary; those URLs remain plain text rather than live links.
 
@@ -56,11 +77,12 @@ Use fictional or properly redacted material. The interface never needs Aadhaar, 
 
 The preview validator models the original English/Hindi version 1.0 fixture contract, not the older plan's illustrative JSON. It is not yet aligned with every field and validation rule in the current [`../docs/backend-contract.md`](../docs/backend-contract.md) and [`../backend/api/schemas.py`](../backend/api/schemas.py). Only four synthetic JSON examples are imported from `../docs/examples/`; no knowledge corpus or archived dataset enters the bundle.
 
-- `src/App.tsx`: conversational shell, local messages, composer, attachment lifecycle, cancellation and connection notices.
-- `src/components/AnswerCard.tsx`: compact answer tabs, personal checklist, document tile, sample draft/copy feedback and guidance-free non-success states.
-- `src/components/Evidence.tsx`: claim-level Markdown path, record ID, exact heading, lines and original URLs; unsafe links are not activated.
+- `src/App.tsx`: conversational shell, live analyze vs sample walkthrough, composer, attachment lifecycle, AbortController cancellation and honest unavailable notices.
+- `src/components/AnswerCard.tsx`: compact answer tabs with `mode: 'live' | 'sample'`, checklist, draft/copy feedback and guidance-free non-success states.
+- `src/components/Evidence.tsx`: claim-level Markdown path, record ID, exact heading, lines and original URLs; live vs sample evidence notices; unsafe links are not activated.
+- `src/lib/api.ts`: `getApiBaseUrl`, `fetchCapabilities`, `analyzeRemark` (no browser secrets).
 - `src/lib/attachments.ts`: bounded local image and UTF-8 text handling; never OCR or transmission.
-- `src/lib/contracts.ts`: strict version 1.0 response/state/citation validation and input budgets.
+- `src/lib/contracts.ts`: strict version 1.0 response/state/citation validation and input budgets (optional citation columns accepted).
 - `src/lib/demo.ts`: unchanged source-fixture behavior and abort-safe sample delay.
 - `src/lib/walkthrough.ts`: short English/Hindi fictional display content that preserves original synthetic provenance and warnings.
 - `src/styles.css`: forest/cream visual system, illustration, responsive chat/composer, focus and reduced-motion support.
@@ -82,10 +104,6 @@ The repository's [CI workflow](../.github/workflows/ci.yml) runs on pull request
 
 ## Integration boundary
 
-This is a preview-only frontend PR, not completion of real API integration. The shared backend now has an analysis service and a merged Markdown corpus; this web app does not connect to them. Original fixture warnings are historical test data, not current readiness reports.
+This frontend can call the live analyze API when `VITE_API_BASE_URL` (or same-origin) reaches a running backend. That does **not** claim Level 2 acceptance, live provider success, or policy correctness — corpus/model gates may still return unavailable, and fixture warnings remain historical test data.
 
-Before integration, replace the hardcoded English/Hindi choices with the capabilities-driven language contract, accept and render the backend's citation column fields (`start_column`/`end_column`), and align response-text validation with the backend's stricter whitespace rules. The current strict preview parser can reject valid current API responses; its fixture tests do not establish API compatibility.
-
-Coordinate real API/CORS origins and response handling with Anish, and image extraction/document services with Ajay. A working input control must not imply a working backend feature. Do not weaken CORS, silently substitute fixtures for API errors or enable voice/PDF/download controls without an agreed service.
-
-Preview approval remains required before commits. Push approval is a separate gate; the PR follows the approved push.
+Still follow-ups: capabilities-driven language selectors beyond the current English/Hindi UI choices, richer CORS coordination with Anish, and image extraction/document services with Ajay. Do not weaken CORS, silently substitute fixtures for API errors, put secrets in `VITE_*`, or enable voice/PDF/download controls without an agreed service. Nothing auto-submits a claim.

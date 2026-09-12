@@ -21,7 +21,7 @@ const card = (page: Page) => page.getByRole('region', { name: 'Your sample answe
 const sources = (page: Page) => page.locator('details.evidence:visible > summary');
 const unavailable = (page: Page) =>
   page.getByRole('heading', {
-    name: 'Your message is here. The assistant isn’t connected yet.',
+    name: 'Your message is here. Analysis isn’t available yet.',
     exact: true,
   });
 type Upload = { name: string; mimeType: string; buffer: Buffer };
@@ -241,7 +241,7 @@ test('landing is a single empty composer with no outcome selector, stepper or sa
   await expect(page.getByRole('combobox', { name: /outcome|success/i })).toHaveCount(0);
   await expect(page.getByRole('navigation')).toHaveCount(0);
   await expect(
-    page.getByText(/Local preview\. Analysis & image reading aren’t connected\./),
+    page.getByText(/Local UI\. Live analyze needs a running backend; OCR isn’t connected\./),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /Show me an example/ })).toBeVisible();
   await noSample(page);
@@ -285,7 +285,7 @@ test('details modal is named, keyboard trapped, Escape/close dismiss it and pres
   ).toBeVisible();
   await expect(
     dialog.getByText(
-      /Live analysis, image text extraction, voice, PDF reading and document downloads/,
+      /Image text extraction, voice, PDF reading and document downloads are still unavailable/,
     ),
   ).toBeVisible();
   await expect(
@@ -372,10 +372,10 @@ test('real remarks and follow-ups never silently become a canned answer', async 
   await sendRemark(page);
   await noSample(page);
   await expect(
-    page.getByText(/This preview can’t analyze your claim or answer follow-up questions yet/),
+    page.getByText(/analysis service|Analysis is not available|non-JSON|not available on this server/i).first(),
   ).toBeVisible();
   await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
-  await expect(page.getByText(/never substitutes a canned answer/)).toBeVisible();
+  await expect(page.getByText(/never substitutes a canned sample/)).toBeVisible();
   await screenshot(page, info, 'normal-reply');
   await sendRemark(page, 'Can you clarify my fictional follow-up?');
   await expect(unavailable(page)).toHaveCount(2);
@@ -423,7 +423,7 @@ test('explicit sample takes 700ms, preserves unsent text, and shows only the com
   await expect(page.getByText('Opening the sample walkthrough…', { exact: true })).toBeVisible();
   await expect(input(page)).toHaveAttribute('readonly', '');
   await expect(
-    page.getByRole('button', { name: 'Stop opening sample', exact: true }),
+    page.getByRole('button', { name: 'Stop request', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('tablist')).toHaveCount(0);
   await page.clock.runFor(699);
@@ -693,7 +693,7 @@ for (const action of ['stop', 'new chat', 'language'] as const) {
     await page.getByRole('button', { name: /Show me an example/ }).click();
     await page.clock.runFor(300);
     if (action === 'stop')
-      await page.getByRole('button', { name: 'Stop opening sample', exact: true }).click();
+      await page.getByRole('button', { name: 'Stop request', exact: true }).click();
     else if (action === 'new chat')
       await page.getByRole('button', { name: 'New chat', exact: true }).click();
     else await language(page).selectOption('hi');
@@ -753,7 +753,7 @@ test('image-only send honestly reports no OCR, editing restores it, and image pl
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/OCR and claim analysis are not available yet; no text has been extracted/),
+    page.getByText(/OCR and claim analysis from images are not available yet/),
   ).toBeVisible();
   await expect(page.getByRole('img', { name: 'Your attached image', exact: true })).toBeVisible();
   await noSample(page);
@@ -765,7 +765,7 @@ test('image-only send honestly reports no OCR, editing restores it, and image pl
   await input(page).fill(remark);
   await send(page).click();
   await expect(page.locator('.user-message p')).toHaveText(remark);
-  await expect(page.getByText(/no text has been extracted/).first()).toBeVisible();
+  await expect(unavailable(page)).toBeVisible();
   await noSample(page);
 });
 
