@@ -5,9 +5,10 @@ import { safeSourceUrl } from '../lib/contracts';
 type EvidenceProps = {
   ids: string[];
   citations: Citation[];
+  isSample?: boolean;
 };
 
-export function Evidence({ ids, citations }: EvidenceProps) {
+export function Evidence({ ids, citations, isSample = true }: EvidenceProps) {
   if (!ids.length) return null;
   const evidence = ids.map((id) => citations.find((citation) => citation.id === id));
 
@@ -21,7 +22,9 @@ export function Evidence({ ids, citations }: EvidenceProps) {
       </summary>
       <div className="evidence-body">
         <p className="evidence-notice">
-          Synthetic evidence only. These locations have not been read or verified.
+          {isSample
+            ? 'Synthetic evidence only. These locations have not been read or verified.'
+            : 'Source details supplied by the analysis service. Citations are not independent verification of current policy.'}
         </p>
         {evidence.map((citation, index) =>
           citation ? (
@@ -44,11 +47,22 @@ export function Evidence({ ids, citations }: EvidenceProps) {
                   {citation.start_line}–{citation.end_line}
                 </dd>
               </div>
+              {citation.start_column != null && citation.end_column != null && (
+                <div>
+                  <dt>Column endpoints (zero-based)</dt>
+                  <dd>
+                    Line {citation.start_line}, column {citation.start_column} → line{' '}
+                    {citation.end_line}, column {citation.end_column}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>Original source URLs</dt>
                 <dd>
                   {citation.source_urls.length === 0 &&
-                    'No source URL supplied. Evidence cannot be verified from this preview.'}
+                    (isSample
+                      ? 'No source URL supplied. Evidence cannot be verified from this preview.'
+                      : 'No source URL supplied. The underlying source cannot be verified here.')}
                   {citation.source_urls.map((url) => {
                     const safe = safeSourceUrl(url);
                     const imaginary = safe && new URL(safe).hostname.endsWith('.invalid');

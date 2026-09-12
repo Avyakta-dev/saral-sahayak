@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ClipboardEvent, DragEvent, FormEvent, KeyboardEvent } from 'react';
 import {
   ArrowUp,
@@ -23,10 +23,53 @@ import {
 import { AnswerCard } from './components/AnswerCard';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import { validateInput } from './lib/contracts';
-import { loadDemoResponse } from './lib/demo';
+import { demoScenarios, loadDemoResponse } from './lib/demo';
+import type { DemoScenario } from './lib/demo';
+import { capabilitiesSchema, previewCapabilities, selectEnabledLanguage } from './lib/capabilities';
+import type { Capabilities } from './lib/capabilities';
 import { getWalkthrough, walkthroughRemark } from './lib/walkthrough';
 import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib/attachments';
 import type { ImageAttachment } from './lib/attachments';
+import { ApiError, getConfiguredApiClient, isRetryableCode } from './lib/api';
+import type { ApiClient } from './lib/api';
+
+type ConnectionState = 'loading' | 'ready' | 'unavailable' | 'error';
+type Failure = { code: string; retryable: boolean };
+
+// Never display transport bodies, configuration values or arbitrary exception messages.
+function failureMessage(code: string): string {
+  switch (code) {
+    case 'invalid_configuration':
+      return 'The analysis service configuration is invalid. Ask the site operator to check it.';
+    case 'analysis_timeout':
+    case 'timeout':
+      return 'The service took too long to respond. Your text is still here.';
+    case 'cancelled':
+    case 'aborted':
+      return 'The request was cancelled. Your text is still here.';
+    case 'invalid_request':
+    case 'request_too_large':
+      return 'The service could not accept this text. Edit or shorten it before sending again.';
+    case 'language_disabled':
+      return 'This language is no longer enabled. Refresh the connection and choose an enabled language.';
+    case 'model_not_configured':
+    case 'knowledge_unavailable':
+      return 'Analysis is unavailable until the service configuration or knowledge is ready.';
+    case 'budget_exhausted':
+      return 'The analysis budget was exhausted. Edit the remark with a shorter, focused question.';
+    case 'invalid_response':
+    case 'response_too_large':
+      return 'The service returned an unreadable response. No guidance has been substituted.';
+    default:
+      return 'The analysis service could not complete the request. Your text is still here.';
+  }
+}
+
+function transportFailure(cause: unknown): Failure {
+  return cause instanceof ApiError
+    ? { code: cause.code, retryable: cause.retryable && isRetryableCode(cause.code) }
+    : { code: 'unknown', retryable: false };
+}
 
 type Turn = {
   id: number;
@@ -35,6 +78,10 @@ type Turn = {
   language: Language;
   sample: boolean;
   response: AnalyzeResponse | null;
+  api?: boolean;
+  failure?: Failure;
+  retries?: number;
+  qualityVerified?: boolean;
 };
 
 function WelcomeVisual() {
@@ -93,9 +140,41 @@ function WelcomeVisual() {
   );
 }
 
-export default function App() {
+export default function App({
+  capabilities: suppliedCapabilities = previewCapabilities,
+  apiClient,
+}: { capabilities?: Capabilities; apiClient?: ApiClient | null } = {}) {
+  const offlineCapabilities = useMemo(
+    () => capabilitiesSchema.parse(suppliedCapabilities),
+    [suppliedCapabilities],
+  );
+  const configuration = useMemo(() => {
+    try {
+      return {
+        client: apiClient === undefined ? getConfiguredApiClient() : apiClient,
+        invalid: false,
+      };
+    } catch {
+      return { client: null, invalid: true };
+    }
+  }, [apiClient]);
+  const [mode, setMode] = useState<'api' | 'preview'>(() =>
+    configuration.client || configuration.invalid ? 'api' : 'preview',
+  );
+  const [liveCapabilities, setLiveCapabilities] = useState<Capabilities | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('loading');
+  const [connectionFailure, setConnectionFailure] = useState<Failure | null>(null);
+  const [refreshes, setRefreshes] = useState(0);
+  const metadataRequest = useRef<AbortController | null>(null);
+  const refreshCount = useRef(0);
+  const activeTurn = useRef<number | null>(null);
+  const capabilities = mode === 'api' ? liveCapabilities : offlineCapabilities;
+  const [clarification, setClarification] = useState<{
+    questions: string[];
+    language: Language;
+  } | null>(null);
   const [text, setText] = useState('');
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>(() => offlineCapabilities.default_language);
   const [attachment, setAttachment] = useState<ImageAttachment | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState('');
@@ -113,6 +192,8 @@ export default function App() {
   const imageDialog = useRef<HTMLDialogElement>(null);
   const threadEnd = useRef<HTMLDivElement>(null);
   const request = useRef<AbortController | null>(null);
+  const previousCapabilities = useRef(capabilities);
+  const previousMode = useRef(mode);
   const fileVersion = useRef(0);
   const turnId = useRef(0);
   const retainedImages = useRef(new Set<ImageAttachment>());
@@ -120,16 +201,77 @@ export default function App() {
   const dragDepth = useRef(0);
   const count = Array.from(text).length;
   const hasConversation = turns.length > 0;
+  const apiReady =
+    mode === 'api' &&
+    !!configuration.client &&
+    connectionState === 'ready' &&
+    capabilities?.analysis_available === true &&
+    capabilities.languages.some((item) => item.code === language);
+  const apiInputValid = validateInput(text, language) === null;
+
+  // One discovery on connection setup. Mode switches never trigger automatic discovery/retries.
+  useEffect(() => {
+    refreshCount.current = 0;
+    setRefreshes(0);
+    cancelWork();
+    setLiveCapabilities(null);
+    setConnectionFailure(null);
+    if (configuration.client || configuration.invalid) {
+      setMode('api');
+      if (configuration.invalid) {
+        setConnectionState('error');
+        setConnectionFailure({ code: 'invalid_configuration', retryable: false });
+      } else {
+        void discoverCapabilities();
+      }
+    } else {
+      setMode('preview');
+      setConnectionState('unavailable');
+    }
+    return () => {
+      request.current?.abort();
+      request.current = null;
+      metadataRequest.current?.abort();
+      metadataRequest.current = null;
+    };
+  }, [configuration]);
 
   useEffect(
     () => () => {
       request.current?.abort();
+      metadataRequest.current?.abort();
       fileVersion.current += 1;
       retainedImages.current.forEach(releaseImage);
       retainedImages.current.clear();
     },
     [],
   );
+
+  useEffect(() => {
+    const changed = previousCapabilities.current !== capabilities;
+    previousCapabilities.current = capabilities;
+    const switched = previousMode.current !== mode;
+    previousMode.current = mode;
+    if (switched) return; // Explicit mode actions already cancel and select a valid language.
+    const enabled = capabilities ? selectEnabledLanguage(capabilities, language) : language;
+    if (!changed && enabled === language) return;
+    const hadPending = request.current !== null;
+    cancelWork();
+    if (enabled !== language) {
+      setLanguage(enabled);
+      setNotice(
+        mode === 'api'
+          ? 'That language is not enabled by the service. The default is selected.'
+          : 'That language is not enabled in this capabilities example. The default is selected.',
+      );
+    } else if (hadPending) {
+      setNotice(
+        mode === 'api'
+          ? 'Capabilities changed; the pending analysis was cancelled.'
+          : 'Capabilities changed; the pending example was cancelled.',
+      );
+    }
+  }, [capabilities, language]);
 
   useEffect(() => {
     if (!textarea.current) return;
@@ -247,16 +389,105 @@ export default function App() {
     return all.slice(-6);
   }
 
-  function cancelSample() {
+  function cancelWork() {
+    fileVersion.current += 1;
+    setReadingFile(false);
     request.current?.abort();
     request.current = null;
+    const id = activeTurn.current;
+    activeTurn.current = null;
     setPending(false);
-    setTurns((previous) => previous.filter((turn) => turn.response !== null || !turn.sample));
-    setNotice('Sample cancelled.');
+    if (id !== null) setTurns((previous) => previous.filter((turn) => turn.id !== id));
+  }
+
+  function cancelMetadata() {
+    if (metadataRequest.current) {
+      metadataRequest.current.abort();
+      metadataRequest.current = null;
+      setLiveCapabilities(null);
+      setConnectionState('unavailable');
+    }
+  }
+
+  function cancelSample() {
+    cancelWork();
+    setNotice(
+      mode === 'api'
+        ? 'Analysis cancelled. Your text is still here; edit it or analyze again.'
+        : 'Sample cancelled.',
+    );
+    textarea.current?.focus();
+  }
+
+  async function discoverCapabilities() {
+    const client = configuration.client;
+    if (!client) return;
+    cancelWork();
+    cancelMetadata();
+    const controller = new AbortController();
+    metadataRequest.current = controller;
+    setConnectionState('loading');
+    setConnectionFailure(null);
+    setLiveCapabilities(null);
+    try {
+      const result = await client.getCapabilities(controller.signal);
+      if (metadataRequest.current !== controller || controller.signal.aborted) return;
+      const parsed = capabilitiesSchema.safeParse(result);
+      if (!parsed.success) {
+        setConnectionState('error');
+        setConnectionFailure({ code: 'invalid_response', retryable: false });
+        return;
+      }
+      setLiveCapabilities(parsed.data);
+      setConnectionState(parsed.data.analysis_available ? 'ready' : 'unavailable');
+    } catch (cause) {
+      if (metadataRequest.current !== controller || controller.signal.aborted) return;
+      setConnectionState('error');
+      setConnectionFailure(transportFailure(cause));
+    } finally {
+      if (metadataRequest.current === controller) metadataRequest.current = null;
+    }
+  }
+
+  function refreshConnection() {
+    if (!configuration.client || refreshCount.current >= 2 || metadataRequest.current) return;
+    refreshCount.current += 1;
+    setRefreshes(refreshCount.current);
+    void discoverCapabilities();
+  }
+
+  function useExamples() {
+    cancelWork();
+    cancelMetadata();
+    setLiveCapabilities(null);
+    setMode('preview');
+    setLanguage(selectEnabledLanguage(offlineCapabilities, language));
+    setError('');
+    setNotice('Example mode. Nothing is sent; your input is preserved.');
+    infoDialog.current?.close();
+  }
+
+  function useApi() {
+    cancelWork();
+    cancelMetadata();
+    setMode('api');
+    setLiveCapabilities(null);
+    setError('');
+    setNotice('API mode. Review your text before choosing Analyze text.');
+    if (configuration.invalid) {
+      setConnectionState('error');
+      setConnectionFailure({ code: 'invalid_configuration', retryable: false });
+    } else {
+      setConnectionState('unavailable');
+      refreshConnection();
+    }
+    infoDialog.current?.close();
   }
 
   function newChat() {
-    cancelSample();
+    cancelWork();
+    cancelMetadata();
+    setClarification(null);
     fileVersion.current += 1;
     setReadingFile(false);
     retainedImages.current.forEach(releaseImage);
@@ -272,7 +503,12 @@ export default function App() {
   }
 
   function editTurn(turn: Turn) {
-    cancelSample();
+    cancelWork();
+    setClarification(
+      turn.api && turn.response?.status === 'needs_clarification'
+        ? { questions: turn.response.questions, language: turn.language }
+        : null,
+    );
     setText(turn.text);
     if (currentAttachment.current && currentAttachment.current !== turn.image)
       forgetImage(currentAttachment.current);
@@ -283,9 +519,92 @@ export default function App() {
     requestAnimationFrame(() => textarea.current?.focus());
   }
 
+  async function analyzeTurn(turn: Turn) {
+    const client = configuration.client;
+    if (!client || !apiReady || request.current || readingFile) return;
+    if (!capabilities?.languages.some((item) => item.code === turn.language)) return;
+    const controller = new AbortController();
+    request.current = controller;
+    activeTurn.current = turn.id;
+    setPending(true);
+    setError('');
+    setNotice('');
+    setClarification(null);
+    setText(turn.text);
+    const next = { ...turn, response: null, failure: undefined };
+    setTurns((previous) =>
+      previous.some((item) => item.id === turn.id)
+        ? previous.map((item) => (item.id === turn.id ? next : item))
+        : trimThread(previous, next),
+    );
+    closeMenu();
+    try {
+      // Only editable text and the enabled output language cross the API boundary.
+      const response = await client.analyze(
+        { text: turn.text, language: turn.language },
+        controller.signal,
+      );
+      if (request.current !== controller || controller.signal.aborted) return;
+      setTurns((previous) =>
+        previous.map((item) => (item.id === turn.id ? { ...item, response } : item)),
+      );
+      if (response.status === 'success')
+        setText((current) => (current === turn.text ? '' : current));
+    } catch (cause) {
+      if (request.current !== controller || controller.signal.aborted) return;
+      const failure = transportFailure(cause);
+      setTurns((previous) =>
+        previous.map((item) => (item.id === turn.id ? { ...item, failure } : item)),
+      );
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        activeTurn.current = null;
+        setPending(false);
+      }
+    }
+  }
+
+  function canRetry(turn: Turn) {
+    return (
+      turn.failure?.retryable === true ||
+      (turn.response?.status === 'error' && isRetryableCode(turn.response.error?.code ?? ''))
+    );
+  }
+
+  function retryTurn(turn: Turn) {
+    if (!canRetry(turn) || (turn.retries ?? 0) >= 2 || turn.language !== language) return;
+    void analyzeTurn({ ...turn, retries: (turn.retries ?? 0) + 1 });
+  }
+
   function send(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (pending || readingFile) return;
+    if (pending || request.current || readingFile) return;
+    if (mode === 'api') {
+      if (!apiReady) return;
+      if (!apiInputValid) {
+        setError(
+          attachment && !text.trim()
+            ? 'Paste the rejection wording. Images stay local; no text has been extracted.'
+            : (validateInput(text, language) ?? 'Enter a rejection remark.'),
+        );
+        return;
+      }
+      void analyzeTurn({
+        id: ++turnId.current,
+        text,
+        image: null,
+        language,
+        sample: false,
+        api: true,
+        response: null,
+        retries: 0,
+        qualityVerified:
+          capabilities?.languages.find((item) => item.code === language)?.quality_verified ?? false,
+      });
+      return;
+    }
+    setClarification(null);
     const validation =
       text.trim() || count > 8000
         ? validateInput(text, language)
@@ -320,28 +639,31 @@ export default function App() {
     }
   }
 
-  async function openExample() {
-    if (pending || readingFile) return;
+  async function openExample(scenario: DemoScenario = 'success') {
+    if (readingFile) return;
+    useExamples();
     const controller = new AbortController();
     request.current = controller;
     const id = ++turnId.current;
-    const selectedLanguage = language;
+    activeTurn.current = id;
+    const selectedLanguage = selectEnabledLanguage(offlineCapabilities, language);
     setPending(true);
     setError('');
     setNotice('');
     const next: Turn = {
       id,
-      text: walkthroughRemark(language),
+      text: walkthroughRemark(selectedLanguage, scenario),
       image: null,
       sample: true,
       response: null,
-      language,
+      language: selectedLanguage,
     };
     setTurns((previous) => trimThread(previous, next));
     try {
-      await loadDemoResponse('success', selectedLanguage, controller.signal);
+      await loadDemoResponse(scenario, selectedLanguage, controller.signal);
       if (request.current !== controller || controller.signal.aborted) return;
-      const response = getWalkthrough(selectedLanguage);
+      const response = getWalkthrough(selectedLanguage, scenario);
+      setNotice('Example reply loaded. This is not live analysis.');
       setTurns((previous) =>
         previous.map((turn) => (turn.id === id ? { ...turn, response } : turn)),
       );
@@ -353,19 +675,61 @@ export default function App() {
     } finally {
       if (request.current === controller) {
         request.current = null;
+        activeTurn.current = null;
         setPending(false);
       }
     }
   }
 
   function changeLanguage(value: Language) {
-    if (pending) cancelSample();
-    setLanguage(value);
+    if (!capabilities) return;
+    cancelWork();
+    cancelMetadata();
+    setLanguage(selectEnabledLanguage(capabilities, value));
     setNotice(hasConversation ? 'Language updated for new replies.' : '');
   }
 
+  const connectionMessage = connectionFailure
+    ? failureMessage(connectionFailure.code)
+    : connectionState === 'loading'
+      ? 'Checking service capabilities… No claim text is sent.'
+      : connectionState === 'ready'
+        ? 'Text analysis is configured. Review your text before sending.'
+        : 'Text analysis is unavailable. Refresh the connection or use examples.';
+
   const composer = (
     <div className="composer-dock">
+      {mode === 'api' && (
+        <div className="api-connection" data-state={connectionState}>
+          <p role="status">{connectionMessage}</p>
+          <div className="api-connection-actions">
+            <button
+              type="button"
+              className="text-button"
+              onClick={refreshConnection}
+              disabled={!configuration.client || connectionState === 'loading' || refreshes >= 2}
+            >
+              Refresh connection
+            </button>
+            <button type="button" className="text-button" onClick={useExamples}>
+              Use examples
+            </button>
+          </div>
+          {refreshes >= 2 && (
+            <small>Connection refresh limit reached (2). Reload to start a new connection.</small>
+          )}
+        </div>
+      )}
+      {clarification && (
+        <aside className="clarification-context" aria-label="Clarification context">
+          <strong>Add these details to your original remark</strong>
+          <ul lang={clarification.language}>
+            {clarification.questions.map((question, index) => (
+              <li key={index}>{question}</li>
+            ))}
+          </ul>
+        </aside>
+      )}
       <form
         className={`composer${dragging ? ' drag-active' : ''}`}
         onSubmit={send}
@@ -404,7 +768,11 @@ export default function App() {
             <div>
               <strong>{attachment.name}</strong>
               <span>{(attachment.file.size / 1024).toFixed(0)} KB · local preview</span>
-              <small>OCR isn’t connected yet</small>
+              <small>
+                {mode === 'api'
+                  ? 'Image stays local. Paste its wording; only typed text is sent.'
+                  : 'OCR isn’t connected yet'}
+              </small>
             </div>
             <button
               className="icon-button"
@@ -527,18 +895,25 @@ export default function App() {
                 className="send-button stop-button"
                 type="button"
                 onClick={cancelSample}
-                aria-label="Stop opening sample"
+                aria-label={mode === 'api' ? 'Cancel analysis' : 'Stop opening sample'}
               >
                 <Square size={17} aria-hidden="true" />
               </button>
             ) : (
               <button
-                className="send-button"
+                className={`send-button${mode === 'api' ? ' analyze-button' : ''}`}
                 type="submit"
-                disabled={readingFile || (!text.trim() && !attachment)}
-                aria-label="Send message"
+                disabled={
+                  readingFile ||
+                  (mode === 'api' ? !apiReady || !apiInputValid : !text.trim() && !attachment)
+                }
+                aria-label={mode === 'api' ? 'Analyze text' : 'Send message'}
               >
-                <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />
+                {mode === 'api' ? (
+                  'Analyze text'
+                ) : (
+                  <ArrowUp size={21} strokeWidth={2.5} aria-hidden="true" />
+                )}
               </button>
             )}
           </div>
@@ -553,9 +928,11 @@ export default function App() {
       <p className="composer-notice" role="status">
         {notice}
       </p>
-      <p className="preview-limit" id="preview-limit">
-        <LockKeyhole size={12} aria-hidden="true" /> Local preview. Analysis & image reading aren’t
-        connected.{' '}
+      <p className={`preview-limit${mode === 'api' ? ' api-privacy-note' : ''}`} id="preview-limit">
+        <LockKeyhole size={12} aria-hidden="true" />{' '}
+        {mode === 'api'
+          ? 'Analyze text sends your text to the configured analysis service. Omit personal IDs (Aadhaar, PAN, UAN, bank or claim numbers). Images are not sent or read.'
+          : 'Local preview. Analysis & image reading aren’t connected.'}{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
           Details
         </button>
@@ -588,12 +965,25 @@ export default function App() {
             </label>
             <select
               id="language"
-              value={language}
+              value={capabilities ? language : ''}
+              disabled={!capabilities || (mode === 'api' && connectionState !== 'ready')}
               onChange={(event) => changeLanguage(event.target.value as Language)}
-              title="Language for new sample replies"
+              title={
+                mode === 'api'
+                  ? 'Enabled languages reported by the service; quality flags are metadata only'
+                  : 'Enabled languages from the offline capabilities example; sample quality is unreviewed'
+              }
             >
-              <option value="en">English</option>
-              <option value="hi">हिन्दी</option>
+              {!capabilities && <option value="">Languages unavailable</option>}
+              {capabilities?.languages.map((item) => (
+                <option
+                  key={item.code}
+                  value={item.code}
+                  aria-label={`${item.name} (${item.native_name})`}
+                >
+                  {item.native_name}
+                </option>
+              ))}
             </select>
             <ChevronDown size={12} aria-hidden="true" />
           </div>
@@ -603,7 +993,7 @@ export default function App() {
             onClick={() => infoDialog.current?.showModal()}
           >
             <span aria-hidden="true" />
-            Preview
+            {mode === 'api' ? 'API' : 'Preview'}
           </button>
         </div>
       </header>
@@ -658,11 +1048,15 @@ export default function App() {
               </button>
             </div>
             <div className="welcome-footer">
-              <span>English & हिन्दी</span>
+              <span>
+                {mode === 'api'
+                  ? `${capabilities?.languages.length ?? 0} enabled languages · quality flags are metadata`
+                  : `${offlineCapabilities.languages.length} example languages · quality unreviewed`}
+              </span>
               <span aria-hidden="true">·</span>
               <span>No account needed</span>
               <span aria-hidden="true">·</span>
-              <span>Nothing is sent</span>
+              <span>{mode === 'api' ? 'Text sent only on Analyze' : 'Nothing is sent'}</span>
             </div>
           </div>
         ) : (
@@ -709,15 +1103,35 @@ export default function App() {
                         <MessageCircle size={18} />
                       </span>
                       <div className="assistant-content">
-                        {turn.sample ? (
-                          turn.response ? (
-                            <AnswerCard response={turn.response} onEdit={() => editTurn(turn)} />
-                          ) : (
-                            <div className="opening-sample" role="status">
-                              <LoaderCircle className="spin" size={17} aria-hidden="true" />
-                              Opening the sample walkthrough…
-                            </div>
-                          )
+                        {turn.response ? (
+                          <AnswerCard
+                            response={turn.response}
+                            onEdit={() => editTurn(turn)}
+                            isSample={turn.sample}
+                            qualityVerified={turn.qualityVerified ?? false}
+                          />
+                        ) : turn.failure ? (
+                          <div className="api-transport-error" role="alert">
+                            <h2>Could not reach an answer</h2>
+                            <p>{failureMessage(turn.failure.code)}</p>
+                            <button
+                              className="text-button"
+                              type="button"
+                              onClick={() => editTurn(turn)}
+                            >
+                              Edit remark
+                            </button>
+                          </div>
+                        ) : turn.api || turn.sample ? (
+                          <div
+                            className={turn.api ? 'api-waiting' : 'opening-sample'}
+                            role="status"
+                          >
+                            <LoaderCircle className="spin" size={17} aria-hidden="true" />
+                            {turn.api
+                              ? 'Waiting for the analysis service…'
+                              : 'Opening the sample walkthrough…'}
+                          </div>
                         ) : (
                           <div className="unavailable-reply" role="status">
                             <span className="reply-kicker">
@@ -760,6 +1174,42 @@ export default function App() {
                                 for your own claim.
                               </p>
                             </details>
+                          </div>
+                        )}
+                        {turn.api && (turn.failure || turn.response?.status === 'error') && (
+                          <div className="api-retry-actions">
+                            {canRetry(turn) ? (
+                              <>
+                                <p>
+                                  Retry resends the same text to the analysis service. Up to two
+                                  retries per message.
+                                </p>
+                                <button
+                                  type="button"
+                                  className="light-button"
+                                  onClick={() => retryTurn(turn)}
+                                  disabled={
+                                    !apiReady ||
+                                    pending ||
+                                    readingFile ||
+                                    turn.language !== language ||
+                                    (turn.retries ?? 0) >= 2
+                                  }
+                                >
+                                  Retry analysis
+                                </button>
+                                {(turn.retries ?? 0) >= 2 && (
+                                  <p>Retry limit reached. Edit the remark or try later.</p>
+                                )}
+                              </>
+                            ) : (
+                              <p>
+                                {failureMessage(
+                                  turn.failure?.code ?? turn.response?.error?.code ?? '',
+                                )}{' '}
+                                No automatic retry.
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -822,7 +1272,28 @@ export default function App() {
         <span className="dialog-icon">
           <Info size={25} aria-hidden="true" />
         </span>
-        <h2 id="preview-info-title">What works in this preview</h2>
+        <h2 id="preview-info-title">
+          {mode === 'api' ? 'About API analysis' : 'What works in this preview'}
+        </h2>
+        <div className="mode-actions">
+          <button type="button" className="light-button" onClick={useExamples}>
+            Use examples
+          </button>
+          <button
+            type="button"
+            className="light-button"
+            onClick={useApi}
+            disabled={mode === 'api' || (!configuration.client && !configuration.invalid)}
+          >
+            Use API
+          </button>
+        </div>
+        {mode === 'api' && (
+          <p>
+            Availability reports configuration and knowledge structure only—not verified sources,
+            model connectivity or translation quality.
+          </p>
+        )}
         <ul className="capability-list">
           <li>
             <Check size={17} aria-hidden="true" />
@@ -837,17 +1308,80 @@ export default function App() {
             <span>Explore a clearly labelled sample answer</span>
           </li>
         </ul>
-        <div className="connection-note">
-          <strong>Not connected yet</strong>
+        <section className="sample-gallery" aria-labelledby="sample-gallery-title">
+          <h3 id="sample-gallery-title">Explore sample replies</h3>
+          <p>These examples never analyze your own message.</p>
+          <div className="sample-gallery-options">
+            {demoScenarios.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                disabled={pending || readingFile}
+                onClick={() => void openExample(item.value)}
+                title={item.description}
+              >
+                {item.value === 'error' || item.value === 'unsupported' ? (
+                  <CircleAlert size={17} aria-hidden="true" />
+                ) : (
+                  <MessageCircle size={17} aria-hidden="true" />
+                )}
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+        <details className="capabilities-details">
+          <summary>
+            {mode === 'api' ? 'Service language capabilities' : 'Example language capabilities'}
+          </summary>
           <p>
-            Live analysis, image text extraction, voice, PDF reading and document downloads. Sample
-            answers are illustrative—not advice or a usable claim draft.
+            {mode === 'api'
+              ? 'Languages come only from the service capabilities response. Quality flags are reported metadata, not an independent review.'
+              : 'The language selector uses this validated offline response, not a live service check. Sample translations have not been independently reviewed.'}
           </p>
+          <ul>
+            {capabilities?.languages.map((item) => (
+              <li key={item.code}>
+                <span>
+                  {item.name} · <span lang={item.code}>{item.native_name}</span>
+                </span>
+                <small>
+                  {item.quality_verified
+                    ? mode === 'api'
+                      ? 'Service quality flag: true'
+                      : 'Fixture quality flag: true'
+                    : 'Quality not verified'}
+                </small>
+              </li>
+            ))}
+          </ul>
+          <p>
+            {mode === 'api' ? 'Service analysis availability: ' : 'Fixture analysis availability: '}
+            {capabilities?.analysis_available ? 'configured' : 'unavailable'}. Availability
+            describes configuration and structural checks, not verified connectivity, accurate
+            guidance or fluent output.
+          </p>
+        </details>
+        <div className="connection-note">
+          <strong>{mode === 'api' ? 'Text only' : 'Not connected yet'}</strong>
+          <p>
+            {mode === 'api'
+              ? 'Image extraction, voice and PDF reading are not connected. Images are local previews only.'
+              : 'Live analysis, image text extraction, voice, PDF reading and document downloads. Sample answers are illustrative—not advice or a usable claim draft.'}
+          </p>
+          {mode === 'api' && (
+            <p>
+              {capabilities?.downloads_available
+                ? 'The service reports downloads available, but no download endpoint is configured in this UI.'
+                : 'Document downloads are unavailable.'}
+            </p>
+          )}
         </div>
         <p className="dialog-privacy">
           <LockKeyhole size={15} aria-hidden="true" />
-          Use fictional or redacted material. Images and text stay in memory, clear on reload, and
-          are never sent to a server. Camera availability depends on your device.
+          {mode === 'api'
+            ? 'Use fictional or redacted text without personal IDs. Analyze sends only your text and language to the configured service. Images stay local. This UI keeps no saved chat history.'
+            : 'Use fictional or redacted material. In example mode, images and text stay in memory, clear on reload, and are never sent to a server. Camera availability depends on your device.'}
         </p>
         <small>Not an official EPFO service or legal advice.</small>
       </dialog>

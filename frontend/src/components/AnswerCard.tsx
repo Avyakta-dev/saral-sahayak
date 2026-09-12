@@ -9,12 +9,14 @@ import {
   MessageCircle,
   Pencil,
 } from 'lucide-react';
-import type { AnalyzeResponse } from '../lib/contracts';
+import type { AnalyzeResponse, Language } from '../lib/contracts';
 import { Evidence } from './Evidence';
 
 type AnswerCardProps = {
   response: AnalyzeResponse;
   onEdit: () => void;
+  isSample?: boolean;
+  qualityVerified?: boolean;
 };
 
 // Interface language is English; response content keeps its requested output language.
@@ -47,6 +49,33 @@ const labels = {
   error: 'Please edit the remark and try again.',
 };
 
+function answerLabels(isSample: boolean) {
+  if (isSample) return labels;
+  return {
+    ...labels,
+    sample: 'Analysis response · verify important guidance',
+    title: 'Your guidance',
+    tablist: 'Explore the analysis response',
+    documents: 'Documents required',
+    draftNotice: 'Review this draft and any missing details before use',
+    copy: 'Copy draft',
+    copied: 'Draft copied with citations and limitations.',
+    copyError: 'Could not copy. Select and copy the draft and its citations manually.',
+    disclosure: 'Important limitations and source information',
+    disclosureNote:
+      'Guidance is based on the response from the analysis service. Citations are not independent policy verification, legal advice or a guarantee of the claim outcome.',
+  };
+}
+
+function sampleTextLanguage(text: string): Language {
+  if (/[\u0900-\u097f]/u.test(text)) return 'hi';
+  if (/[\u0c80-\u0cff]/u.test(text)) return 'kn';
+  if (/[\u0b80-\u0bff]/u.test(text)) return 'ta';
+  if (/[\u0c00-\u0c7f]/u.test(text)) return 'te';
+  if (/[\u0d00-\u0d7f]/u.test(text)) return 'ml';
+  return 'en';
+}
+
 function highlightPlaceholders(text: string) {
   return text.split(/(\[[^\]\n]+\])/g).map((part, index) =>
     part.startsWith('[') && part.endsWith(']') ? (
@@ -59,8 +88,8 @@ function highlightPlaceholders(text: string) {
   );
 }
 
-function SampleTabs({ response }: { response: AnalyzeResponse }) {
-  const text = labels;
+function ResponseTabs({ response, isSample }: { response: AnalyzeResponse; isSample: boolean }) {
+  const text = answerLabels(isSample);
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -77,7 +106,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
     return () => {
       copyOperation.current += 1;
     };
-  }, [response]);
+  }, [response, isSample]);
 
   function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next: number;
@@ -106,6 +135,17 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
     if (!response.draft || copyState === 'pending') return;
     const operation = ++copyOperation.current;
     setCopyState('pending');
+    const draftCitationIds = new Set(response.draft.blocks.flatMap((block) => block.citation_ids));
+    const sourceNotes = response.citations
+      .filter((citation) => draftCitationIds.has(citation.id))
+      .flatMap((citation) => [
+        `Source ${citation.id} (${isSample ? 'synthetic, unverified' : 'supplied by the analysis service; not independently verified'})`,
+        citation.path,
+        `Record ID: ${citation.record_id ?? 'supporting document'}`,
+        `Heading: ${citation.heading}`,
+        `Lines: ${citation.start_line}–${citation.end_line}${citation.start_column != null && citation.end_column != null ? `; zero-based columns: ${citation.start_column}–${citation.end_column}` : ''}`,
+        ...citation.source_urls,
+      ]);
     const copiedText = [
       text.sample,
       text.draftNotice,
@@ -114,6 +154,7 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
       ...(response.draft.missing_fields.length
         ? [`${text.missing}: ${response.draft.missing_fields.join(', ')}`]
         : []),
+      ...sourceNotes,
       text.disclosure,
       text.disclosureNote,
       ...response.warnings,
@@ -167,7 +208,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
           {response.explanation.map((claim, index) => (
             <div className="answer-claim" key={index}>
               <p>{claim.text}</p>
-              <Evidence ids={claim.citation_ids} citations={response.citations} />
+              <Evidence
+                ids={claim.citation_ids}
+                citations={response.citations}
+                isSample={isSample}
+              />
             </div>
           ))}
         </div>
@@ -179,7 +224,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
                 <FileText className="document-tile-icon" size={24} aria-hidden="true" />
                 <div>
                   <p>{document.text}</p>
-                  <Evidence ids={document.citation_ids} citations={response.citations} />
+                  <Evidence
+                    ids={document.citation_ids}
+                    citations={response.citations}
+                    isSample={isSample}
+                  />
                 </div>
               </div>
             ))
@@ -232,7 +281,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
                   />
                   <div className="step-content">
                     <label htmlFor={`${id}-step-${index}`}>{action.text}</label>
-                    <Evidence ids={action.citation_ids} citations={response.citations} />
+                    <Evidence
+                      ids={action.citation_ids}
+                      citations={response.citations}
+                      isSample={isSample}
+                    />
                   </div>
                 </li>
               ))}
@@ -271,7 +324,11 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
               {response.draft.blocks.map((block, index) => (
                 <div className="draft-block" key={index}>
                   <p>{highlightPlaceholders(block.text)}</p>
-                  <Evidence ids={block.citation_ids} citations={response.citations} />
+                  <Evidence
+                    ids={block.citation_ids}
+                    citations={response.citations}
+                    isSample={isSample}
+                  />
                 </div>
               ))}
             </article>
@@ -295,8 +352,13 @@ function SampleTabs({ response }: { response: AnalyzeResponse }) {
   );
 }
 
-export function AnswerCard({ response, onEdit }: AnswerCardProps) {
-  const text = labels;
+export function AnswerCard({
+  response,
+  onEdit,
+  isSample = true,
+  qualityVerified = false,
+}: AnswerCardProps) {
+  const text = answerLabels(isSample);
   const id = useId();
   const title =
     response.status === 'success'
@@ -309,7 +371,7 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
 
   return (
     <section className="answer-card" lang={response.language} aria-labelledby={`${id}-title`}>
-      <p className="sample-banner" lang="en">
+      <p className={isSample ? 'sample-banner' : 'sample-banner service-banner'} lang="en">
         <Info size={15} aria-hidden="true" /> {text.sample}
       </p>
       <header className="answer-header" lang="en">
@@ -323,17 +385,43 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
           <Pencil size={15} aria-hidden="true" /> {text.edit}
         </button>
       </header>
+      <p className="sample-quality-note" lang="en">
+        {isSample
+          ? 'Sample language quality has not been independently reviewed.'
+          : qualityVerified
+            ? 'The service reports reviewed language quality; this does not guarantee this answer.'
+            : 'Output language quality has not been independently verified.'}
+      </p>
+      {response.status === 'success' && response.classification && (
+        <aside className="answer-uncertainty" aria-label="Classification uncertainty" lang="en">
+          <span>
+            Classification confidence: <strong>{response.classification.confidence}</strong>
+          </span>
+          <p lang={response.language}>{response.classification.rationale}</p>
+          <small lang="en">
+            {isSample
+              ? 'A sample label, not policy certainty or source verification.'
+              : 'Classification confidence is not source verification or a guarantee of the outcome.'}
+          </small>
+        </aside>
+      )}
       {response.status === 'success' ? (
-        <SampleTabs response={response} />
+        <ResponseTabs response={response} isSample={isSample} />
       ) : (
         <div className="answer-message">
           <p
-            lang={response.status === 'error' && response.error?.message ? response.language : 'en'}
+            lang={
+              response.status === 'unsupported' && response.warnings[0]
+                ? sampleTextLanguage(response.warnings[0])
+                : response.status === 'error' && response.error?.message
+                  ? response.language
+                  : 'en'
+            }
           >
             {response.status === 'needs_clarification'
               ? text.clarification
               : response.status === 'unsupported'
-                ? text.unsupported
+                ? response.warnings[0] || text.unsupported
                 : response.error?.message || text.error}
           </p>
           {response.status === 'needs_clarification' && (
@@ -345,7 +433,7 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
           )}
         </div>
       )}
-      <details className="answer-disclosure">
+      <details className="answer-disclosure" open={!isSample && response.warnings.length > 0}>
         <summary lang="en">
           {text.disclosure} <ChevronDown size={15} aria-hidden="true" />
         </summary>
@@ -353,8 +441,7 @@ export function AnswerCard({ response, onEdit }: AnswerCardProps) {
         {response.warnings.length > 0 && (
           <ul>
             {response.warnings.map((warning, index) => (
-              // Demo warnings mix preserved English notes with prewritten Hindi translations.
-              <li key={index} lang={/[\u0900-\u097f]/u.test(warning) ? 'hi' : 'en'}>
+              <li key={index} lang={sampleTextLanguage(warning)}>
                 {warning}
               </li>
             ))}
