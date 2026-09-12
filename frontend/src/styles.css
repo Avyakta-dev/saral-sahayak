@@ -459,6 +459,16 @@ summary::-webkit-details-marker {
   background: transparent;
   padding: 3px 2px;
 }
+.backend-status-checking {
+  color: #6f7866;
+}
+.backend-status-ready {
+  color: #3f6b3a;
+}
+.backend-status-not_ready,
+.backend-status-unreachable {
+  color: #8a5a2b;
+}
 .starter-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
