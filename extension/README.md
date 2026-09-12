@@ -108,7 +108,7 @@ Synthetic annotated privacy-flow mocks and a state checklist live under [`mocks/
 
 ## Extension UI Level 2 (issue 22 — partial)
 
-The trusted `privacy/privacy.html` window now includes outbound-vs-local disclosure, disabled provider/first-last/Analyze controls, and plain-text restore labelling. Evidence: [`evidence/ui-level-2-controls-preview.md`](evidence/ui-level-2-controls-preview.md). Analyze/upload/provider transport stay unavailable. Vault/controller/slots/page/raster were not modified. Issue 22 stays open.
+The trusted `privacy/privacy.html` window now includes outbound-vs-local disclosure, disabled provider/first-last/Analyze controls, plain-text restore labelling, and host-authored blocked/stale/unavailable fail-closed terminals. Evidence: [`evidence/ui-level-2-controls-preview.md`](evidence/ui-level-2-controls-preview.md) (includes headless Chromium synthetic-Port checks; unpacked Chrome/Brave interactive still NOT RUN). Analyze/upload/provider transport stay unavailable. Issue 22 stays open.
 
 ## Checks
 

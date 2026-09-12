@@ -33,9 +33,14 @@ async function setup(t, scenario = 'normal', width = 500) {
         if (message.type === 'inspect') {
           if (scenario === 'pending') return;
           if (scenario === 'denied') return emit({ type: 'expired', message: `Privacy operation blocked or source changed. ${value}` });
+          if (scenario === 'unavailable') return emit({ type: 'expired', message: `The local worker is unavailable. ${value}` });
           emit({ type: 'inspected', cropLimits: { width: 500, height: 760, dpr: 1 }, candidates: [{ id: 'field-a', label: scenario === 'long' ? label : 'applicant name' }] });
         }
-        if (message.type === 'capture') emit({ type: 'preview', preview: png, coverage: 'fully-masked', approvalTag: 'SYNTHETIC_TAG', remainingMs: 120000, slots: [{ label: 'applicant name', filled: true }] });
+        if (message.type === 'capture') {
+          emit({ type: 'preview', preview: png, coverage: 'fully-masked', approvalTag: 'SYNTHETIC_TAG', remainingMs: 120000, slots: [{ label: 'applicant name', filled: true }] });
+          // Issue 22: after preview lands, a late page-change expiry must label stale and scrub UI.
+          if (scenario === 'stale') setTimeout(() => emit({ type: 'expired', message: `The source page changed. ${value}` }), 40);
+        }
         if (message.type === 'review') emit({ type: 'reviewed' });
         if (message.type === 'restore') emit({ type: 'restored', title: 'Host template', remainingMs: 120000, slots: [{ slot: 'field-a', label: 'applicant name', filled: true, value }, { slot: 'empty', label: 'postal address', filled: false }] });
         if (message.type === 'fill') emit({ type: 'filled', results: [{ id: value, status: 'filled', message: value }, { status: 'skipped' }, { status: 'failed' }], warnings: [value], message: value });
@@ -138,4 +143,47 @@ test('pending inspection is cancellable and expiry clears without retry (virtual
     assert.deepEqual(await page.evaluate(() => window.observed.commands.map(c => c.type)), ['inspect', 'cancel']);
     await shot(page, `10-${action}`);
   }
+});
+test('Level 2: blocked capture during inspect labels blocked chip; Analyze stays disabled; secrets scrubbed', async t => {
+  const page = await setup(t, 'denied');
+  await page.getByRole('button', { name: 'Inspect', exact: true }).click();
+  await page.getByRole('heading', { name: 'Local privacy session closed' }).waitFor();
+  assert.equal(await page.locator('main').getAttribute('data-fail-closed'), 'blocked');
+  assert.match(await page.locator('.fail-closed-chip').textContent(), /Blocked capture/i);
+  assert.match(await page.locator('#terminal-status').textContent(), /blocked|denied/i);
+  assert.doesNotMatch(await page.locator('#terminal-status').textContent(), /SYNTHETIC_PRIVATE_VALUE|expired/i);
+  assert.equal(await page.getByRole('button', { name: 'Analyze', exact: true }).count(), 0);
+  assert.equal(await page.locator('input, img').count(), 0);
+  await shot(page, '11-blocked-capture');
+});
+test('Level 2: stale page-change after preview labels stale, scrubs envelope, never enables Analyze', async t => {
+  const page = await setup(t, 'stale');
+  await inspected(page);
+  await page.keyboard.press('Tab'); await page.keyboard.press('Space');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+  await focus(page, 'capture'); await page.keyboard.press('Enter');
+  await page.getByRole('heading', { name: 'Local privacy session closed' }).waitFor();
+  assert.equal(await page.locator('main').getAttribute('data-fail-closed'), 'stale');
+  assert.match(await page.locator('.fail-closed-chip').textContent(), /Stale \/ page changed/i);
+  assert.match(await page.locator('#terminal-status').textContent(), /source page changed/i);
+  assert.doesNotMatch(await page.locator('body').innerText(), /SYNTHETIC_PRIVATE_VALUE|SYNTHETIC_TAG/);
+  assert.equal(await page.getByRole('button', { name: 'Analyze', exact: true }).count(), 0);
+  assert.equal(await page.locator('#outbound-section, #preview-image, input').count(), 0);
+  const observed = await page.evaluate(() => window.observed);
+  assert.deepEqual(observed.commands.map(c => c.type), ['inspect', 'capture']);
+  assert.equal(JSON.stringify(observed).includes(value), false);
+  await shot(page, '12-stale-page-change');
+});
+test('Level 2: unavailable worker during inspect labels unavailable without Analyze/upload/Submit', async t => {
+  const page = await setup(t, 'unavailable');
+  await page.getByRole('button', { name: 'Inspect', exact: true }).click();
+  await page.getByRole('heading', { name: 'Local privacy session closed' }).waitFor();
+  assert.equal(await page.locator('main').getAttribute('data-fail-closed'), 'unavailable');
+  assert.match(await page.locator('.fail-closed-chip').textContent(), /^Unavailable$/);
+  assert.match(await page.locator('#terminal-status').textContent(), /worker is unavailable/i);
+  assert.doesNotMatch(await page.locator('#terminal-status').textContent(), /SYNTHETIC_PRIVATE_VALUE/);
+  for (const name of ['Analyze', 'Upload image', 'Submit']) {
+    assert.equal(await page.getByRole('button', { name, exact: true }).count(), 0);
+  }
+  await shot(page, '13-unavailable-worker');
 });
