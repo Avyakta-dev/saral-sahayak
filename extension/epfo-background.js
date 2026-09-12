@@ -8,6 +8,7 @@
   let capabilities = null;
   let loadingCapabilities = null;
   let connectionWrites = Promise.resolve();
+  let connectionRevision = 0;
 
   function requireValue(condition, message) {
     if (!condition) throw new Error(message);
@@ -90,16 +91,21 @@
   }
 
   async function clearConnection() {
+    connectionRevision += 1;
     capabilities = null;
     loadingCapabilities = null;
     connectionWrites = connectionWrites.catch(() => {}).then(() => chrome.storage.session.remove(SESSION_KEY));
     await connectionWrites;
   }
 
-  async function storeCapabilities(value) {
+  async function storeCapabilities(value, revision) {
     const validated = validateCapabilities(value);
-    connectionWrites = connectionWrites.catch(() => {}).then(() => chrome.storage.session.set({ [SESSION_KEY]: { connected: true, capabilities: validated } }));
+    connectionWrites = connectionWrites.catch(() => {}).then(async () => {
+      requireValue(revision === connectionRevision, "This backend connection was cleared or replaced.");
+      await chrome.storage.session.set({ [SESSION_KEY]: { connected: true, capabilities: validated } });
+    });
     await connectionWrites;
+    requireValue(revision === connectionRevision, "This backend connection was cleared or replaced.");
     capabilities = validated;
     return validated;
   }
@@ -107,23 +113,33 @@
   async function loadCapabilities() {
     if (capabilities) return capabilities;
     if (loadingCapabilities) return loadingCapabilities;
-    loadingCapabilities = (async () => {
+    const revision = connectionRevision;
+    const pending = (async () => {
+      // Serialize with pending clears/stores so an old cached value cannot resurrect consent.
+      await connectionWrites.catch(() => {});
+      requireValue(revision === connectionRevision, "This backend connection was cleared or replaced.");
       try {
         const stored = await chrome.storage.session.get(SESSION_KEY);
+        requireValue(revision === connectionRevision, "This backend connection was cleared or replaced.");
         const connection = stored?.[SESSION_KEY];
         requireValue(connection && connection.connected === true, "Connect to the backend and select one of its enabled languages first.");
-        capabilities = validateCapabilities(connection.capabilities);
-        return capabilities;
+        const validated = validateCapabilities(connection.capabilities);
+        capabilities = validated;
+        return validated;
       } catch (error) {
+        requireValue(revision === connectionRevision, "This backend connection was cleared or replaced.");
         capabilities = null;
-        await chrome.storage.session.remove(SESSION_KEY).catch(() => {});
+        connectionWrites = connectionWrites.catch(() => {}).then(async () => {
+          if (revision === connectionRevision) await chrome.storage.session.remove(SESSION_KEY);
+        });
+        await connectionWrites;
         if (error?.message === "Connect to the backend and select one of its enabled languages first.") throw error;
         throw new Error("Saved backend capabilities are invalid. Connect to the backend again.");
-      } finally {
-        loadingCapabilities = null;
       }
     })();
-    return loadingCapabilities;
+    loadingCapabilities = pending;
+    try { return await pending; }
+    finally { if (loadingCapabilities === pending) loadingCapabilities = null; }
   }
 
   function validURL(value) {
@@ -195,12 +211,14 @@
     const version = generation;
     if (message.type === "SS_EPFO_DETECT") return detect(version);
     if (message.type === "SS_EPFO_CAPABILITIES") {
+      const revision = ++connectionRevision;
       capabilities = null;
+      loadingCapabilities = null;
       const result = await transport("/api/v1/capabilities", undefined, version);
       requireValue(result.success, `Backend capabilities unavailable (HTTP ${result.status}).`);
       const validated = validateCapabilities(result.data);
       requireValue(version === generation, "This backend request was cancelled.");
-      await storeCapabilities(validated);
+      await storeCapabilities(validated, revision);
       requireValue(version === generation, "This backend request was cancelled.");
       return { ok: true, data: capabilities, status: result.status };
     }
