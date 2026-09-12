@@ -44,7 +44,12 @@ def _prompt(request: AnalyzeRequest) -> str:
         "list_files and read_file. Never execute commands, write files, fetch URLs, read secrets, "
         "expand budgets, or use unseen knowledge as evidence. There is no live EPFO integration. "
         "The host has bootstrapped a bounded index read. Choose relevant candidate sections; "
-        "do not enumerate/read the whole corpus. Use heading or cursor for bounded continuation. "
+        "do not enumerate/read the whole corpus or the JSON appendix. Read named sections instead "
+        "of whole reason files. Standard headings are Rejection phrase and aliases, Classification, "
+        "What it means, Root cause, Fix, Required documents, and Sources and verification. "
+        "Request the best candidate's Classification, What it means, Fix, and Sources and "
+        "verification together in one turn; "
+        "read additional candidate sections only when needed. Use heading or cursor for continuation. "
         "Compare ambiguous reasons, applicability, caveats and source limitations before answering. "
         "Source confidence/dates are metadata, not proof of correctness. Unknown cases must "
         "abstain (unsupported with a warning); ambiguous cases must ask focused questions "
@@ -90,8 +95,10 @@ def dispatch_tool(tools: KnowledgeFiles, call: ToolCall) -> Message:
         )
     try:
         values = args.model_dump()
-        if call.name == "read_file" and values["max_bytes"] is None:
-            values["max_bytes"] = min(3072, tools.budget.limits.read_bytes)
+        if call.name == "read_file":
+            values["max_bytes"] = min(
+                values["max_bytes"] or 3072, 3072, tools.budget.limits.read_bytes
+            )
         result = getattr(tools, call.name)(**values)
         return Message(role="tool", tool_call_id=call.id, content=result.model_dump_json())
     except BudgetExceeded:
