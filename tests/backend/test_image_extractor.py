@@ -87,6 +87,22 @@ async def test_rejects_a_url_scheme_or_host_other_than_the_configured_endpoint()
     assert len(client.calls) == 0
 
 
+@pytest.mark.parametrize(
+    "hostile_host",
+    [f"not{HOST}", f"{HOST}.attacker.example.invalid", f"attacker-{HOST}"],
+)
+async def test_a_prefix_or_suffix_containing_the_allowed_host_is_still_rejected(
+    hostile_host,
+):
+    """The comparison is exact equality, never a substring/suffix/endswith check - a
+    hostname that merely contains the allowed host as a prefix or suffix must not pass."""
+    client = FakeClient(extracted("should never be reached"))
+    with pytest.raises(AnalysisError) as error:
+        await run(client, allowed_host=hostile_host)
+    assert error.value.code == "image_input_unavailable"
+    assert len(client.calls) == 0
+
+
 async def test_rejects_a_port_other_than_the_configured_endpoints():
     """A URL on an unexpected port must never pass just because the hostname matches -
     port is part of the origin the guard is meant to pin."""

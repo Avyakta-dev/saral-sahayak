@@ -79,7 +79,10 @@ New module: `backend/history/`
     question domain is small and enumerable, so a *bare* hash would be dictionary-
     attackable by anyone who later read a persisted fingerprint; the per-process key
     means a leaked log cannot be matched back to a question without also holding that
-    key, and the key never survives a restart.
+    key, and the key never survives a restart. **Do not change this to a stable or
+    env-provided key** without re-evaluating retention on any already-persisted log -
+    that would reintroduce the offline dictionary-attack risk this key exists to
+    prevent, retroactively, for every row already on disk.
   - Only `success` and `unsupported` outcomes get cached (`needs_clarification` and
     `error` are request-specific and never cached).
   - The cached `AnalyzeResponse` has its `draft` stripped before storage (the draft
