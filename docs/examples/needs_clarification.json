@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "status": "needs_clarification",
+  "language": "hi",
+  "classification": null,
+  "explanation": [],
+  "actions": [],
+  "required_documents": [],
+  "draft": null,
+  "citations": [],
+  "warnings": [
+    "SYNTHETIC EXAMPLE ONLY: UI fixture, not runtime output or policy advice.",
+    "The agent is not implemented; this example does not imply runtime readiness."
+  ],
+  "questions": ["यह केवल काल्पनिक उदाहरण है। कौन-सा परीक्षण लेबल दिखाना है?"],
+  "error": null
+}

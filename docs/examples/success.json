@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "status": "success",
+  "language": "en",
+  "classification": {
+    "reason_id": "epfo-rr-001",
+    "category": "SYNTHETIC_EXAMPLE_ONLY",
+    "confidence": "low",
+    "rationale": "Synthetic schema illustration only; this ID does not assert a real classification."
+  },
+  "explanation": [
+    {
+      "text": "SYNTHETIC EXAMPLE: the imaginary fixture contains a sample label, not a policy statement.",
+      "citation_ids": ["ev-synthetic-example"]
+    }
+  ],
+  "actions": [
+    {
+      "text": "SYNTHETIC EXAMPLE: display this placeholder in a test interface only; do not act on it.",
+      "citation_ids": ["ev-synthetic-example"]
+    }
+  ],
+  "required_documents": [
+    {
+      "text": "SYNTHETIC EXAMPLE: imaginary test document, not an actual claim requirement.",
+      "citation_ids": ["ev-synthetic-example"]
+    }
+  ],
+  "draft": {
+    "title": "SYNTHETIC EXAMPLE — not for submission",
+    "blocks": [
+      {
+        "text": "SYNTHETIC EXAMPLE: this fixture demonstrates a cited factual block without policy advice.",
+        "kind": "factual",
+        "citation_ids": ["ev-synthetic-example"]
+      },
+      {
+        "text": "[CLAIMANT_NAME — intentionally not supplied]",
+        "kind": "template",
+        "citation_ids": []
+      }
+    ],
+    "missing_fields": ["claimant_name"]
+  },
+  "citations": [
+    {
+      "id": "ev-synthetic-example",
+      "path": "references/knowledge/epfo/synthetic-examples/schema-only.md",
+      "record_id": null,
+      "heading": "SYNTHETIC EXAMPLE ONLY",
+      "start_line": 1,
+      "end_line": 1,
+      "source_urls": ["https://example.invalid/synthetic-evidence"]
+    }
+  ],
+  "warnings": [
+    "SYNTHETIC EXAMPLE ONLY: not runtime output, real policy advice, or a usable claim draft.",
+    "The citation path, heading, line range and URL are imaginary schema placeholders; no evidence file was read or verified.",
+    "The agent is not implemented; provider connectivity and production knowledge are not verified."
+  ],
+  "questions": [],
+  "error": null
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "status": "unsupported",
+  "language": "en",
+  "classification": null,
+  "explanation": [],
+  "actions": [],
+  "required_documents": [],
+  "draft": null,
+  "citations": [],
+  "warnings": [
+    "SYNTHETIC EXAMPLE ONLY: the imaginary fixture provides no evidence for this sample input; no guidance is supplied.",
+    "This is not runtime output or policy advice. The agent is not implemented and runtime is not ready."
+  ],
+  "questions": [],
+  "error": null
+}
