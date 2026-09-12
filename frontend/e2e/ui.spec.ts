@@ -48,6 +48,7 @@ async function sendRemark(page: Page, value = remark) {
   await input(page).fill(value);
   await send(page).click();
   await expect(unavailable(page).last()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Try again \(\d+ left\)/ }).last()).toBeVisible();
 }
 
 async function noSample(page: Page) {
