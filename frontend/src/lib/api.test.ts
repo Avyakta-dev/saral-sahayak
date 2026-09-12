@@ -1115,4 +1115,3 @@ describe('bounded API transport', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
-
