@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>Privacy flow mock · Saral Sahayak</title>
+  <link rel="stylesheet" href="mock.css">
+  <script src="mock.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#flow">Skip to privacy flow</a>
+  <header class="masthead">
+    <span class="brand">Saral Sahayak / Design review</span>
+    <span class="connection">Not connected · UI Level 1</span>
+  </header>
+  <main>
+    <header class="intro">
+      <h1>Review first.<br>Release separately.</h1>
+      <p>An interactive, synthetic privacy-flow mock for issue 21. No page capture, redaction, vault, model, provider, or form connection is implemented here. Nothing is sent.</p>
+    </header>
+    <noscript><p class="notice">JavaScript is off. Read the annotations and state checklist below; the simulation controls are unavailable.</p></noscript>
+    <section class="setup" aria-labelledby="setup-title">
+      <h2 id="setup-title">Choose a synthetic scenario</h2>
+      <div class="settings">
+        <label>Page condition
+          <select id="scenario">
+            <option value="ready">Eligible fictional page</option>
+            <option value="inaccessible">Inaccessible region · known bounds</option>
+            <option value="blocked">Unknown coverage · block</option>
+            <option value="restricted">Restricted browser page</option>
+            <option value="unsupported">Unsupported capture surface</option>
+          </select>
+        </label>
+        <label>Illustrative mode (not a setting)
+          <select id="mode">
+            <option value="backend">Existing backend</option>
+            <option value="remote">Direct remote model</option>
+            <option value="local">Direct local model</option>
+            <option value="companion">Optional local companion</option>
+          </select>
+        </label>
+      </div>
+      <p id="destination" class="destination"></p>
+      <p class="annotation">All destinations are illustrations, never connections. Real provider settings belong in trusted extension options; keys are transport-only and session-default. No key input exists here. Every mode needs the same redaction and reviewed grounding; unavailable modes never silently fall back.</p>
+    </section>
+
+    <p id="status" class="notice" role="status" aria-live="polite" aria-atomic="true">Not connected. Choose Capture to start the synthetic walkthrough.</p>
+    <div id="flow" class="flow" tabindex="-1">
+      <section class="step" aria-labelledby="capture-title">
+        <header class="step-heading"><span class="step-number" aria-hidden="true">1</span><h2 id="capture-title">Capture & local preview</h2></header>
+        <p>Choose only the fictional field area. Opening this mock or changing a choice does not capture anything.</p>
+        <button id="capture" type="button" disabled>Capture · simulation</button>
+        <p class="annotation">Click-only boundary: this button reveals a drawing, not screenshot pixels. Production capture must flatten a new sanitized bitmap locally; a CSS mask is not redaction.</p>
+        <div id="preview" hidden>
+          <figure class="preview-drawing" aria-labelledby="drawing-caption">
+            <div class="drawing-header">Fictional field area · schematic only</div>
+            <div class="field-row"><span>Applicant name</span><span class="mask">***</span></div>
+            <div class="field-row"><span>Contact email · missing</span><span class="mask">***</span></div>
+            <div class="field-row"><span>Non-sensitive exhibit label</span><span class="mask">***</span></div>
+            <div id="region" class="region">Unverified region · excluded</div>
+            <figcaption id="drawing-caption">Uniform whole-field blocks and exactly three stars, never value-length masks. The drawing stays fully masked even when local first/last preview is enabled.</figcaption>
+          </figure>
+          <label>Unverified-region treatment
+            <select id="treatment">
+              <option value="mask">Mask entire region · illustration</option>
+              <option value="crop">Crop entire region out · illustration</option>
+              <option value="unresolved">Cannot establish coverage · block</option>
+            </select>
+          </label>
+          <p class="annotation">Frames, canvas, images, inaccessible shadow trees and unknown regions are not assumed safe. Known bounds may be wholly masked/cropped; unknown coverage blocks. Free text, tooltips and background text also need review.</p>
+          <fieldset class="local-preview">
+            <legend>Local-only first/last example</legend>
+            <label>Fictional label category
+              <select id="category">
+                <option value="long">Non-sensitive exhibit label · eligible example</option>
+                <option value="short">Short non-sensitive label · ineligible</option>
+                <option value="sensitive">Personal field · ineligible</option>
+                <option value="unknown">Unknown sensitivity · ineligible</option>
+              </select>
+            </label>
+            <label class="check"><input id="reveal" type="checkbox"><span>Opt in to first/last for this fictional exhibit label only</span></label>
+            <p>Local display <output id="local-mask" class="mask">***</output></p>
+            <p id="reveal-help" class="annotation">Off by default. Future non-sensitive labels require approval and at least 12 grapheme clusters. Personal, short or unknown fields stay fully masked. No fragments enter the diagram or model-boundary example.</p>
+          </fieldset>
+        </div>
+      </section>
+
+      <section class="step" aria-labelledby="analyze-title">
+        <header class="step-heading"><span class="step-number" aria-hidden="true">2</span><h2 id="analyze-title">Review & Analyze</h2></header>
+        <p id="boundary-help">Illustrative model boundary: opaque tokens, filled flags and safe labels only. This static example is not an API request or a token implementation.</p>
+        <pre id="boundary" aria-describedby="boundary-help">Not captured. No example prepared.</pre>
+        <p class="annotation">No private values, first/last characters, length hints, raw DOM labels, URLs, original screenshot or base64. An approved sanitized-image path is still a separate dependency; image transmission remains unavailable.</p>
+        <label class="check"><input id="review" type="checkbox" disabled><span>I reviewed this schematic and the mode/destination disclosure. Simulate Analyze only; send nothing.</span></label>
+        <button id="analyze" type="button" disabled>Analyze · simulation only</button>
+        <p class="annotation">A separate decision after Capture. Preview edits clear this review; recapture, mode changes and stale page state clear downstream results. Real analysis is unavailable in this artifact.</p>
+        <div class="utility-actions">
+          <button id="stale" class="secondary" type="button" disabled>Simulate page change / expiry</button>
+          <button id="cancel" class="secondary" type="button" disabled>Cancel & clear mock</button>
+        </div>
+      </section>
+
+      <section class="step" aria-labelledby="result-title">
+        <header class="step-heading"><span class="step-number" aria-hidden="true">3</span><h2 id="result-title">Local review & separate Fill</h2></header>
+        <div id="result-empty" class="empty">No simulated result yet. Capture and review first.</div>
+        <div id="result" hidden>
+          <h3 tabindex="-1" id="result-heading">Synthetic local restored-result preview</h3>
+          <p>No model ran and no response was validated. These are authored fixture strings, not EPFO advice or a usable claim draft.</p>
+          <dl class="restored">
+            <dt>Applicant name · fictional</dt><dd id="restored-name"></dd>
+            <dt>Contact email</dt><dd>Unresolved · not supplied; never inferred or eligible for Fill.</dd>
+          </dl>
+          <p class="annotation">Future integration must validate exact request-bound slots before local restoration. Restored text must not return to a provider, retry, log or diagnostic.</p>
+          <label class="check"><input id="fill-review" type="checkbox"><span>I reviewed the fictional applicant name and separately approve simulated Fill for that field only.</span></label>
+          <p class="warning">Real Fill releases approved values to the page and its scripts; the site may autosave. Extension isolation no longer protects released values. Fill is never submission.</p>
+          <button id="fill" type="button" disabled>Fill fictional field · simulation</button>
+          <p id="fill-outcome" class="notice" hidden></p>
+        </div>
+        <p class="manual">Submission stays manual on the real site, outside this mock. No submit action, navigation, automatic click or real field write is provided.</p>
+      </section>
+    </div>
+
+    <section class="acceptance" aria-labelledby="acceptance-title">
+      <h2 id="acceptance-title">State checklist & artifact status</h2>
+      <p>Review artifact only · issue 21 · Extension UI Level 1. Implemented as local HTML/CSS/JS under docs, outside extension packaging. All fixture content is invented; do not enter real data.</p>
+      <details>
+        <summary>Expected states and review boundaries</summary>
+        <ul class="checklist">
+          <li><strong>Not connected / initial:</strong> no collection; Analyze and Fill disabled.</li>
+          <li><strong>Captured:</strong> synthetic schematic, fixed *** masks, no review preselected.</li>
+          <li><strong>Conditional first/last:</strong> explicit per-label opt-in; long non-sensitive fixture only. Personal, short and unknown cases remain ***. Model example and diagram never change.</li>
+          <li><strong>Mask / crop:</strong> exclude an entire known-bounds inaccessible region; changing treatment revokes review and result. Unknown coverage cannot be overridden by a checkbox.</li>
+          <li><strong>Restricted / unsupported / blocked:</strong> no Capture or Analyze. Cancel, choose a supported fictional scenario, or use an independently reviewed non-identifying paste flow outside this mock; no permission expansion.</li>
+          <li><strong>Reviewed:</strong> explicit Analyze simulation becomes available. Real network and image transmission remain unavailable.</li>
+          <li><strong>Result:</strong> authored local restoration example, unresolved value not inferred; separate field-specific Fill approval required.</li>
+          <li><strong>Filled:</strong> local status only, not a real page write or submission. No repeat Fill or automatic next action.</li>
+          <li><strong>Cancel / stale / expiry / mode change / recapture:</strong> discard mock preview, partial display, approvals and result. No retry, fallback or stored session recovery.</li>
+          <li><strong>All modes:</strong> disclose destination and limitations. Local is not inherently private: forwarding, logging, retention and LAN exposure remain concerns.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact checks, limitations and handoff</summary>
+        <div id="test-status">
+          <ul>
+            <li><strong>PASS · 2026-09-12 · 8/8 Node checks:</strong> <code>node --test docs/mocks/privacy-flow/mock.test.cjs</code> — explicit gates, fixed masks/conditional reveal, blocked cases, invalidation, mode copy and static no-network/no-storage boundary checks.</li>
+            <li><strong>PASS · 6/6 browser checks (one parent + five subtests):</strong> <code>PLAYWRIGHT_MODULE=/path/to/installed/frontend/node_modules/@playwright/test node --test docs/mocks/privacy-flow/browser.test.cjs</code> — installed Playwright 1.63.0 and headless Chromium; file:// only. Observed separate Analyze/Fill, denied states, local-only reveal, reset, keyboard flow, focus, 1280px/360px layouts with no horizontal overflow, zero HTTP requests and zero script errors. No dependencies installed.</li>
+            <li><strong>PASS · 234/234 existing extension checks:</strong> <code>node --test extension/tests/*.test.cjs</code> — unchanged regression suite, no failures or skips.</li>
+            <li><strong>PASS:</strong> <code>git diff --check</code>. Desktop/mobile screenshots inspected locally at <code>/tmp/issue21-privacy-1280.png</code> and <code>/tmp/issue21-privacy-360.png</code>; no screenshots are packaged.</li>
+            <li><strong>Advisory design scan:</strong> Impeccable detector reported three warnings (cream palette, safety-copy cadence, and a font-shorthand hierarchy false positive). Retained the deliberate quiet review surface and explicit safety wording; screenshots confirm the large heading. This scan is not accessibility certification.</li>
+          </ul>
+          <p>Run commands from the repository root. The browser command shows a portable placeholder for the installed module path used during verification; replace it with your local installation. Without PLAYWRIGHT_MODULE, the browser test uses this worktree’s frontend/node_modules/@playwright/test. Existing installed Chromium is required; the test never installs a browser or dependencies.</p>
+        </div>
+        <p>Not run / not claimed: live providers, extension loading, pixel sanitization, vault or token security, real restoration/Fill, source or translation verification, screen-reader certification, CI/Actions, PR or merge acceptance. No external assets, application network calls, storage, browser extension permissions or API changes.</p>
+        <p>Scope explicitly authorized by the requester across former Avyakta/Shravya responsibilities; no reviewer approval is inferred. Shared labels await Shravya review, privacy boundaries Ajay review, and any future shared security/API change Anish approval. This mock changes none of those contracts. PR 58 runtime files are untouched. This artifact implements only issue 21; runtime integrations are separate reviewed changes.</p>
+      </details>
+    </section>
+  </main>
+  <footer>Open index.html directly from disk. No server or extension installation needed.</footer>
+</body>
+</html>
