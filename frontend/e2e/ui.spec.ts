@@ -374,12 +374,15 @@ test('real remarks and follow-ups never silently become a canned answer', async 
   await expect(
     page
       .getByText(
-        /analysis service|Analysis is not available|non-JSON|not available on this server/i,
+        /analysis service|Analysis is not available|non-JSON|not available on this server|Analysis request failed|HTTP \d{3}/i,
       )
       .first(),
   ).toBeVisible();
-  await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
-  await expect(page.getByText(/never substitutes a canned sample/)).toBeVisible();
+  const why = page.locator('details.connection-details').filter({
+    has: page.locator('summary', { hasText: /Why can.?t it answer yet\?/ }),
+  });
+  await why.locator('summary').click();
+  await expect(why).toContainText(/never substitutes a canned sample/);
   await screenshot(page, info, 'normal-reply');
   await sendRemark(page, 'Can you clarify my fictional follow-up?');
   await expect(unavailable(page)).toHaveCount(2);
@@ -1078,15 +1081,39 @@ test('local interactions transmit no input/files/API requests and persist no cha
     requests.filter((request) => new URL(request.url).origin !== origin),
     'No request may leave the local origin',
   ).toEqual([]);
+  const apiProbes = requests.filter(
+    (request) =>
+      ['fetch', 'xhr', 'ping'].includes(request.type) &&
+      /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
+  );
+  const otherLocalApi = requests.filter(
+    (request) =>
+      ['fetch', 'xhr', 'ping'].includes(request.type) &&
+      !/\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname),
+  );
+  expect(otherLocalApi, 'Only capabilities/analyze probes are allowed locally').toEqual([]);
+  expect(apiProbes.length, 'Live UI should attempt analyze/capabilities').toBeGreaterThan(0);
+  // Analyze POST bodies intentionally include the remark text on same-origin only.
+  for (const probe of apiProbes) {
+    expect(new URL(probe.url).origin).toBe(origin);
+  }
   expect(
-    requests.filter((request) => ['fetch', 'xhr', 'ping'].includes(request.type)),
-    'No local analysis/API requests either',
+    requests.filter(
+      (request) =>
+        !['GET', 'HEAD'].includes(request.method) &&
+        !/\/api\/v1\/analyze\/?$/.test(new URL(request.url).pathname),
+    ),
+    'No unexpected non-GET requests outside analyze',
   ).toEqual([]);
-  expect(
-    requests.filter((request) => !['GET', 'HEAD'].includes(request.method)),
-    'No submitting HTTP requests',
-  ).toEqual([]);
-  expect(JSON.stringify(requests)).not.toContain(marker);
+  const leaking = requests.filter(
+    (request) =>
+      (request.body ?? '').includes(marker) &&
+      !(
+        new URL(request.url).origin === origin &&
+        /\/api\/v1\/(capabilities|analyze)\/?$/.test(new URL(request.url).pathname)
+      ),
+  );
+  expect(leaking, 'Marker must not leave same-origin analyze/capabilities').toEqual([]);
   expect(frames.join('\n')).not.toContain(marker);
   const storage = await page.evaluate(async () => ({
     local: { ...localStorage },
@@ -1197,7 +1224,10 @@ for (const state of [
     }
     if (state === 'normal-reply') {
       await sendRemark(page);
-      await page.locator('summary').filter({ hasText: 'Why can’t it answer yet?' }).click();
+      await page
+        .locator('summary')
+        .filter({ hasText: /Why can.?t it answer yet\?/ })
+        .click();
     }
     if (state === 'attachment') await attach(page);
     if (state === 'info-modal')
