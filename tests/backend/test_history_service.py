@@ -110,14 +110,35 @@ async def test_failure_is_recorded_and_never_cached():
     assert store.find_cached("en", "Question that fails") is None
 
 
-async def test_cross_session_cache_hit_never_carries_the_first_callers_details():
+async def test_cross_session_cache_hit_on_a_details_free_seed_is_still_shared():
     """The exact-match cache is deliberately global (see HANDOFF-history-cache.md), so a
     second, unrelated session can hit a slot a different session filled - that is the
-    whole point. What must never happen: any field derived from the first caller's own
-    submitted details reaching a later, different caller. Only `draft` is caller-specific
-    (rebuilt fresh every time, see build_draft) - classification/explanation/actions/
-    citations are grounded purely in the shared knowledge corpus and the fingerprinted
-    text, never in `details`, so they are safe to share across sessions.
+    whole point for the common case where neither caller submitted details.
+    """
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    alice = HistoryTrackingService(inner, store, session_id="alice")
+    bob = HistoryTrackingService(inner, store, session_id="bob")
+
+    await alice.analyze(AnalyzeRequest(text="My claim was rejected", language="en"))
+    assert len(inner.calls) == 1
+
+    bob_response = await bob.analyze(
+        AnalyzeRequest(text="my   claim WAS rejected", language="en")
+    )
+    assert len(inner.calls) == 1, "the identical text must still hit the shared cache"
+    assert bob_response.classification.reason_id == "epfo-rr-001"
+
+
+async def test_a_response_seeded_with_details_never_enters_the_shared_cache():
+    """request.details reaches the model whole (it is serialized into the very first
+    prompt message - see backend.agent.service._analyze), and nothing structural, only
+    a system-prompt instruction, stops the model from echoing a name or claim id into
+    classification/explanation/actions text. A response produced from a request that
+    carried details must therefore never become a slot a *different* session can hit -
+    unlike `draft` (already rebuilt fresh per caller), those fields would replay
+    verbatim if cached. This is a correction of an earlier, disproven assumption that
+    only `draft` could ever carry a caller's details.
     """
     store = CaseHistoryStore()
     inner = StubInner(synthetic_response())
@@ -132,20 +153,10 @@ async def test_cross_session_cache_hit_never_carries_the_first_callers_details()
         )
     )
     assert len(inner.calls) == 1
+    assert store.find_cached("en", "My claim was rejected") is None
 
-    bob_response = await bob.analyze(
-        AnalyzeRequest(
-            text="my   claim WAS rejected",
-            language="en",
-            details={"claimant_name": "Bob", "claim_id": "bob-claim-2"},
-        )
-    )
-    assert len(inner.calls) == 1, "the identical text must still hit the shared cache"
-    assert bob_response.classification.reason_id == "epfo-rr-001"
-    # Bob's own draft, never Alice's - the only caller-specific field never leaks across.
-    assert not any(block.text == "Alice" for block in bob_response.draft.blocks)
-    assert not any("alice-claim-1" in block.text for block in bob_response.draft.blocks)
-    assert any(block.text == "Bob" for block in bob_response.draft.blocks)
+    await bob.analyze(AnalyzeRequest(text="my   claim WAS rejected", language="en"))
+    assert len(inner.calls) == 2, "alice's details-bearing response must never be replayed"
 
 
 async def test_sessions_never_share_history_or_bleed_into_each_others_view():

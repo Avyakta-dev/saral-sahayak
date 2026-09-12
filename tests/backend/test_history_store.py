@@ -196,6 +196,9 @@ def test_persisted_rows_never_contain_raw_text(tmp_path):
     assert len(lines) == 1
     assert lines[0]["case_id"] == record.case_id
     assert lines[0]["status"] == "completed"
+    # session_id is caller-controlled (X-Session-Id); the on-disk copy must be a
+    # pseudonym, never the literal value, even though the in-memory store keys on it.
+    assert lines[0]["session_id"] != "alice"
     assert set(lines[0]) == {
         "case_id",
         "session_id",
@@ -208,6 +211,22 @@ def test_persisted_rows_never_contain_raw_text(tmp_path):
         "created_at",
         "updated_at",
     }
+
+
+def test_session_id_pseudonym_is_stable_and_never_leaks_the_live_keying(tmp_path):
+    log = tmp_path / "history.jsonl"
+    store = CaseHistoryStore(persist_path=log)
+    for session_id in ("alice", "alice", "bob"):
+        record = store.start(session_id, "en", "question")
+        store.complete(record.case_id, synthetic_response())
+
+    lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    alice_pseudonyms = {lines[0]["session_id"], lines[1]["session_id"]}
+    assert alice_pseudonyms == {lines[0]["session_id"]}, "same session must persist identically"
+    assert lines[2]["session_id"] not in alice_pseudonyms
+    # The live view is keyed on the real id regardless of what is written to disk.
+    assert len(store.history("alice")) == 2
+    assert len(store.history("bob")) == 1
 
 
 def test_persist_failure_never_raises(tmp_path):

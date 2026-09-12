@@ -58,5 +58,14 @@ class HistoryTrackingService:
         except BaseException:
             self._store.fail(record.case_id)
             raise
-        self._store.complete(record.case_id, response, from_cache=False)
+        # request.details reaches the model (it is serialized whole into the prompt -
+        # see backend.agent.service._analyze), so a response produced from a request
+        # that carried any detail must never become a shared, cross-session cache
+        # entry: nothing structurally stops the model from echoing a name/claim id
+        # into classification/explanation/actions text, only prompt instructions do.
+        # A details-free request is unaffected and still seeds the shared cache.
+        has_details = any(value is not None for value in request.details.model_dump().values())
+        self._store.complete(
+            record.case_id, response, from_cache=False, cacheable=not has_details
+        )
         return response

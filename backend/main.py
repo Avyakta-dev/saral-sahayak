@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -527,7 +527,10 @@ def create_app(
         )
 
     @app.get("/api/v1/history", response_model=HistoryResponse)
-    async def history(request: Request, limit: int = 20):
+    async def history(request: Request, response: Response, limit: int = 20):
+        # Session-scoped, session-varying data must never be cached by a shared proxy
+        # or the browser's back/forward cache.
+        response.headers["Cache-Control"] = "no-store"
         session_id = _session_id(request)
         store = getattr(app.state, "history_store", None)
         if store is None:

@@ -134,6 +134,7 @@ def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call
 
             history = client.get("/api/v1/history", headers={"X-Session-Id": "reader-1"})
             assert history.status_code == 200
+            assert history.headers["cache-control"] == "no-store"
             cases = history.json()["cases"]
             assert len(cases) == 2
             assert cases[0]["from_cache"] is True  # most recent first
@@ -183,6 +184,8 @@ def test_history_disabled_still_serves_analysis(complete_corpus, monkeypatch):
     app = create_app(settings, knowledge_root=complete_corpus, model_client=object())
     with TestClient(app) as client:
         assert client.get("/api/v1/capabilities").json()["history_available"] is False
-        body = client.get("/api/v1/history").json()
+        response = client.get("/api/v1/history")
+        assert response.headers["cache-control"] == "no-store"
+        body = response.json()
         assert body["cases"] == []
         assert isinstance(body["session_id"], str) and body["session_id"]

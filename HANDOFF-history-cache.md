@@ -165,7 +165,7 @@ feature, and is the extension? Checked both rather than assuming.
 - **Frontend — was broken, now fixed.** `backend/main.py`'s `/api/v1/capabilities`
   handler now always includes `"history_available": <bool>` in its response (added
   this session, see line ~384). The frontend's `capabilitiesSchema` in
-  `frontend/src/lib/contracts.ts` uses Zod `.strict()`, which rejects any unrecognized
+  `frontend/src/lib/capabilities.ts` uses Zod `.strict()`, which rejects any unrecognized
   key. Confirmed live by capturing the real FastAPI response via `TestClient` and
   parsing it with the actual frontend schema (`vite-node`) — it failed with
   `unrecognized_keys: ["history_available"]`. Since `App.tsx` calls the strict
@@ -174,7 +174,7 @@ feature, and is the extension? Checked both rather than assuming.
   disabling analysis entirely — a silent full outage, not a visible new-field diff.
   Fixed:
   - Added `history_available: z.boolean()` to `capabilitiesSchema`
-    (`frontend/src/lib/contracts.ts`).
+    (`frontend/src/lib/capabilities.ts`).
   - Added `history_available?: boolean` to the loose `Capabilities` type
     (`frontend/src/lib/api.ts`) for type completeness.
   - Updated the `capabilities` test fixture in `frontend/src/lib/api.test.ts` to include

@@ -71,6 +71,12 @@ class CaseHistoryStore:
         # fingerprint back into the live cache, so a fresh key per process is safe and
         # additionally makes any leaked log unusable once this process has restarted.
         self._fingerprint_key = secrets.token_bytes(32)
+        # session_id may be a caller-controlled X-Session-Id (see backend.main); a
+        # persisted log must never carry it in plaintext. A separate key from the
+        # fingerprint one keeps the two pseudonyms non-correlatable if only one leaks.
+        # Live in-memory keying (_by_session) is unaffected - only the on-disk copy
+        # is substituted, in _persist().
+        self._session_id_key = secrets.token_bytes(32)
 
     def start(self, session_id: str, language: str, text: str) -> CaseRecord:
         now = time.time()
@@ -110,7 +116,12 @@ class CaseHistoryStore:
                 record.updated_at = time.time()
 
     def complete(
-        self, case_id: str, response: AnalyzeResponse, *, from_cache: bool = False
+        self,
+        case_id: str,
+        response: AnalyzeResponse,
+        *,
+        from_cache: bool = False,
+        cacheable: bool = True,
     ) -> None:
         with self._lock:
             record = self._records.get(case_id)
@@ -124,7 +135,7 @@ class CaseHistoryStore:
             record.from_cache = from_cache
             record.updated_at = time.time()
             snapshot = record.model_copy()
-        if not from_cache and response.status in _CACHEABLE_STATUSES:
+        if not from_cache and cacheable and response.status in _CACHEABLE_STATUSES:
             self._remember(snapshot.fingerprint, response)
         self._persist(snapshot)
 
@@ -166,8 +177,15 @@ class CaseHistoryStore:
         """Best-effort append-only log. Never raw text, never PII, never fails a request."""
         if self._persist_path is None:
             return
+        # session_id is a caller-controlled opaque partition key (see backend.main's
+        # _session_id), not a secret and not meant to be human-identifying - but it must
+        # never sit in a persisted file in plaintext. Pseudonymize only the on-disk copy.
+        pseudonym = hmac.new(
+            self._session_id_key, record.session_id.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        entry = record.model_copy(update={"session_id": pseudonym})
         try:
             with self._persist_path.open("a", encoding="utf-8") as handle:
-                handle.write(record.model_dump_json() + "\n")
+                handle.write(entry.model_dump_json() + "\n")
         except OSError:
             pass

@@ -104,7 +104,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"history_persist_path's parent directory does not exist: {path.parent}"
             )
-        return value
+        # Return the expanded form: history_store() does a bare Path(...) on this value
+        # without re-expanding "~", so a returned "~/x" would resolve relative to the
+        # working directory instead of the home directory validated above.
+        return str(path)
 
     @field_validator("cors_origins")
     @classmethod
