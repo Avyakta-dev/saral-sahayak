@@ -22,6 +22,7 @@ def test_defaults_are_unconfigured():
     assert settings.llm_config() is None
     assert settings.llm_api_style == "responses"
     assert settings.llm_timeout_seconds == 25
+    assert settings.analysis_request_seconds == 30
     assert settings.llm_connect_timeout_seconds == 5
     assert settings.llm_max_output_tokens == 2000
     assert settings.llm_anthropic_version == "2023-06-01"
@@ -38,6 +39,7 @@ def test_explicit_environment_mapping(monkeypatch, style):
         "LLM_API_KEY": SYNTHETIC_KEY,
         "LLM_MODEL": " synthetic-model ",
         "LLM_TIMEOUT_SECONDS": "25",
+        "ANALYSIS_REQUEST_SECONDS": "30",
         "LLM_CONNECT_TIMEOUT_SECONDS": "5",
         "LLM_MAX_OUTPUT_TOKENS": "2000",
         "LLM_EXTRA_HEADERS": '{"X-Synthetic-Token":"' + SYNTHETIC_HEADER + '"}',
@@ -55,6 +57,7 @@ def test_explicit_environment_mapping(monkeypatch, style):
     assert isinstance(settings.llm_api_key, SecretStr)
     assert config.api_key.get_secret_value() == SYNTHETIC_KEY
     assert config.timeout_seconds == 25
+    assert settings.analysis_request_seconds == 30
     assert config.connect_timeout_seconds == 5
     assert config.max_output_tokens == 2000
     assert config.extra_headers["X-Synthetic-Token"].get_secret_value() == SYNTHETIC_HEADER
@@ -109,7 +112,9 @@ def test_provider_specific_variables_do_not_silently_configure_model(monkeypatch
     [
         ("LLM_API_STYLE", "auto"),
         ("LLM_TIMEOUT_SECONDS", "0"),
-        ("LLM_TIMEOUT_SECONDS", "31"),
+        ("LLM_TIMEOUT_SECONDS", "121"),
+        ("ANALYSIS_REQUEST_SECONDS", "0"),
+        ("ANALYSIS_REQUEST_SECONDS", "121"),
         ("LLM_CONNECT_TIMEOUT_SECONDS", "0"),
         ("LLM_CONNECT_TIMEOUT_SECONDS", "31"),
         ("LLM_MAX_OUTPUT_TOKENS", "0"),
@@ -168,3 +173,11 @@ def test_mapped_config_preserves_prefix_and_accepts_exact_endpoint(style, suffix
             llm_model="synthetic-model",
         ).llm_config()
         assert config.endpoint_url == "https://llm.example.invalid/proxy/v1" + suffix
+
+
+def test_analysis_budget_limits_follows_setting():
+    settings = Settings(_env_file=None, analysis_request_seconds=45)
+    assert settings.analysis_budget_limits().request_seconds == 45
+    default = Settings(_env_file=None)
+    assert default.analysis_budget_limits().request_seconds == 30
+

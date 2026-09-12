@@ -19,7 +19,7 @@ Total: **5 provider calls**. Remaining English cases and multilingual live check
 
 The agent now clamps even explicitly requested reads to at most 3,072 text bytes (or a smaller caller/host limit), instead of applying that reservation only to omitted limits. Pagination remains explicit. The prompt recommends named sections and requesting the relevant classification/explanation/fix/source sections together. These changes have offline regression coverage; the final prompt revision has not been retested live.
 
-The 30-second overall deadline has not been increased. Provider latency and final output generation still need investigation before claiming a working live demo. Model/protocol configuration and structurally valid knowledge are not proof that a supported case finishes successfully.
+The offline default overall deadline remains 30 seconds. For a bounded live retest only, `ANALYSIS_REQUEST_SECONDS` (and `LLM_TIMEOUT_SECONDS`, which must stay within that budget) can be raised without changing those defaults—for example `ANALYSIS_REQUEST_SECONDS=60` and `LLM_TIMEOUT_SECONDS=45`. Issue #29 stays open until a validated live success; this configurability alone is not acceptance.
 
 ## Issue audit
 
