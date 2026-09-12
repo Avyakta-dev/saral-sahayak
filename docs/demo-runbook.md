@@ -94,6 +94,8 @@ Open **http://127.0.0.1:5173** (match CORS). The header status line reports whet
 
 ## 4. Synthetic UI demo (judges)
 
+**Talk track (3–5 min):** [judge-demo-script.md](judge-demo-script.md).
+
 Use only synthetic text (for example `epfo-case-001-initials-paraphrase` input in `references/reviews/epfo/cases.json`). Paste into the composer and **Send**.
 
 Expect when the live path works:
