@@ -1,0 +1,163 @@
+"""API-level proof: an identical repeat text query costs no second model call."""
+
+import json
+import os
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from backend.config import Settings
+from backend.llm import LLMClient
+from backend.main import create_app
+
+
+@pytest.fixture
+def complete_corpus(tmp_path):
+    (tmp_path / "reasons").mkdir()
+    links = []
+    for number in range(1, 182):
+        record = f"epfo-rr-{number:03}"
+        links.append(f"[{record}](reasons/{record}.md)")
+        (tmp_path / "reasons" / f"{record}.md").write_text(
+            f"# {record}\n## Fix\nSynthetic fixture, not policy.\n"
+            "Check the synthetic details.\nhttps://example.invalid/synthetic\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "README.md").write_text("# Synthetic index\n" + "\n".join(links))
+    for name in ("sources", "glossary", "claim-types-overview", "resolution-playbooks"):
+        (tmp_path / f"{name}.md").write_text(f"# {name}\nSynthetic test content only.\n")
+    return tmp_path
+
+
+def _client(complete_corpus, monkeypatch):
+    monkeypatch.setattr(os, "environ", {})
+    settings = Settings(
+        _env_file=None,
+        llm_base_url="https://example.invalid/v1",
+        llm_api_key="synthetic-key",
+        llm_model="synthetic-model",
+    )
+    calls = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        call_number = len(calls)
+        if call_number % 2 == 1:
+            return httpx.Response(
+                200,
+                json={
+                    "status": "completed",
+                    "usage": {"output_tokens": 80},
+                    "output": [
+                        {
+                            "type": "function_call",
+                            "call_id": f"read-fixture-{call_number}",
+                            "name": "read_file",
+                            "arguments": json.dumps(
+                                {"relative_path": "reasons/epfo-rr-001.md", "heading": "Fix"}
+                            ),
+                        }
+                    ],
+                },
+            )
+        tool_output = [
+            item["output"] for item in body["input"] if item.get("type") == "function_call_output"
+        ][-1]
+        eid = json.loads(tool_output)["evidence_id"]
+        result = {
+            "status": "success",
+            "language": "en",
+            "classification": {
+                "reason_id": "epfo-rr-001",
+                "category": "Synthetic",
+                "confidence": "medium",
+                "rationale": "Synthetic rationale.",
+            },
+            "explanation": [{"text": "Synthetic explanation.", "evidence_ids": [eid]}],
+            "actions": [{"text": "Synthetic action.", "evidence_ids": [eid]}],
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "completed",
+                "usage": {"output_tokens": 200},
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [
+                            {"type": "output_text", "text": json.dumps(result, ensure_ascii=False)}
+                        ],
+                    }
+                ],
+            },
+        )
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    model = LLMClient(settings.llm_config(), http)
+    app = create_app(settings, knowledge_root=complete_corpus, model_client=model)
+    return app, http, calls
+
+
+def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call(
+    complete_corpus, monkeypatch
+):
+    app, http, calls = _client(complete_corpus, monkeypatch)
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/capabilities").json()["history_available"] is True
+
+            first = client.post(
+                "/api/v1/analyze",
+                json={"text": "Synthetic test only", "language": "en"},
+                headers={"X-Session-Id": "reader-1"},
+            )
+            assert first.status_code == 200, first.json()
+            assert first.json()["status"] == "success"
+            assert len(calls) == 2  # one tool-call turn, one final turn
+
+            second = client.post(
+                "/api/v1/analyze",
+                json={
+                    "text": "synthetic   TEST only",  # same after normalization
+                    "language": "en",
+                    "details": {"claimant_name": "Second Caller"},
+                },
+                headers={"X-Session-Id": "reader-1"},
+            )
+            assert second.status_code == 200, second.json()
+            assert len(calls) == 2, "identical repeat must not reach the model again"
+            assert second.json()["classification"]["reason_id"] == "epfo-rr-001"
+            assert second.json()["draft"]["blocks"][1]["text"] == "Second Caller"
+
+            history = client.get("/api/v1/history", headers={"X-Session-Id": "reader-1"})
+            assert history.status_code == 200
+            cases = history.json()["cases"]
+            assert len(cases) == 2
+            assert cases[0]["from_cache"] is True  # most recent first
+            assert cases[1]["from_cache"] is False
+            assert all(case["reason_id"] == "epfo-rr-001" for case in cases)
+
+            other_session = client.get("/api/v1/history", headers={"X-Session-Id": "someone-else"})
+            assert other_session.json()["cases"] == []
+    finally:
+        import asyncio
+
+        asyncio.run(http.aclose())
+
+
+def test_history_disabled_still_serves_analysis(complete_corpus, monkeypatch):
+    monkeypatch.setattr(os, "environ", {})
+    settings = Settings(
+        _env_file=None,
+        llm_base_url="https://example.invalid/v1",
+        llm_api_key="synthetic-key",
+        llm_model="synthetic-model",
+        history_enabled=False,
+    )
+    app = create_app(settings, knowledge_root=complete_corpus, model_client=object())
+    with TestClient(app) as client:
+        assert client.get("/api/v1/capabilities").json()["history_available"] is False
+        assert client.get("/api/v1/history").json() == {"session_id": "anonymous", "cases": []}

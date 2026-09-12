@@ -16,6 +16,9 @@ sources.md
 data/rejections.json
 data/rejections.jsonl
 data/rejections.csv
+data/original-error-remarks.json
+data/original-error-remarks.jsonl
+data/original-error-remarks.csv
 data/source_links.json
 data/source_links.csv
 docs/glossary.md
@@ -270,6 +273,10 @@ IDs run `epfo-rr-001` … `epfo-rr-181` (**181** contiguous canonical reasons in
 | `confidence` | high / medium / low |
 | `last_verified` | ISO date |
 | `notes` | Caveats, circular numbers, 2026 uncertainties |
+
+## Original error remarks
+
+EPFO does not publish a numbered rejection-code dataset. The original error language we have is flattened in `data/original-error-remarks.*` (1082 rows): portal/SMS aliases, official-status text, and nine government-stated buckets from the 9 Mar 2026 Lok Sabha reply. Each row maps to an existing `epfo-rr-NNN` ID. See [docs/original-error-sources.md](docs/original-error-sources.md). Do not treat this file as runtime RAG input.
 
 ## RAG chunks
 

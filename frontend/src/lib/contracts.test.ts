@@ -372,6 +372,6 @@ describe('validateInput', () => {
   });
 
   it('rejects unsupported runtime language values', () => {
-    expect(validateInput('Synthetic text.', 'fr' as Language)).toMatch(/English or Hindi/);
+    expect(validateInput('Synthetic text.', 'fr' as Language)).toMatch(/enabled output language/);
   });
 });

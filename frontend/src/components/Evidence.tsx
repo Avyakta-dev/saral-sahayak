@@ -1,57 +1,66 @@
 import { BookOpen, ChevronDown, ExternalLink } from 'lucide-react';
 import type { Citation } from '../lib/contracts';
 import { safeSourceUrl } from '../lib/contracts';
+import { useLocale } from '../lib/i18n';
 
 type EvidenceProps = {
   ids: string[];
   citations: Citation[];
+  sample?: boolean;
   mode?: 'live' | 'sample';
 };
 
-export function Evidence({ ids, citations, mode = 'sample' }: EvidenceProps) {
+export function Evidence({ ids, citations, mode, sample = mode !== 'live' }: EvidenceProps) {
+  const { locale, t } = useLocale();
   if (!ids.length) return null;
   const evidence = ids.map((id) => citations.find((citation) => citation.id === id));
-  const notice =
-    mode === 'live'
-      ? 'Evidence cited by the analysis service. Paths and source URLs are shown for you to verify; this is not a guarantee of policy correctness.'
-      : 'Synthetic evidence only. These locations have not been read or verified.';
 
   return (
-    <details className="evidence" lang="en">
+    <details className="evidence" lang={locale}>
       <summary>
         <BookOpen size={14} aria-hidden="true" />
-        <span>Source{ids.length > 1 ? 's' : ''}</span>
+        <span>{t(ids.length > 1 ? 'sources' : 'source')}</span>
         <span className="source-count">{ids.length}</span>
         <ChevronDown className="disclosure-chevron" size={14} aria-hidden="true" />
       </summary>
       <div className="evidence-body">
-        <p className="evidence-notice">{notice}</p>
+        <p className="evidence-notice">{sample ? t('sampleEvidence') : t('liveEvidence')}</p>
         {evidence.map((citation, index) =>
           citation ? (
             <dl className="citation" key={citation.id}>
               <div>
-                <dt>Markdown path</dt>
-                <dd className="citation-path">{citation.path}</dd>
+                <dt>{t('markdownPath')}</dt>
+                <dd className="citation-path" lang="en">
+                  {citation.path}
+                </dd>
               </div>
               <div>
-                <dt>Record ID</dt>
-                <dd>{citation.record_id ?? 'Supporting document (no record ID)'}</dd>
+                <dt>{t('recordId')}</dt>
+                <dd>{citation.record_id ?? t('supportingDocument')}</dd>
               </div>
               <div>
-                <dt>Exact heading</dt>
-                <dd>{citation.heading}</dd>
+                <dt>{t('exactHeading')}</dt>
+                <dd lang="">{citation.heading}</dd>
               </div>
               <div>
-                <dt>Lines</dt>
+                <dt>{t('lines')}</dt>
                 <dd>
                   {citation.start_line}–{citation.end_line}
                 </dd>
               </div>
+              {citation.start_column != null && citation.end_column != null && (
+                <div>
+                  <dt>{t('columns')}</dt>
+                  <dd>
+                    {citation.start_column}–{citation.end_column}
+                  </dd>
+                </div>
+              )}
               <div>
-                <dt>Original source URLs</dt>
+                <dt>{t('sourceUrls')}</dt>
                 <dd>
                   {citation.source_urls.length === 0 &&
-                    'No source URL supplied. Evidence cannot be verified from this preview.'}
+                    (sample ? t('noSampleUrl') : t('noLiveUrl'))}
                   {citation.source_urls.map((url) => {
                     const safe = safeSourceUrl(url);
                     const imaginary = safe && new URL(safe).hostname.endsWith('.invalid');
@@ -65,16 +74,12 @@ export function Evidence({ ids, citations, mode = 'sample' }: EvidenceProps) {
                       >
                         {url}
                         <ExternalLink size={12} aria-hidden="true" />
-                        <span className="sr-only"> (opens in a new tab)</span>
+                        <span className="sr-only">{t('newTab')}</span>
                       </a>
                     ) : (
                       <span className="source-url" key={url}>
                         {url}
-                        <small>
-                          {imaginary
-                            ? 'Illustrative URL — not a live source'
-                            : 'Unavailable link — unsafe URL rejected'}
-                        </small>
+                        <small>{imaginary ? t('illustrativeUrl') : t('unsafeUrl')}</small>
                       </span>
                     );
                   })}
@@ -83,7 +88,7 @@ export function Evidence({ ids, citations, mode = 'sample' }: EvidenceProps) {
             </dl>
           ) : (
             <p key={ids[index]} role="alert">
-              Source details are unavailable. This claim cannot be verified.
+              {t('missingEvidence')}
             </p>
           ),
         )}

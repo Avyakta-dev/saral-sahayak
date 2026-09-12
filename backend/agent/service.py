@@ -22,6 +22,7 @@ from backend.output_validation import evidence_links
 from backend.tools.budget import Budget, BudgetExceeded, BudgetLimits, KnowledgeError
 from backend.tools.knowledge_files import KnowledgeFiles
 
+from .activity import ActivityObserver, RequestActivity
 from .diagnostics import (
     AnalysisOutcome,
     AnalysisPhase,
@@ -172,7 +173,9 @@ def _finish_tool_result(budget: Budget, call_id: str) -> Message:
     )
 
 
-def dispatch_tool(tools: KnowledgeFiles, call: ToolCall) -> Message:
+def dispatch_tool(
+    tools: KnowledgeFiles, call: ToolCall, activity: RequestActivity | None = None
+) -> Message:
     """Reject unknown keys/types before dispatch, charging failed attempts exactly once."""
     model = {"list_files": ListFilesArgs, "read_file": ReadFileArgs}.get(call.name)
     invalid = model is None
@@ -197,6 +200,11 @@ def dispatch_tool(tools: KnowledgeFiles, call: ToolCall) -> Message:
                 values["max_bytes"] or 3072, 3072, tools.budget.limits.read_bytes
             )
         result = getattr(tools, call.name)(**values)
+        if activity is not None:
+            if call.name == "read_file":
+                activity.emit("reading", entry=tools.ledger.get(result.evidence_id))
+            else:
+                activity.emit("searching")
         return Message(role="tool", tool_call_id=call.id, content=result.model_dump_json())
     except BudgetExceeded:
         raise
@@ -287,11 +295,21 @@ class AnalysisService:
         self.budget_limits = budget_limits
 
     async def analyze(
-        self, request: AnalyzeRequest, *, diagnostics: DiagnosticsObserver | None = None
+        self,
+        request: AnalyzeRequest,
+        *,
+        budget: Budget | None = None,
+        diagnostics: DiagnosticsObserver | None = None,
+        activity: ActivityObserver | None = None,
     ) -> AnalyzeResponse:
-        """Analyze with an optional fast, synchronous, request-local diagnostics callback."""
+        """Analyze with optional separate request-local diagnostics/activity callbacks.
+
+        A caller that has already spent from this request (for example on image
+        extraction) may pass that same budget so time and token allowances are shared
+        rather than restarted.
+        """
         started = time.monotonic()
-        budget = Budget(self.budget_limits)
+        budget = budget if budget is not None else Budget(self.budget_limits)
         trace = (
             RequestDiagnostics(diagnostics, started=started) if diagnostics is not None else None
         )
@@ -300,7 +318,9 @@ class AnalysisService:
         # Raise outside handlers so even __context__ contains no underlying sensitive data.
         failure = None
         try:
-            response = await self._analyze(request, budget, trace)
+            response = await self._analyze(
+                request, budget, trace, RequestActivity(activity) if activity is not None else None
+            )
         except asyncio.CancelledError:
             if trace is not None:
                 trace.emit(budget, AnalysisPhase.TERMINAL, outcome=AnalysisOutcome.CANCELLED)
@@ -334,7 +354,11 @@ class AnalysisService:
         raise AnalysisError(*failure)
 
     async def _analyze(
-        self, request: AnalyzeRequest, budget: Budget, trace: RequestDiagnostics | None
+        self,
+        request: AnalyzeRequest,
+        budget: Budget,
+        trace: RequestDiagnostics | None,
+        activity: RequestActivity | None,
     ) -> AnalyzeResponse:
         history = [
             Message(role="system", content=_prompt(request)),
@@ -351,6 +375,8 @@ class AnalysisService:
                 "max_lines": min(30, budget.limits.read_lines),
             }
             index = tools.read_file(**index_args)
+            if activity is not None:
+                activity.emit("reading", entry=tools.ledger.get(index.evidence_id))
             if trace is not None:
                 trace.emit(budget, AnalysisPhase.INDEX_READ)
             boot = ToolCall(id="host-index", name="read_file", arguments=index_args)
@@ -375,6 +401,8 @@ class AnalysisService:
                             model_token_allowance=tokens,
                         )
                         budget.check()
+                    if activity is not None:
+                        activity.emit("thinking", turn=budget.usage.model_turns)
                     result = await self.client.complete(
                         history, TOOLS, max_output_tokens=tokens, timeout_seconds=seconds
                     )
@@ -410,7 +438,7 @@ class AnalysisService:
                         if stop_tools:
                             history.append(_finish_tool_result(budget, call.id))
                         else:
-                            history.append(dispatch_tool(tools, call))
+                            history.append(dispatch_tool(tools, call, activity))
                         if trace is not None:
                             trace.emit(budget, AnalysisPhase.TOOL_COMPLETE)
                     if stop_tools or _has_answerable_evidence(tools.ledger):
@@ -418,6 +446,8 @@ class AnalysisService:
                             history.append(Message(role="user", content=_FINISH_NUDGE))
                             finish_nudged = True
                     continue
+                if activity is not None:
+                    activity.emit("validating", turn=budget.usage.model_turns)
                 if trace is not None:
                     trace.emit(budget, AnalysisPhase.VALIDATION)
                 response = None

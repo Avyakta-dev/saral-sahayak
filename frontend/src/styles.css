@@ -15,6 +15,93 @@
 * {
   box-sizing: border-box;
 }
+:lang(hi) {
+  font-family: 'Noto Sans Devanagari', 'Nirmala UI', sans-serif;
+}
+:lang(kn) {
+  font-family: 'Noto Sans Kannada', 'Nirmala UI', sans-serif;
+}
+:lang(ta) {
+  font-family: 'Noto Sans Tamil', 'Nirmala UI', sans-serif;
+}
+:lang(te) {
+  font-family: 'Noto Sans Telugu', 'Nirmala UI', sans-serif;
+}
+:lang(ml) {
+  font-family: 'Noto Sans Malayalam', 'RIT Rachana', 'RIT Meera New', 'Nirmala UI', sans-serif;
+}
+.chat-app:not([lang='en']) :is(h1, h2, h3, .eyebrow, button, summary, label) {
+  letter-spacing: normal;
+}
+.header-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.ui-language-select {
+  min-width: 0;
+}
+.ui-language-select select {
+  max-width: 140px;
+}
+.live-privacy-details summary {
+  cursor: pointer;
+}
+.live-privacy-details p {
+  margin-top: 5px;
+}
+.consent-dialog .reply-actions {
+  flex-wrap: wrap;
+}
+.consent-dialog button,
+.draft-toolbar button {
+  height: auto;
+  white-space: normal;
+}
+.welcome h1 {
+  max-width: 12ch;
+  margin-inline: auto;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.answer-header,
+.draft-toolbar,
+.welcome-footer {
+  flex-wrap: wrap;
+}
+.answer-tab,
+.light-button,
+.preview-badge {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .app-header {
+    flex-wrap: wrap;
+  }
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .ui-language-select {
+    margin-right: auto;
+  }
+  .chat-app:not([lang='en']) .welcome h1 {
+    font-size: 32px;
+    line-height: 1.5;
+    max-width: 100%;
+  }
+  .chat-app:not([lang='en']) .eyebrow {
+    text-transform: none;
+  }
+  .chat-app:not([lang='en']) .answer-title {
+    font-size: 22px;
+  }
+  .chat-app:not([lang='en']) .send-tools {
+    min-width: 0;
+  }
+  .chat-app:not([lang='en']) .keyboard-hint {
+    display: none;
+  }
+}
 body {
   margin: 0;
   min-width: 320px;
@@ -914,6 +1001,73 @@ dialog::backdrop {
   margin-top: 16px;
   color: #727e65;
   font-size: 10px;
+}
+.activity-panel {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #dce5d1;
+  border-radius: 10px;
+  background: #f2f7ec;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.activity-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.activity-history {
+  max-height: 220px;
+  overflow: auto;
+  padding-left: 22px;
+}
+.activity-history li {
+  margin-top: 9px;
+}
+.activity-history code,
+.activity-history span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.activity-caveat {
+  margin-top: 8px;
+  font-size: 11px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-panel .spin {
+    animation: none;
+  }
+}
+.live-controls {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  color: #34482d;
+}
+.live-controls select {
+  max-width: 100%;
+  margin: 6px 0;
+  display: block;
+  padding: 7px;
+}
+.consent-dialog > p {
+  margin: 16px 0;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.consent-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 28vh;
+  overflow: auto;
+  padding: 12px;
+  background: #eef5e7;
+  font: inherit;
+}
+.send-button.analyze-button {
+  width: auto;
+  padding: 0 12px;
+  font-size: 12px;
 }
 .image-dialog {
   max-width: min(880px, calc(100vw - 32px));

@@ -19,16 +19,39 @@ class ClaimDetails(ContractModel):
 
 
 class AnalyzeRequest(ContractModel):
-    text: str = Field(min_length=1, max_length=8000)
+    text: str | None = Field(default=None, max_length=8000)
+    # Excluded from serialization so the opaque key can never enter the agent prompt,
+    # the evidence ledger, citations or an error body.
+    image_key: str | None = Field(default=None, min_length=1, max_length=64, exclude=True)
     language: LanguageCode = "en"
     details: ClaimDetails = Field(default_factory=ClaimDetails)
 
     @field_validator("text")
     @classmethod
-    def nonblank(cls, value: str) -> str:
+    def nonblank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         if not value.strip():
             raise ValueError("Rejection text must not be blank")
         return value.strip()
+
+    @model_validator(mode="after")
+    def single_input(self):
+        if (self.text is None) == (self.image_key is None):
+            raise ValueError("Provide exactly one of text or image_key")
+        return self
+
+
+class UploadTicketRequest(ContractModel):
+    language: LanguageCode = "en"
+    content_type: str = Field(min_length=1, max_length=100)
+
+
+class UploadTicket(ContractModel):
+    object_key: str = Field(min_length=1, max_length=64)
+    upload_url: str = Field(min_length=1, max_length=2048)
+    content_type: str = Field(min_length=1, max_length=100)
+    expires_in: int = Field(gt=0, le=900)
 
 
 class Citation(ContractModel):

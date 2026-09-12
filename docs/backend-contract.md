@@ -132,6 +132,7 @@ LLM_API_STYLE=responses
 LLM_BASE_URL=https://llm.example.invalid/proxy/v1
 LLM_API_KEY=synthetic-placeholder-replace-locally
 LLM_MODEL=synthetic-model-replace-locally
+LLM_STREAM=false
 LLM_TIMEOUT_SECONDS=25
 LLM_CONNECT_TIMEOUT_SECONDS=5
 LLM_MAX_OUTPUT_TOKENS=2000
@@ -155,7 +156,11 @@ Base URLs retain the supplied prefix. For example, `/proxy/v1` becomes `/proxy/v
 
 The LLM boundary requires HTTPS except HTTP on loopback development hosts; URL credentials, queries and fragments are rejected. Extra headers cannot override reserved authentication, version, host, content-type or transport framing headers. Settings defaults are 25 seconds total, 5 seconds connect and 2,000 output tokens; settings accept positive timeouts up to 30 seconds and output tokens up to 16,000. `LLM_ANTHROPIC_VERSION` defaults to `2023-06-01`. Missing URL, model or nonblank key leaves the model unconfigured. Legacy provider-specific environment names are not aliases for these settings.
 
-The client performs one nonstreaming turn with bounded response size/time and explicit tool-call continuation. It does not execute tools, orchestrate an agent, retry, redirect or choose fallback protocols. Returned assistant continuation state must be preserved rather than rebuilt. Protocol serialization tests do not establish compatibility with a particular live provider/model.
+The client performs one turn with bounded response size/time and explicit tool-call continuation. `LLM_STREAM` defaults to `false`, preserving nonstreaming compatibility for all three protocols. Set `LLM_STREAM=true` to request internal provider SSE with `responses`; streaming with `chat_completions` or `messages` is an explicit configuration error, never silent fallback. Streaming does not change the analysis response contract or expose partial model text, reasoning or arguments: the complete output still passes normal tool, schema and evidence validation.
+
+Both modes retain the 2 MiB decoded HTTP response cap and configured call deadline. SSE adds a 16,384 event-boundary cap, fragmented UTF-8 and LF/CRLF/CR handling, and cooperative cancellation/deadline checks during parsing. A valid `response.completed` is required; premature EOF, malformed events, inconsistent accumulated arguments/text, unsupported events and provider failure/incomplete events fail closed with sanitized errors. The client closes at terminal completion without awaiting EOF or interpreting trailing frames. Final provider-reported usage is used once, with unknown counts left unknown. Exact terminal output items, including reasoning encrypted content and item/call IDs, are preserved for stateless continuation; they are not reconstructed from deltas. A reasoning item's opaque `encrypted_content` may be re-encrypted between item completion and response completion; only the authoritative terminal value is replayed, while all other completed-item fields must still agree.
+
+The client does not execute tools, orchestrate an agent, retry, redirect or choose fallback protocols. Returned assistant continuation state must be preserved rather than rebuilt. Offline protocol tests do not establish compatibility with a particular live provider/model, performance improvement, semantic grounding or translation quality.
 
 ## Local Markdown tools and evidence
 
