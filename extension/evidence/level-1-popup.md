@@ -44,6 +44,27 @@ A later actual-toolbar-popup run on the same Chrome version completed the previo
 
 Brave, screen reader, full focus-order/zoom testing and network instrumentation remain NOT RUN. Popup interactions used the installed extension, not a synthetic runtime. This is additional acceptance evidence for the reviewer, not automatic closure.
 
+## Brave unpacked acceptance — 2026-09-13
+
+Actual installed **Brave 153.1.95.101**, Windows. Tested repository revision `c0452dc` (local integration branch), extension version 0.2.0. The browser product version was read from the running executable. This section supersedes the earlier unavailable-Brave observations; those are retained as historical results, not current blockers.
+
+Windows package manager reported Brave already installed; no install/upgrade was performed. After the user opened Brave, enabled Developer mode and selected the repository's `extension` directory via Load unpacked. Brave showed the enabled **Unpacked extension**, its version and service worker. Opened the actual toolbar popup through Brave's Extensions menu, not a normal tab or mocked HTML/runtime.
+
+| Check | Expected | Observed | Result |
+| --- | --- | --- | --- |
+| Unpacked load | Browser accepts manifest and local assets | Enabled Saral Sahayak 0.2.0 card and service worker, no load error displayed | PASS |
+| Toolbar popup / worker | Editable UI connects to the worker | `Ready when you are. Nothing is captured until you scan.` and enabled profile/text fields | PASS |
+| Native clipboard paste | Ctrl+V inserts text into Rejection remark | Pasted synthetic English/Hindi sample; field displayed the sample and remark-change status | PASS for native paste; full multilingual glyph fidelity not separately verified |
+| Keyboard edit | Ctrl+A and typing replace the current remark | Field displayed exactly `Synthetic Brave edited remark.` | PASS |
+| Keyboard path to Clear | Tab can reach Clear without invoking intervening actions | Nine Tab presses from remark ended with Clear session focused | PASS for this path; intermediate focus stops not individually recorded |
+| Keyboard Clear activation | Enter invokes Clear and resets visible state | Empty remark; disabled consent/Analyze; both session-clear statuses | PASS |
+| No automatic Analyze on paste/edit | Approval/language gates stay closed | Analyze remained disabled; no Analyze action invoked | PASS for visible controls, not network instrumentation |
+| Full screen-reader, every focus stop, zoom and network trace | Separate comprehensive evidence | Not performed in this run | NOT RUN |
+
+Synthetic input was `Synthetic Brave acceptance: name mismatch. नाम मेल नहीं खाता.`. The first caret setup used accessibility value-setting only to focus/empty the field; the tested paste used the real Ctrl+V chord. Keyboard edit used Ctrl+A followed by text entry. No previous clipboard contents were read, saved or restored; the clipboard remains the synthetic sample. No file, claimant identity, backend/provider key or credential was entered. No Detect, Connect backend, Analyze, general scan, Capture, Fill, submit or external request action was invoked during these checks. No claim of packet-level absence is made.
+
+Brave's Developer mode and unpacked extension remain enabled for review. Existing unrelated tabs/extensions were not altered. No desktop screenshots were committed because browser chrome includes unrelated tabs. The observed popup behavior closes the formerly untested Brave basic-load/paste/edit/keyboard-clear gap; comprehensive assistive/network acceptance and reviewer sign-off remain outstanding.
+
 ## Manifest beyond original Level 1
 
 Current `manifest.json` is MV3 with `background.js`, `activeTab`, `scripting`, `storage`, OpenAI host permission and loopback host permission. There is no manifest-declared persistent content script. The popup includes a general form assistant and a separate EPFO path. It is **not** a zero-permission/offline-only extension. Keys/profile/file state currently use trusted extension session storage; this is not the approved future isolated privacy vault.
@@ -52,6 +73,6 @@ The legacy general form path can send raw profile/field data and an original scr
 
 ## Reproduction and remaining acceptance
 
-Use Chrome Extensions → Developer mode → Load unpacked → select `extension` → Extensions menu → Saral Sahayak. Do not use a normal tab at `popup.html` as a replacement for its toolbar action. Enter the synthetic strings above, press Tab, and use Clear session. Native Chrome paste and keyboard Clear are now evidenced above; complete keyboard/assistive checks and Brave still require evidence. Reviewer decides issue acceptance; this report does not close the issue automatically.
+Use Chrome Extensions → Developer mode → Load unpacked → select `extension` → Extensions menu → Saral Sahayak. Do not use a normal tab at `popup.html` as a replacement for its toolbar action. Enter the synthetic strings above, press Tab, and use Clear session. Native Chrome and Brave paste/edit/keyboard Clear are now evidenced above; comprehensive keyboard/assistive and network checks still require evidence. Reviewer decides issue acceptance; this report does not close the issue automatically.
 
 Local environment change: the unpacked extension remains installed/enabled and Developer mode remains on for further checks. No browser-store publishing or package installation occurred. Existing unrelated browser extensions were not changed.
