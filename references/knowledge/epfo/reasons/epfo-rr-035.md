@@ -55,16 +55,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, forum
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, forum
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
-- **Notes/caveats:** OCS FAQ Q4 is the primary official source.
+- **Notes/caveats:** OCS FAQ Q4 is the primary official source. Offline review flag: FAQ age/currency and possible supersession were not re-fetched; do not treat the under-six-months skip-10C claim as independently verified current entitlement.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
-- https://cleartax.in/c/pf-withdrawal-online
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://www.reddit.com/r/epfoindia/comments/1m6co8r/why_so_many_epf_claims_are_being_rejected_and/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** EPFO OCS FAQ eligibility (Oct 2017) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+- **[forum]** Reddit r/epfoindia: EPS contribution not available — https://www.reddit.com/r/epfoindia/comments/1m6co8r/why_so_many_epf_claims_are_being_rejected_and/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 
@@ -123,7 +132,7 @@ The following immutable JSON preserves every archived field exactly for conversi
     "forum"
   ],
   "confidence": "high",
-  "notes": "OCS FAQ Q4 is the primary official source.",
+  "notes": "OCS FAQ Q4 is the primary official source. Offline review flag: FAQ age/currency and possible supersession were not re-fetched; do not treat the under-six-months skip-10C claim as independently verified current entitlement.",
   "last_verified": "2026-09-12"
 }
 ```

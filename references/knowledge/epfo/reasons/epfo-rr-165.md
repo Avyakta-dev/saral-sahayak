@@ -58,16 +58,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, circular, official
+- **Source types (record-level summary; not a positional zip with URLs):** news, circular, official
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Fraud typology; outcomes are case-specific.
 
-- https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
-- https://epfigms.gov.in/
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
-- https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP inoperative/transaction-less accounts WSU 02.08.2024 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Business Standard: inoperative accounts fraud rules — https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
+- **[blog]** TaxGuru: SOP settlement of claims — https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+- **[news]** Outlook Money: why EPFO rejects claims (MoS reply) — https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

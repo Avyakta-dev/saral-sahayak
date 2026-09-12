@@ -54,15 +54,19 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official
+- **Source types (record-level summary; not a positional zip with URLs):** official
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Operational jurisdiction issue; no unique published code.
 
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form19_instructions_Eng.pdf
-- https://www.epfindia.gov.in
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+- **[official]** Form 19 instructions (EPF Scheme) — https://epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form19_instructions_Eng.pdf
+- **[official]** EPFO official website — https://www.epfindia.gov.in
+- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
 
 ## Complete source record
 

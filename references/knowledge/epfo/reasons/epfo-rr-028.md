@@ -57,16 +57,25 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Official DSC FAQ PDF: Faq_dsc.pdf (2020-21). SOP requires active e-sign.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2020-2021/Faq_dsc.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
-- https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
-- https://orbitcareers.com/uan-kyc-pending-for-employer-approval/
-- https://jurigram.com/blog/labour-law/epf-withdrawal-rules-online-process-tax
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO DSC FAQ for employers — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2020-2021/Faq_dsc.pdf
+- **[circular]** SOP Joint Declaration JD/2022/1 (WSU PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+- **[official]** EPFO OTCP for employers — https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Orbit Careers: KYC pending employer approval — https://orbitcareers.com/uan-kyc-pending-for-employer-approval/
+- **[blog]** JuriGram: EPF withdrawal rules — https://jurigram.com/blog/labour-law/epf-withdrawal-rules-online-process-tax
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

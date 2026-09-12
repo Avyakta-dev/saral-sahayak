@@ -63,17 +63,26 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, news, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** SOP JD/2022/1 Table 2: DOB >3 years = major; <=3 years = minor. Frequency of DOB change allowed: 1.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
-- https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
-- https://www.etnownews.com/personal-finance/epfo-pension-rules-why-eps-claims-get-rejected-govt-reveals-basis-errors-kyc-aadhaar-and-more-article-153801634
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP Joint Declaration JD/2022/1 (WSU PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: Joint Declaration SOP 22 Aug 2023 — https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
+- **[news]** Financial Express: why EPS claims get rejected — https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
+- **[news]** ET Now: EPS claim rejection reasons — https://www.etnownews.com/personal-finance/epfo-pension-rules-why-eps-claims-get-rejected-govt-reveals-basis-errors-kyc-aadhaar-and-more-article-153801634
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -57,14 +57,20 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** circular, blog, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** No separate published 'dual employment rejection code'. Distinguished from innocent overlap by facts.
 
-- https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
-- https://www.livemint.com/money/personal-finance/epfo-showing-wrong-service-history-what-employees-should-check-immediately-and-do-next-to-rectify-the-error-11786520369893.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** StaffNews: full text overlap circular 20 May 2025 — https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- **[blog]** Zerodha Z-Connect: service overlap and merge — https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
+- **[news]** Mint: wrong service history — https://www.livemint.com/money/personal-finance/epfo-showing-wrong-service-history-what-employees-should-check-immediately-and-do-next-to-rectify-the-error-11786520369893.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -57,16 +57,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
-- https://kustodian.life/resources/provident-fund/form-5if-guide
-- https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: Form 13 guide — https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+- **[blog]** Kustodian: Form 5IF guide — https://kustodian.life/resources/provident-fund/form-5if-guide
+- **[blog]** CitizenNest: Form 13 transfer rejected — https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -56,15 +56,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** RO checklist controls medical threshold.
 
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
-- https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+- **[official]** Form 10D PDF — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
+- **[official]** EPFO OCS FAQ eligibility (Oct 2017) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: Form 10D 2026 guide — https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

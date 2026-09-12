@@ -55,14 +55,20 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog
+- **Source types (record-level summary; not a positional zip with URLs):** blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://cleartax.in/c/pf-withdrawal-online
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** Kustodian: Form 13 guide — https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

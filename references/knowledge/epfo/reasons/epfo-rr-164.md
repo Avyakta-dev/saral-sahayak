@@ -57,16 +57,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Pattern flag is operational; combine with published duplicate rules.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** EPFO OTCP Members FAQ (employer rejection reasons, 15-day printout) — https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** RTI Wiki: rejected without reason — https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

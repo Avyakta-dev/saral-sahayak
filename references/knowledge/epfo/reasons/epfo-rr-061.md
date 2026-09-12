@@ -57,15 +57,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Read Form 5IF family exclusions carefully; EPF Scheme family definition for Form 20 may not be identical in every clause.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://kustodian.life/resources/provident-fund/form-5if-guide
-- https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: Form 5IF guide — https://kustodian.life/resources/provident-fund/form-5if-guide
+- **[blog]** RTI Wiki: death claim without nominee — https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

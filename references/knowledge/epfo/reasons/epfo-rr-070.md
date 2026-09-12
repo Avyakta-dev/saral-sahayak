@@ -56,16 +56,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Full circular text reproduced on StaffNews. Applies to transfer claims, not automatically to all settlements.
 
-- https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
-- https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
-- https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** Revamped Form 13 functionality (2025-26 PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** StaffNews: full text overlap circular 20 May 2025 — https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- **[news]** News18: overlap should not reject transfer claims — https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html
+- **[news]** Financial Express: transfer overlap game-changer — https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/
+- **[news]** AscentHR: overlap circular note — https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

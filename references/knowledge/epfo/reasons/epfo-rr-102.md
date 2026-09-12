@@ -57,15 +57,21 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, news, forum
+- **Source types (record-level summary; not a positional zip with URLs):** blog, news, forum
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** 1250 figure from secondary guides reflecting statutory 8.33% of 15000 ceiling.
 
-- https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
-- https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
-- https://www.etnownews.com/personal-finance/epfo-pension-rules-why-eps-claims-get-rejected-govt-reveals-basis-errors-kyc-aadhaar-and-more-article-153801634
-- https://www.reddit.com/r/epfoindia/comments/1m6co8r/why_so_many_epf_claims_are_being_rejected_and/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: EPF claim rejected because of EPS (2026) — https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
+- **[news]** Financial Express: why EPS claims get rejected — https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
+- **[news]** ET Now: EPS claim rejection reasons — https://www.etnownews.com/personal-finance/epfo-pension-rules-why-eps-claims-get-rejected-govt-reveals-basis-errors-kyc-aadhaar-and-more-article-153801634
+- **[forum]** Reddit r/epfoindia: EPS contribution not available — https://www.reddit.com/r/epfoindia/comments/1m6co8r/why_so_many_epf_claims_are_being_rejected_and/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

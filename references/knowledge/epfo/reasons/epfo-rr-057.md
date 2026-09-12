@@ -54,14 +54,20 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog
+- **Source types (record-level summary; not a positional zip with URLs):** blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Secondary process advice; no official 'three-strikes' code.
 
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://www.citizennest.com/guide/pf-claim-rejected-fix
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** CitizenNest: PF claim rejected fix — https://www.citizennest.com/guide/pf-claim-rejected-fix
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

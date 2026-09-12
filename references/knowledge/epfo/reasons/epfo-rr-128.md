@@ -56,15 +56,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, news, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, news, official
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
-- https://economictimes.indiatimes.com/wealth/legal/will/higher-eps-pension-epfo-cant-use-the-excuse-of-employers-deficient-system-of-recordkeeping-as-a-ground-to-deny-higher-pension-to-employees-rules-bombay-hc/articleshow/130464158.cms
-- https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
-- https://epfigms.gov.in/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: EPF claim rejected because of EPS (2026) — https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide
+- **[news]** Economic Times: Bombay HC higher EPS pension recordkeeping — https://economictimes.indiatimes.com/wealth/legal/will/higher-eps-pension-epfo-cant-use-the-excuse-of-employers-deficient-system-of-recordkeeping-as-a-ground-to-deny-higher-pension-to-employees-rules-bombay-hc/articleshow/130464158.cms
+- **[news]** Financial Express: why EPS claims get rejected — https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

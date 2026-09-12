@@ -57,16 +57,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, blog, circular
+- **Source types (record-level summary; not a positional zip with URLs):** news, blog, circular
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://epfwala.com/pf-claim-status-shows-settled-but-amount-not-credited/
-- https://righttoinformation.wiki/practical-guides/epfo-claim-settled-money-not-credited
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** Circular removing cancelled-cheque image upload where NPCI verified — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026 — https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** EPFwala: settled but amount not credited — https://epfwala.com/pf-claim-status-shows-settled-but-amount-not-credited/
+- **[blog]** RTI Wiki: settled money not credited — https://righttoinformation.wiki/practical-guides/epfo-claim-settled-money-not-credited
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

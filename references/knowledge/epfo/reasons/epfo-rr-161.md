@@ -57,16 +57,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news, official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news, official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Timing edge on top of existing JD rejection record 013.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
-- https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
-- https://economictimes.indiatimes.com/wealth/invest/epf-members-can-do-kyc-correction-in-provident-fund-account-online-here-is-a-step-by-step-guide-to-do-it/articleshow/108634621.cms
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://kustodian.life/resources/epf-joint-declaration-form-name-dob-detail-correction-guide
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP Joint Declaration JD/2022/1 (WSU PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: Joint Declaration SOP 22 Aug 2023 — https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
+- **[news]** Economic Times: online Joint Declaration steps — https://economictimes.indiatimes.com/wealth/invest/epf-members-can-do-kyc-correction-in-provident-fund-account-online-here-is-a-step-by-step-guide-to-do-it/articleshow/108634621.cms
+- **[blog]** Kustodian: Joint Declaration 2026 — https://kustodian.life/resources/epf-joint-declaration-form-name-dob-detail-correction-guide
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

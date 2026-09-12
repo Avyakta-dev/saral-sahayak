@@ -57,15 +57,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, official
+- **Source types (record-level summary; not a positional zip with URLs):** news, official
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Secondary news summaries of scheme facility; confirm live Form 14 instructions on epfindia.
 
-- https://www.news18.com/business/savings-and-investments/no-money-for-lic-premium-epfo-lets-you-pay-it-directly-from-your-pf-account-ws-kl-9810317.html
-- https://www.livemint.com/money/personal-finance/epfo-members-can-pay-lic-premium-using-epf-money-details-here-11645255082822.html
-- https://zeenews.india.com/photos/business/did-you-know-epfo-allows-you-to-finance-your-lic-policy-for-2-years-eligibility-money-amount-and-other-details-explained-2950269
-- https://www.epfindia.gov.in
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO official website — https://www.epfindia.gov.in
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** News18: Form 14 LIC premium from EPF — https://www.news18.com/business/savings-and-investments/no-money-for-lic-premium-epfo-lets-you-pay-it-directly-from-your-pf-account-ws-kl-9810317.html
+- **[news]** Mint: EPFO members can pay LIC premium using EPF — https://www.livemint.com/money/personal-finance/epfo-members-can-pay-lic-premium-using-epf-money-details-here-11645255082822.html
+- **[news]** Zee: finance LIC policy from PF / Form 14 — https://zeenews.india.com/photos/business/did-you-know-epfo-allows-you-to-finance-your-lic-policy-for-2-years-eligibility-money-amount-and-other-details-explained-2950269
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

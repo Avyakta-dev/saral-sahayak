@@ -56,16 +56,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Pension joint-with-spouse exception is widely documented for Form 10D; ordinary PF claims still expect sole accounts. Confidence high on the pattern; exact product-type rules can vary by office.
 
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://hrsoftwaredelhi.com/pf-withdrawal-process/
-- https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://cleartax.in/c/pf-withdrawal-online
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** HR Software Delhi: PF withdrawal process / rejections — https://hrsoftwaredelhi.com/pf-withdrawal-process/
+- **[blog]** Kustodian: Form 10D 2026 guide — https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

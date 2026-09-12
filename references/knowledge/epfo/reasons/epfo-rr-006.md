@@ -58,15 +58,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** OCS FAQ Q2(d). Exact TDS percentages are Income-tax rules and can change; verify current TDS circulars. This dataset does not invent an EPFO rejection code.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
-- https://cleartax.in/c/pf-withdrawal-online
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** EPFO OCS FAQ eligibility (Oct 2017) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

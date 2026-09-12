@@ -59,16 +59,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, news, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Weekend clarification is news-reported EPFO position; longer-gap numeric rules in secondary notes — medium confidence; verify circular before quoting a number.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
-- https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
-- https://cleartax.in/s/edli
-- https://kustodian.life/resources/provident-fund/form-5if-guide
-- https://www.teamleaseregtech.com/updates/article/50901/epfo-issued-an-urgent-clarification-regarding-regulation-of-claims-und/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Economic Times: EDLI weekend/holiday not a break — https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms
+- **[blog]** ClearTax EDLI scheme explainer — https://cleartax.in/s/edli
+- **[blog]** Kustodian: Form 5IF guide — https://kustodian.life/resources/provident-fund/form-5if-guide
+- **[news]** Teamlease: EPFO clarification regulating EDLI claims / gaps — https://www.teamleaseregtech.com/updates/article/50901/epfo-issued-an-urgent-clarification-regarding-regulation-of-claims-und/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

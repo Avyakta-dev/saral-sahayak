@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "references/epfo-claim-rejection-rag-dataset/data/rejections.json"
+SOURCE_LINKS = ROOT / "references/epfo-claim-rejection-rag-dataset/data/source_links.json"
 ARCHIVE_DOCS = ROOT / "references/epfo-claim-rejection-rag-dataset/docs"
 OUTPUT = ROOT / "references/knowledge/epfo"
 EXPECTED_FIELDS = (
@@ -40,6 +41,85 @@ EXPECTED_FIELDS = (
 )
 ID_RE = re.compile(r"^epfo-rr-(\d{3})$")
 URL_RE = re.compile(r"^https?://[^\s<>\"']+$", re.IGNORECASE)
+OFFICIAL_SOURCE_TYPES = frozenset({"official", "circular"})
+SECONDARY_SOURCE_TYPES = frozenset({"news", "blog", "forum"})
+CLAIM_TYPE_SHORT = {
+    "Form 19 PF Final Settlement": "Form 19",
+    "Form 10C Pension Withdrawal Benefit": "Form 10C",
+    "Form 10D Monthly Pension": "Form 10D",
+    "Form 31 Partial Withdrawal/Advance": "Form 31",
+    "Form 13 Transfer": "Form 13",
+    "Form 20 Death PF Settlement": "Form 20",
+    "Form 5IF EDLI Death Insurance": "Form 5IF",
+    "Composite Claim Form": "CCF",
+    "UMANG/Member Portal Online Claim": "UMANG/portal",
+    "International Worker Claim": "IW",
+    "Form 14 Financing of Life Insurance Policy": "Form 14",
+}
+# Curated offline navigation flags for agreed Level-2 cases. Not policy corrections.
+GROUNDING_FLAGS = (
+    (
+        "UAN activation channel conflict",
+        "`epfo-rr-007` vs `epfo-rr-181`",
+        "Do not merge Fix steps; read both Sources sections and clarify the active channel.",
+        ("epfo-rr-007", "epfo-rr-181"),
+    ),
+    (
+        "2026 withdrawal thresholds",
+        "`epfo-rr-039`, `epfo-rr-040`, `epfo-rr-096`",
+        "Secondary/gazette-unchecked; withhold definitive percentages until authoritative text is reviewed.",
+        ("epfo-rr-039", "epfo-rr-040", "epfo-rr-096"),
+    ),
+    (
+        "Short EPS service currency",
+        "`epfo-rr-035`",
+        "Older FAQ material; do not treat skip-Form-10C guidance as independently verified current entitlement.",
+        ("epfo-rr-035",),
+    ),
+    (
+        "Ambiguous KYC pending",
+        "`epfo-rr-010` vs `epfo-rr-016`",
+        "Ask which KYC row and exact status before assigning employer vs bank/NPCI action.",
+        ("epfo-rr-010", "epfo-rr-016"),
+    ),
+    (
+        "Name mismatch subtype overlap",
+        "`epfo-rr-001` and `epfo-rr-012`",
+        "Shared applicability is not an exclusive lookup; preserve JD requirement caveats.",
+        ("epfo-rr-001", "epfo-rr-012"),
+    ),
+    (
+        "Overlap / transfer-only scope",
+        "`epfo-rr-041` and `epfo-rr-070`",
+        "StaffNews reproduction is secondary; do not generalize transfer-only guidance to settlements.",
+        ("epfo-rr-041", "epfo-rr-070"),
+    ),
+)
+
+
+def load_source_catalog(path: Path = SOURCE_LINKS) -> dict[str, dict]:
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("source_links catalog must be a non-empty list")
+    catalog: dict[str, dict] = {}
+    for entry in entries:
+        url = entry.get("url")
+        source_type = entry.get("source_type")
+        title = entry.get("title")
+        if not isinstance(url, str) or not URL_RE.fullmatch(url) or not urlparse(url).netloc:
+            raise ValueError(f"invalid catalog URL: {url!r}")
+        if source_type not in OFFICIAL_SOURCE_TYPES | SECONDARY_SOURCE_TYPES:
+            raise ValueError(f"unknown catalog source_type for {url}: {source_type!r}")
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError(f"missing catalog title for {url}")
+        if url in catalog:
+            raise ValueError(f"duplicate catalog URL: {url}")
+        catalog[url] = {
+            "url": url,
+            "title": title.strip(),
+            "source_type": source_type,
+        }
+    return catalog
 
 
 def load_records(path: Path = SOURCE) -> list[dict]:
@@ -51,6 +131,7 @@ def load_records(path: Path = SOURCE) -> list[dict]:
     if ids != expected:
         raise ValueError("records must have contiguous canonical IDs in order")
     valid_ids = set(expected)
+    catalog = load_source_catalog()
     for record in records:
         if tuple(record) != EXPECTED_FIELDS:
             raise ValueError(f"{record.get('id')}: schema fields do not match contract")
@@ -80,6 +161,12 @@ def load_records(path: Path = SOURCE) -> list[dict]:
             URL_RE.fullmatch(url) and urlparse(url).netloc for url in record["source_urls"]
         ):
             raise ValueError(f"{record['id']}: source_urls must contain valid HTTP(S) URLs")
+        for url in record["source_urls"]:
+            if url not in catalog:
+                raise ValueError(f"{record['id']}: URL missing from source_links catalog: {url}")
+        for claim_type in record["claim_types_affected"]:
+            if claim_type not in CLAIM_TYPE_SHORT:
+                raise ValueError(f"{record['id']}: unknown claim type {claim_type!r}")
         if any(related not in valid_ids for related in record["related_reason_ids"]):
             raise ValueError(f"{record['id']}: related ID does not resolve")
         for field, value in record.items():
@@ -94,11 +181,63 @@ def bullets(values: list[str], empty: str = "_None recorded._") -> str:
     return "\n".join(f"- {value}" for value in values) if values else empty
 
 
-def reason_markdown(record: dict) -> str:
+def short_claim_types(record: dict) -> str:
+    return ", ".join(CLAIM_TYPE_SHORT[claim] for claim in record["claim_types_affected"])
+
+
+def format_source_line(url: str, catalog: dict[str, dict]) -> str:
+    entry = catalog[url]
+    return f"- **[{entry['source_type']}]** {entry['title']} — {url}"
+
+
+def sources_and_verification(record: dict, catalog: dict[str, dict]) -> str:
+    lines = [
+        (
+            "- **Source types (record-level summary; not a positional zip with URLs):** "
+            f"{', '.join(record['source_types'])}"
+        ),
+        f"- **Confidence:** {record['confidence']}",
+        f"- **Last verified in source record:** {record['last_verified']}",
+        f"- **Notes/caveats:** {record['notes'] or '_No additional note recorded._'}",
+        "",
+        "Catalog labels below come from `source_links.json` and separate official/circular hosts "
+        "from secondary news/blog/forum reporting. Labels are archived metadata; the generator "
+        "does not fetch URLs or re-verify current policy.",
+        "",
+    ]
+    official = [
+        url for url in record["source_urls"] if catalog[url]["source_type"] in OFFICIAL_SOURCE_TYPES
+    ]
+    secondary = [
+        url
+        for url in record["source_urls"]
+        if catalog[url]["source_type"] in SECONDARY_SOURCE_TYPES
+    ]
+    if official:
+        lines.append("### Official and circular sources")
+        lines.append("")
+        lines.extend(format_source_line(url, catalog) for url in official)
+        lines.append("")
+    if secondary:
+        lines.append("### Secondary reporting (news, blog, forum)")
+        lines.append("")
+        lines.extend(format_source_line(url, catalog) for url in secondary)
+        lines.append("")
+        lines.append(
+            "_Secondary reporting is not statutory text. Prefer official/circular sources when "
+            "present, preserve caveats, and abstain rather than forcing current-policy certainty._"
+        )
+        lines.append("")
+    if not official and not secondary:
+        raise ValueError(f"{record['id']}: no catalog-classified source URLs")
+    return "\n".join(lines).rstrip()
+
+
+def reason_markdown(record: dict, catalog: dict[str, dict] | None = None) -> str:
+    catalog = catalog or load_source_catalog()
     rid = record["id"]
     metadata = json.dumps(record, ensure_ascii=False, indent=2)
-    return (
-        f"""# {record["rejection_reason"]} ({rid})
+    return f"""# {record["rejection_reason"]} ({rid})
 
 > Dataset record `{rid}`. This educational record is not official EPFO guidance or legal advice. Conversion preserves the archived source; it does not independently verify current policy.
 
@@ -149,14 +288,7 @@ def reason_markdown(record: dict) -> str:
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** {", ".join(record["source_types"])}
-- **Confidence:** {record["confidence"]}
-- **Last verified in source record:** {record["last_verified"]}
-- **Notes/caveats:** {record["notes"] or "_No additional note recorded._"}
-
-"""
-        + "\n".join(f"- {url}" for url in record["source_urls"])
-        + f"""
+{sources_and_verification(record, catalog)}
 
 ## Complete source record
 
@@ -166,7 +298,6 @@ The following immutable JSON preserves every archived field exactly for conversi
 {metadata}
 ```
 """
-    )
 
 
 def supporting_doc(name: str, title: str) -> str:
@@ -174,8 +305,7 @@ def supporting_doc(name: str, title: str) -> str:
     return f"# {title}\n\n> Copied from the archived source document for runtime reference. This is educational material, not official EPFO guidance; links and caveats are preserved and were not freshly fetched by the generator.\n\n{source}\n"
 
 
-def render_outputs(records: list[dict]) -> dict[str, str]:
-    outputs = {f"reasons/{record['id']}.md": reason_markdown(record) for record in records}
+def render_index(records: list[dict]) -> str:
     groups: dict[str, list[dict]] = {}
     for record in records:
         groups.setdefault(record["category"], []).append(record)
@@ -188,13 +318,24 @@ def render_outputs(records: list[dict]) -> dict[str, str]:
         "",
         "This collection contains 181 educational dataset records, not government rejection codes. Portal remarks are commonly reported text, and source confidence/date metadata are preserved without implying current-policy verification. See [sources](./sources.md) for provenance and gaps.",
         "",
+        "Index claim-type labels are compact navigation shortcuts. Full names remain in each reason file's Classification section and in [claim types](./claim-types-overview.md): Form 19, Form 10C, Form 10D, Form 31, Form 13, Form 20, Form 5IF, CCF (Composite Claim Form), UMANG/portal, IW (International Worker), Form 14.",
+        "",
+        "## Offline grounding flags (navigation only)",
+        "",
+        "Curated offline review flags for agreed ambiguous/conflict cases. These are not verified policy corrections and do not authorize ready guidance without reading the linked reason files and their Sources sections.",
+        "",
     ]
+    for title, ids, guidance, linked in GROUNDING_FLAGS:
+        links = ", ".join(f"[`{rid}`](reasons/{rid}.md)" for rid in linked)
+        index.append(f"- **{title}** — {ids}: {guidance} Links: {links}.")
+    index.append("")
     for category, items in groups.items():
         index += [f"## {category}", ""]
         for record in items:
-            claims = ", ".join(record["claim_types_affected"])
+            claims = short_claim_types(record)
             index.append(
-                f"- `{record['id']}` — {record['rejection_reason']} ({claims}) ([read reason](reasons/{record['id']}.md))"
+                f"- `{record['id']}` — {record['rejection_reason']} ({claims}) "
+                f"([read reason](reasons/{record['id']}.md))"
             )
         index.append("")
     index += [
@@ -206,7 +347,15 @@ def render_outputs(records: list[dict]) -> dict[str, str]:
         "- [Resolution playbooks](./resolution-playbooks.md)",
         "",
     ]
-    outputs["README.md"] = "\n".join(index)
+    return "\n".join(index)
+
+
+def render_outputs(records: list[dict]) -> dict[str, str]:
+    catalog = load_source_catalog()
+    outputs = {
+        f"reasons/{record['id']}.md": reason_markdown(record, catalog) for record in records
+    }
+    outputs["README.md"] = render_index(records)
     outputs["glossary.md"] = supporting_doc("glossary.md", "EPFO glossary")
     outputs["claim-types-overview.md"] = supporting_doc(
         "claim-types-overview.md", "EPFO claim types"
@@ -243,11 +392,18 @@ def validate_output(records: list[dict], output: Path = OUTPUT) -> None:
     ):
         if not (output / name).is_file():
             raise ValueError(f"missing supporting document: {name}")
+    catalog = load_source_catalog()
     index = (output / "README.md").read_text(encoding="utf-8")
+    if "## Offline grounding flags (navigation only)" not in index:
+        raise ValueError("index missing offline grounding flags section")
+    if "Index claim-type labels are compact navigation shortcuts" not in index:
+        raise ValueError("index missing compact claim-type legend")
     for record in records:
         path = output / "reasons" / f"{record['id']}.md"
         if not path.is_file() or f"reasons/{record['id']}.md" not in index:
             raise ValueError(f"missing index/file coverage for {record['id']}")
+        if short_claim_types(record) not in index:
+            raise ValueError(f"index missing compact claim types for {record['id']}")
         text = path.read_text(encoding="utf-8")
         match = re.search(r"```json\n(.*?)\n```", text, re.DOTALL)
         if not match or json.loads(match.group(1)) != record:
@@ -263,6 +419,17 @@ def validate_output(records: list[dict], output: Path = OUTPUT) -> None:
         ):
             if heading not in text:
                 raise ValueError(f"missing stable heading {heading} in {record['id']}")
+        for url in record["source_urls"]:
+            entry = catalog[url]
+            expected_line = format_source_line(url, catalog)
+            if expected_line not in text:
+                raise ValueError(f"{record['id']}: missing labeled source line for {url}")
+            if entry["source_type"] in OFFICIAL_SOURCE_TYPES:
+                if "### Official and circular sources" not in text:
+                    raise ValueError(f"{record['id']}: missing official/circular source grouping")
+            if entry["source_type"] in SECONDARY_SOURCE_TYPES:
+                if "### Secondary reporting (news, blog, forum)" not in text:
+                    raise ValueError(f"{record['id']}: missing secondary source grouping")
     if len(list((output / "reasons").glob("*.md"))) != 181:
         raise ValueError("reason file count is not exactly 181")
     for relative_path, expected_text in render_outputs(records).items():

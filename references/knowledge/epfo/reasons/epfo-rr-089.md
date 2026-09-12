@@ -56,15 +56,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Historical special advance; high confidence on FAQ text, medium on current portal availability.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Updates/covid_faq_claim_04042020.pdf
-- https://cleartax.in/s/epf-form-31
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO COVID-19 advance claim FAQ (Apr 2020) — https://www.epfindia.gov.in/site_docs/PDFs/Updates/covid_faq_claim_04042020.pdf
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
+- **[news]** Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026 — https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -57,16 +57,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://www.citizennest.com/guide/pf-claim-rejected-fix
-- https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
-- https://epfigms.gov.in/
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** CitizenNest: PF claim rejected fix — https://www.citizennest.com/guide/pf-claim-rejected-fix
+- **[blog]** RTI Wiki: rejected without reason — https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india
+- **[blog]** TaxGuru: SOP settlement of claims — https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

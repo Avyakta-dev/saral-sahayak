@@ -59,16 +59,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Legacy biometric path; FAT circular positions face as preferred smartphone path.
 
-- https://uidai.gov.in
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://taxguru.in/corporate-law/epfo-clarifies-physical-claim-settlement-seeding-aadhaar.html
-- https://web.umang.gov.in
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** UIDAI — https://uidai.gov.in
+- **[circular]** EPFO UAN allotment/activation via UMANG Face Authentication (FAT) manual 2025-26 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** UMANG — https://web.umang.gov.in
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: physical claims without Aadhaar 29 Nov 2024 — https://taxguru.in/corporate-law/epfo-clarifies-physical-claim-settlement-seeding-aadhaar.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

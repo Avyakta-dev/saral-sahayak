@@ -58,16 +58,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Threshold rupee figures vary by circular; do not invent — point members to the letter RO cites.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
-- https://taxguru.in/corporate-law/epfo-clarifies-physical-claim-settlement-seeding-aadhaar.html
-- https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
-- https://www.cnbctv18.com/personal-finance/epfo-relaxes-aadhaar-norms-for-select-employee-categories-key-details-19517361.htm
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP inoperative/transaction-less accounts WSU 02.08.2024 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: physical claims without Aadhaar 29 Nov 2024 — https://taxguru.in/corporate-law/epfo-clarifies-physical-claim-settlement-seeding-aadhaar.html
+- **[news]** Business Standard: inoperative accounts fraud rules — https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
+- **[blog]** TaxGuru: SOP settlement of claims — https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+- **[news]** CNBC-TV18: Aadhaar relaxation for select categories — https://www.cnbctv18.com/personal-finance/epfo-relaxes-aadhaar-norms-for-select-employee-categories-key-details-19517361.htm
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

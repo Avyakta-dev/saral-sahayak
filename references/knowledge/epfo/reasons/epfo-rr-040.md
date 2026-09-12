@@ -53,16 +53,22 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** news, blog
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
-- **Notes/caveats:** 25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them.
+- **Notes/caveats:** 25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them. Offline review flag: portal-calculated amount is not independently established legal authority; do not promise a retention percentage from secondary reporting alone.
 
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://cleartax.in/c/pf-withdrawal-online
-- https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
-- https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
-- https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026 — https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+- **[blog]** Jagran Josh: EPF Scheme 2026 3-day settlement — https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1
+- **[blog]** Kustodian: EPF Scheme 2026 withdrawal rules — https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed
+- **[blog]** TaxBuddy: Form 31 partial withdrawal — https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 
@@ -121,7 +127,7 @@ The following immutable JSON preserves every archived field exactly for conversi
     "blog"
   ],
   "confidence": "medium",
-  "notes": "25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them.",
+  "notes": "25% retention is well reported for Scheme 2026 but gazette not fetched here. Historical purpose caps remain relevant if the portal still applies them. Offline review flag: portal-calculated amount is not independently established legal authority; do not promise a retention percentage from secondary reporting alone.",
   "last_verified": "2026-09-12"
 }
 ```

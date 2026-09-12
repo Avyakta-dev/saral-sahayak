@@ -60,16 +60,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, news
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Operational hold pattern; do not invent section numbers beyond commonly referenced inquiry contexts.
 
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
-- https://epfigms.gov.in/
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://www.epfindia.gov.in
-- https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+- **[official]** EPFO OTCP Members FAQ (employer rejection reasons, 15-day printout) — https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+- **[official]** EPFO official website — https://www.epfindia.gov.in
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** TaxGuru: SOP settlement of claims — https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+- **[news]** Business Standard: inoperative accounts fraud rules — https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

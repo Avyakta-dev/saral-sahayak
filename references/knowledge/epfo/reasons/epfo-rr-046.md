@@ -58,16 +58,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** circular, blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Pension Division circular E-597451/4406 dated 29/01/2024 is referenced by the 20 May 2025 WSU circular (not independently fetched).
 
-- https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
-- https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://cleartax.in/c/pf-withdrawal-online
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** StaffNews: full text overlap circular 20 May 2025 — https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html
+- **[blog]** Zerodha Z-Connect: service overlap and merge — https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

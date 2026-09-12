@@ -55,15 +55,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** No separate official VPF rejection code; pattern from product structure.
 
-- https://cleartax.in/s/pf-withdrawal-online
-- https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
-- https://cleartax.in/s/epf-form-31
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax PF withdrawal (alternate URL) — https://cleartax.in/s/pf-withdrawal-online
+- **[blog]** Bajaj Finserv: EPF withdrawal rules — https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules
+- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

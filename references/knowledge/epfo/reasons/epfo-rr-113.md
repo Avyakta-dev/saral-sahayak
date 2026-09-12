@@ -56,15 +56,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://kustodian.life/resources/epf-claim-rejected-reasons-guide
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** Kustodian: EPF claim rejected reasons — https://kustodian.life/resources/epf-claim-rejected-reasons-guide
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -55,14 +55,23 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, circular
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, circular
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://kustodian.life/resources/epf-claim-rejected-reasons-guide
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
-- https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP inoperative/transaction-less accounts WSU 02.08.2024 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: EPF claim rejected reasons — https://kustodian.life/resources/epf-claim-rejected-reasons-guide
+- **[blog]** TaxGuru: SOP settlement of claims — https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

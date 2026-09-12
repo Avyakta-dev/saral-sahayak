@@ -59,16 +59,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, news
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** SOP file Circular_SOP_WSU_02082024.pdf. Extra approval layers for flagged MIDs are in that SOP (e.g. additional officer for higher slabs).
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
-- https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
-- https://economictimes.indiatimes.com/wealth/save/latest-epfo-rules-how-to-unblock-inoperative-epf-account-settle-claims/articleshow/107544015.cms
-- https://www.outlookmoney.com/retirement/plan/news/explained-epfos-new-guidelines-for-inoperative-epf-accounts
-- https://www.business-standard.com/finance/personal-finance/unblocking-inactive-epf-account-what-employees-must-do-124100200247_1.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP inoperative/transaction-less accounts WSU 02.08.2024 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Business Standard: inoperative accounts fraud rules — https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html
+- **[news]** Economic Times: unblock inoperative EPF — https://economictimes.indiatimes.com/wealth/save/latest-epfo-rules-how-to-unblock-inoperative-epf-account-settle-claims/articleshow/107544015.cms
+- **[news]** Outlook: inoperative EPF guidelines — https://www.outlookmoney.com/retirement/plan/news/explained-epfos-new-guidelines-for-inoperative-epf-accounts
+- **[news]** Business Standard: unblocking inactive EPF — https://www.business-standard.com/finance/personal-finance/unblocking-inactive-epf-account-what-employees-must-do-124100200247_1.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

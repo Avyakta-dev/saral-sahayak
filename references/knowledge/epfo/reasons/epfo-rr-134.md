@@ -60,16 +60,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Percentages from secondary EPS explainers; confirm against scheme text at RO.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
-- https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
-- https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
-- https://www.wealthpedia.in/eps-family-pension/
-- https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** Form 10D PDF — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf
+- **[official]** EPFO Which Claim Form (19/20/10C/10D/5IF matrix) — https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: Form 10D 2026 guide — https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
+- **[blog]** Wealthpedia: EPS family pension rules 2026 — https://www.wealthpedia.in/eps-family-pension/
+- **[blog]** RTI Wiki: death claim without nominee — https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

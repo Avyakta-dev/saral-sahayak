@@ -58,17 +58,26 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news, circular
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news, circular
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Historical 5-year vs 2026 12-month: medium confidence on 2026 details; portal wins.
 
-- https://cleartax.in/s/epf-form-31
-- https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
-- https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
-- https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** Composite Claim Forms introduction circular 2016-17 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
+- **[blog]** Axis Max Life: EPF Form 31 eligibility — https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31
+- **[news]** TaxGuru: EPFO PF withdrawal rules / why claims rejected (2026) — https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html
+- **[blog]** KnowMoney: EPFO 3.0 withdrawal rules 2026 — https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

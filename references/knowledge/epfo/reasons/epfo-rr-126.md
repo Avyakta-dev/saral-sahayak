@@ -58,17 +58,23 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, forum
+- **Source types (record-level summary; not a positional zip with URLs):** blog, forum
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Quora URL is forum-class secondary.
 
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://kustodian.life/resources/epf-claim-rejected-reasons-guide
-- https://kustodian.life/resources/epf-claim-rejected-name-aadhaar-dob-mismatch-fix-guide-2025
-- https://www.quora.com/Why-was-my-EPF-claim-rejected
-- https://www.reddit.com/r/india/comments/1tp295c/epfo_rejected_your_pf_claim_dont_panic_after/
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** Kustodian: EPF claim rejected reasons — https://kustodian.life/resources/epf-claim-rejected-reasons-guide
+- **[blog]** Kustodian: name/Aadhaar/DOB mismatch — https://kustodian.life/resources/epf-claim-rejected-name-aadhaar-dob-mismatch-fix-guide-2025
+- **[forum]** Quora: why was my EPF claim rejected — https://www.quora.com/Why-was-my-EPF-claim-rejected
+- **[forum]** Reddit r/india: bank KYC not verified — https://www.reddit.com/r/india/comments/1tp295c/epfo_rejected_your_pf_claim_dont_panic_after/
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

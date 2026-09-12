@@ -56,16 +56,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official, circular
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official, circular
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Frequency limits from historical Form 31 tables; 2026 regrouping medium confidence.
 
-- https://cleartax.in/s/epf-form-31
-- https://labourlawadvisor.in/blog/wp-content/uploads/2019/08/PF-Advance-Rules.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
-- https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO OCS FAQ eligibility (Oct 2017) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf
+- **[circular]** Composite Claim Forms introduction circular 2016-17 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
+- **[blog]** Labour Law Advisor: Form 31 advance rules PDF — https://labourlawadvisor.in/blog/wp-content/uploads/2019/08/PF-Advance-Rules.pdf
+- **[blog]** KnowMoney: EPFO 3.0 withdrawal rules 2026 — https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

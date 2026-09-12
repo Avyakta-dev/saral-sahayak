@@ -59,16 +59,25 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news, official
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Official FAT PDF on epfindia 2025-26 circulars folder.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
-- https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
-- https://uidai.gov.in
-- https://web.umang.gov.in
-- https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** EPFO UAN allotment/activation via UMANG Face Authentication (FAT) manual 2025-26 — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf
+- **[official]** UIDAI — https://uidai.gov.in
+- **[official]** UMANG — https://web.umang.gov.in
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: UAN activation via UMANG Face Authentication — https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html
+- **[news]** Mint: EPFO account blocked / UAN / KYC pending fixes (UMANG) — https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

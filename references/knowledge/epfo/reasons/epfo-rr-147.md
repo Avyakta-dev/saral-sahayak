@@ -60,16 +60,25 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Tied to Form 5A / legal-status change duties; secondary M&A claim friction reports.
 
-- https://www.epfindia.gov.in
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_Exemption_06102023.pdf
-- https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
-- https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
-- https://www.livemint.com/money/personal-finance/changing-jobs-soon-fix-these-epf-transfer-errors-before-resigning-for-a-smooth-pf-transfer-11782808524771.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO official website — https://www.epfindia.gov.in
+- **[circular]** SOP Exemption of establishments (legal status/merger duties) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_Exemption_06102023.pdf
+- **[official]** EPFO OTCP for employers — https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php
+- **[official]** EPFO OTCP Members FAQ (employer rejection reasons, 15-day printout) — https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Mint: EPF transfer errors before resigning — https://www.livemint.com/money/personal-finance/changing-jobs-soon-fix-these-epf-transfer-errors-before-resigning-for-a-smooth-pf-transfer-11782808524771.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

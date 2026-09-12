@@ -56,15 +56,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://jeevanpramaan.gov.in
-- https://nriinformation.com/nri-info/indian-pension-abroad
-- https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
-- https://www.epfindia.gov.in
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** Jeevan Pramaan (life certificate) — https://jeevanpramaan.gov.in
+- **[official]** EPFO official website — https://www.epfindia.gov.in
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** NRI Information: receiving Indian pension abroad — https://nriinformation.com/nri-info/indian-pension-abroad
+- **[blog]** Kustodian: Form 10D 2026 guide — https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

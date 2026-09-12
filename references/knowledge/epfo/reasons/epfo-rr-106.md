@@ -55,15 +55,24 @@ member
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** circular, news, official
+- **Source types (record-level summary; not a positional zip with URLs):** circular, news, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
-- https://www.timesnownews.com/business-economy/personal-finance/epfo-processed-8-3-crore-claims-in-fy26-cancelled-cheque-upload-no-longer-required-article-155357857
-- https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** Circular removing cancelled-cheque image upload where NPCI verified — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** Times Now: cancelled cheque upload no longer required — https://www.timesnownews.com/business-economy/personal-finance/epfo-processed-8-3-crore-claims-in-fy26-cancelled-cheque-upload-no-longer-required-article-155357857
+- **[news]** Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026 — https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

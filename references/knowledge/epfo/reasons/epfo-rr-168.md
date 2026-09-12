@@ -57,16 +57,25 @@ employer
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, news, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, news, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** CoC validity/extension is standard IW practice documented on TaxGuru/EPFO IW materials.
 
-- https://www.epfindia.gov.in/site_en/International_workers.php
-- https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
-- https://taxguru.in/corporate-law/epfo-issue-certificate-coverage-reg.html
-- https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
-- https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO International Workers page — https://www.epfindia.gov.in/site_en/International_workers.php
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: Online system for Certificate of Coverage — https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
+- **[news]** TaxGuru: Issue of Certificate of Coverage — https://taxguru.in/corporate-law/epfo-issue-certificate-coverage-reg.html
+- **[blog]** GConnect: SSA/international workers brochure summary — https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
+- **[blog]** KPMG: simplifying PF withdrawal for International Workers — https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

@@ -60,16 +60,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Do not invent country tables; point to EPFO IW page and specific agreement texts.
 
-- https://www.epfindia.gov.in/site_en/International_workers.php
-- https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
-- https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
-- https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
-- https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO International Workers page — https://www.epfindia.gov.in/site_en/International_workers.php
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** GConnect: SSA/international workers brochure summary — https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html
+- **[blog]** KPMG: simplifying PF withdrawal for International Workers — https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf
+- **[news]** TaxGuru: Online system for Certificate of Coverage — https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html
+- **[blog]** Key4Comply: EPF International Workers SSA/CoC 2026 — https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

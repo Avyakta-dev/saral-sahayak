@@ -60,16 +60,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, news
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, news
 - **Confidence:** medium
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Fraud-check edge on top of missing-certificate record.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form20.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
-- https://kustodian.life/resources/epf-death-claim-process-india
-- https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
-- https://zeenews.india.com/personal-finance/pf-settlement-money-may-not-reach-your-family-for-a-common-mistake-your-e-nomination-will-not-be-valid-until-you-do-this-3054752.html
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** Form 20 PDF — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form20.pdf
+- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** Kustodian: death claim process — https://kustodian.life/resources/epf-death-claim-process-india
+- **[blog]** RTI Wiki: death claim without nominee — https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india
+- **[news]** Zee: e-nomination not valid unless e-signed — https://zeenews.india.com/personal-finance/pf-settlement-money-may-not-reach-your-family-for-a-common-mistake-your-e-nomination-will-not-be-valid-until-you-do-this-3054752.html
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

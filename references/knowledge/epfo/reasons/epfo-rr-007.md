@@ -57,19 +57,29 @@ mixed
 - [epfo-rr-009](./epfo-rr-009.md)
 - [epfo-rr-005](./epfo-rr-005.md)
 - [epfo-rr-054](./epfo-rr-054.md)
+- [epfo-rr-181](./epfo-rr-181.md)
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
-- **Notes/caveats:** OCS FAQ Q2(a).
+- **Notes/caveats:** OCS FAQ Q2(a). Offline review flag: activation channel guidance conflicts with epfo-rr-181 (UMANG Face Authentication path). Read both records and their Sources; do not combine into one authoritative checklist until current channel rules are verified.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
-- https://cleartax.in/c/pf-withdrawal-online
-- https://hrsoftwaredelhi.com/pf-withdrawal-process/
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+- **[official]** Composite Claim Form (Aadhaar) instructions — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** ClearTax PF withdrawal online 2026 — https://cleartax.in/c/pf-withdrawal-online
+- **[blog]** HR Software Delhi: PF withdrawal process / rejections — https://hrsoftwaredelhi.com/pf-withdrawal-process/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 
@@ -124,7 +134,8 @@ The following immutable JSON preserves every archived field exactly for conversi
   "related_reason_ids": [
     "epfo-rr-009",
     "epfo-rr-005",
-    "epfo-rr-054"
+    "epfo-rr-054",
+    "epfo-rr-181"
   ],
   "source_urls": [
     "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf",
@@ -138,7 +149,7 @@ The following immutable JSON preserves every archived field exactly for conversi
     "blog"
   ],
   "confidence": "high",
-  "notes": "OCS FAQ Q2(a).",
+  "notes": "OCS FAQ Q2(a). Offline review flag: activation channel guidance conflicts with epfo-rr-181 (UMANG Face Authentication path). Read both records and their Sources; do not combine into one authoritative checklist until current channel rules are verified.",
   "last_verified": "2026-09-12"
 }
 ```

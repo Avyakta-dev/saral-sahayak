@@ -134,8 +134,12 @@ def test_empty_fields_and_source_type_summary_are_explicit(records):
         if not record["required_documents"]:
             assert content["Required documents"] == "_None recorded._"
         assert (
-            "record-level summary; not URL-position aligned" in content["Sources and verification"]
+            "record-level summary; not a positional zip with URLs"
+            in content["Sources and verification"]
         )
+        assert "Catalog labels below come from `source_links.json`" in content[
+            "Sources and verification"
+        ]
 
 
 @pytest.mark.parametrize(

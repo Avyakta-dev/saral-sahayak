@@ -57,15 +57,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, circular, blog
+- **Source types (record-level summary; not a positional zip with URLs):** official, circular, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** SOP 6.9 case 'Member is dead' and 6.10 no-Aadhaar deceased.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
-- https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
-- https://kustodian.life/resources/epf-claim-rejected-name-aadhaar-dob-mismatch-fix-guide-2025
-- https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[circular]** SOP Joint Declaration JD/2022/1 (WSU PDF) — https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf
+- **[official]** Form 5IF instructions (EDLI death claim) — https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[news]** TaxGuru: Joint Declaration SOP 22 Aug 2023 — https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html
+- **[blog]** Kustodian: name/Aadhaar/DOB mismatch — https://kustodian.life/resources/epf-claim-rejected-name-aadhaar-dob-mismatch-fix-guide-2025
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

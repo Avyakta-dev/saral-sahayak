@@ -59,16 +59,25 @@ EPFO_office
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** RTI Wiki practical guide on wrong-MID transfer.
 
-- https://righttoinformation.wiki/practical-guides/pf-transferred-to-wrong-member-id-correction
-- https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
-- https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
-- https://epfigms.gov.in/
-- https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+- **[official]** EPFO Unified Member Portal — https://unifiedportal-mem.epfindia.gov.in/memberinterface/
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** RTI Wiki: PF transferred to wrong member ID — https://righttoinformation.wiki/practical-guides/pf-transferred-to-wrong-member-id-correction
+- **[blog]** Kustodian: Form 13 guide — https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status
+- **[blog]** CitizenNest: Form 13 transfer rejected — https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

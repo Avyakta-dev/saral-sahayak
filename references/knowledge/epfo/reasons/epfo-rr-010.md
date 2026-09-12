@@ -61,16 +61,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** official, blog, forum
+- **Source types (record-level summary; not a positional zip with URLs):** official, blog, forum
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Forum reports used only as secondary confirmation of the Pending vs Verified distinction.
 
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
-- https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://hrsoftwaredelhi.com/pf-withdrawal-process/
-- https://www.reddit.com/r/india/comments/1tp295c/epfo_rejected_your_pf_claim_dont_panic_after/
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[blog]** FinRight: 9 common EPF rejection reasons — https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** HR Software Delhi: PF withdrawal process / rejections — https://hrsoftwaredelhi.com/pf-withdrawal-process/
+- **[forum]** Reddit r/india: bank KYC not verified — https://www.reddit.com/r/india/comments/1tp295c/epfo_rejected_your_pf_claim_dont_panic_after/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

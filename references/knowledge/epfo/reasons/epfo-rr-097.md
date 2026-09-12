@@ -57,16 +57,25 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** forum, official, blog
+- **Source types (record-level summary; not a positional zip with URLs):** forum, official, blog
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** Remark string from member reports; not an invented official code.
 
-- https://www.reddit.com/r/epfoindia/comments/1lwzhcs/my_epfo_claim_got_rejected_form31_after_16_days/
-- https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
-- https://epfigms.gov.in/
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://cleartax.in/s/epf-form-31
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFiGMS grievance portal — https://epfigms.gov.in/
+
+### Secondary reporting (news, blog, forum)
+
+- **[forum]** Reddit: contribution received after date of exit — https://www.reddit.com/r/epfoindia/comments/1lwzhcs/my_epfo_claim_got_rejected_form31_after_16_days/
+- **[forum]** Reddit: PF and EPS being deposited by employers — https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+- **[blog]** ClearTax: EPF Form 31 eligibility and documents — https://cleartax.in/s/epf-form-31
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 

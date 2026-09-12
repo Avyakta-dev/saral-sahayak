@@ -57,15 +57,24 @@ mixed
 
 ## Sources and verification
 
-- **Source types (record-level summary; not URL-position aligned):** forum, blog, official
+- **Source types (record-level summary; not a positional zip with URLs):** forum, blog, official
 - **Confidence:** high
 - **Last verified in source record:** 2026-09-12
 - **Notes/caveats:** _No additional note recorded._
 
-- https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
-- https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
-- https://pfbalancecheck.com/epfo-claim-rejected-reason/
-- https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+Catalog labels below come from `source_links.json` and separate official/circular hosts from secondary news/blog/forum reporting. Labels are archived metadata; the generator does not fetch URLs or re-verify current policy.
+
+### Official and circular sources
+
+- **[official]** EPFO Online Claim Settlement FAQ (OCS) — https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf
+
+### Secondary reporting (news, blog, forum)
+
+- **[forum]** Reddit: PF and EPS being deposited by employers — https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/
+- **[forum]** Reddit: Form 31 unemployment insufficient service — https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/
+- **[blog]** PFBalanceCheck: claim rejected reason 2026 — https://pfbalancecheck.com/epfo-claim-rejected-reason/
+
+_Secondary reporting is not statutory text. Prefer official/circular sources when present, preserve caveats, and abstain rather than forcing current-policy certainty._
 
 ## Complete source record
 
