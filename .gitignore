@@ -1,0 +1,46 @@
+# Local agent/tool metadata
+.v2c/
+.video_agent/
+
+# Original PDFs stay local pending privacy review
+/Saral sahayak.pdf
+/Setu_Inferentia (1).pdf
+
+# The extracted dataset is versioned instead
+/epfo-claim-rejection-rag-dataset.zip
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Frontend dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# Private user input and generated documents
+/uploads/
+/documents/generated/
+
+# Editor and OS metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log

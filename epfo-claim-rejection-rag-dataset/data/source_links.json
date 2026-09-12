@@ -1,0 +1,1804 @@
+[
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/FAQ_OCS_050517_1017.pdf",
+    "title": "EPFO Online Claim Settlement FAQ (OCS)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-002",
+      "epfo-rr-005",
+      "epfo-rr-006",
+      "epfo-rr-007",
+      "epfo-rr-008",
+      "epfo-rr-009",
+      "epfo-rr-010",
+      "epfo-rr-011",
+      "epfo-rr-014",
+      "epfo-rr-015",
+      "epfo-rr-016",
+      "epfo-rr-017",
+      "epfo-rr-018",
+      "epfo-rr-019",
+      "epfo-rr-020",
+      "epfo-rr-022",
+      "epfo-rr-024",
+      "epfo-rr-025",
+      "epfo-rr-033",
+      "epfo-rr-034",
+      "epfo-rr-035",
+      "epfo-rr-036",
+      "epfo-rr-037",
+      "epfo-rr-039",
+      "epfo-rr-044",
+      "epfo-rr-046",
+      "epfo-rr-051",
+      "epfo-rr-053",
+      "epfo-rr-054",
+      "epfo-rr-055",
+      "epfo-rr-078",
+      "epfo-rr-082",
+      "epfo-rr-087",
+      "epfo-rr-088",
+      "epfo-rr-096",
+      "epfo-rr-098",
+      "epfo-rr-100",
+      "epfo-rr-103",
+      "epfo-rr-104",
+      "epfo-rr-113",
+      "epfo-rr-116",
+      "epfo-rr-117",
+      "epfo-rr-119",
+      "epfo-rr-120",
+      "epfo-rr-122",
+      "epfo-rr-124",
+      "epfo-rr-125",
+      "epfo-rr-130",
+      "epfo-rr-143",
+      "epfo-rr-149",
+      "epfo-rr-152",
+      "epfo-rr-153",
+      "epfo-rr-154",
+      "epfo-rr-156",
+      "epfo-rr-157",
+      "epfo-rr-158",
+      "epfo-rr-159",
+      "epfo-rr-160",
+      "epfo-rr-161",
+      "epfo-rr-162",
+      "epfo-rr-164",
+      "epfo-rr-171",
+      "epfo-rr-174",
+      "epfo-rr-176",
+      "epfo-rr-177",
+      "epfo-rr-178",
+      "epfo-rr-180"
+    ],
+    "use_count": 68
+  },
+  {
+    "url": "https://unifiedportal-mem.epfindia.gov.in/memberinterface/",
+    "title": "EPFO Unified Member Portal",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-005",
+      "epfo-rr-006",
+      "epfo-rr-007",
+      "epfo-rr-008",
+      "epfo-rr-009",
+      "epfo-rr-015",
+      "epfo-rr-051",
+      "epfo-rr-054",
+      "epfo-rr-055",
+      "epfo-rr-056",
+      "epfo-rr-089",
+      "epfo-rr-106",
+      "epfo-rr-113",
+      "epfo-rr-117",
+      "epfo-rr-120",
+      "epfo-rr-122",
+      "epfo-rr-124",
+      "epfo-rr-130",
+      "epfo-rr-142",
+      "epfo-rr-143",
+      "epfo-rr-145",
+      "epfo-rr-146",
+      "epfo-rr-148",
+      "epfo-rr-149",
+      "epfo-rr-153",
+      "epfo-rr-154",
+      "epfo-rr-156",
+      "epfo-rr-157",
+      "epfo-rr-158",
+      "epfo-rr-159",
+      "epfo-rr-162",
+      "epfo-rr-174",
+      "epfo-rr-175",
+      "epfo-rr-176",
+      "epfo-rr-177",
+      "epfo-rr-180"
+    ],
+    "use_count": 37
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_en/WhichClaimForm.php?id=in_sm",
+    "title": "EPFO Which Claim Form (19/20/10C/10D/5IF matrix)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-023",
+      "epfo-rr-031",
+      "epfo-rr-035",
+      "epfo-rr-036",
+      "epfo-rr-037",
+      "epfo-rr-038",
+      "epfo-rr-043",
+      "epfo-rr-048",
+      "epfo-rr-049",
+      "epfo-rr-060",
+      "epfo-rr-061",
+      "epfo-rr-064",
+      "epfo-rr-065",
+      "epfo-rr-067",
+      "epfo-rr-080",
+      "epfo-rr-081",
+      "epfo-rr-093",
+      "epfo-rr-103",
+      "epfo-rr-104",
+      "epfo-rr-107",
+      "epfo-rr-108",
+      "epfo-rr-109",
+      "epfo-rr-110",
+      "epfo-rr-111",
+      "epfo-rr-116",
+      "epfo-rr-118",
+      "epfo-rr-119",
+      "epfo-rr-132",
+      "epfo-rr-134",
+      "epfo-rr-136",
+      "epfo-rr-138",
+      "epfo-rr-140",
+      "epfo-rr-141",
+      "epfo-rr-155",
+      "epfo-rr-172",
+      "epfo-rr-178",
+      "epfo-rr-180"
+    ],
+    "use_count": 37
+  },
+  {
+    "url": "https://cleartax.in/c/pf-withdrawal-online",
+    "title": "ClearTax PF withdrawal online 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-005",
+      "epfo-rr-006",
+      "epfo-rr-007",
+      "epfo-rr-012",
+      "epfo-rr-015",
+      "epfo-rr-017",
+      "epfo-rr-018",
+      "epfo-rr-019",
+      "epfo-rr-021",
+      "epfo-rr-022",
+      "epfo-rr-024",
+      "epfo-rr-026",
+      "epfo-rr-033",
+      "epfo-rr-034",
+      "epfo-rr-035",
+      "epfo-rr-036",
+      "epfo-rr-039",
+      "epfo-rr-040",
+      "epfo-rr-043",
+      "epfo-rr-044",
+      "epfo-rr-046",
+      "epfo-rr-049",
+      "epfo-rr-052",
+      "epfo-rr-053",
+      "epfo-rr-054",
+      "epfo-rr-055",
+      "epfo-rr-069",
+      "epfo-rr-073",
+      "epfo-rr-078",
+      "epfo-rr-104",
+      "epfo-rr-154",
+      "epfo-rr-156",
+      "epfo-rr-178"
+    ],
+    "use_count": 34
+  },
+  {
+    "url": "https://finright.in/blogs/most-common-reasons-for-epf-claim-rejections-and-tips-to-avoid-them",
+    "title": "FinRight: 9 common EPF rejection reasons",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-002",
+      "epfo-rr-010",
+      "epfo-rr-011",
+      "epfo-rr-012",
+      "epfo-rr-014",
+      "epfo-rr-016",
+      "epfo-rr-017",
+      "epfo-rr-018",
+      "epfo-rr-019",
+      "epfo-rr-020",
+      "epfo-rr-024",
+      "epfo-rr-029",
+      "epfo-rr-031",
+      "epfo-rr-043",
+      "epfo-rr-044",
+      "epfo-rr-046",
+      "epfo-rr-057",
+      "epfo-rr-069",
+      "epfo-rr-073",
+      "epfo-rr-126",
+      "epfo-rr-157",
+      "epfo-rr-158",
+      "epfo-rr-162",
+      "epfo-rr-164",
+      "epfo-rr-174",
+      "epfo-rr-178"
+    ],
+    "use_count": 26
+  },
+  {
+    "url": "https://pfbalancecheck.com/epfo-claim-rejected-reason/",
+    "title": "PFBalanceCheck: claim rejected reason 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-004",
+      "epfo-rr-009",
+      "epfo-rr-010",
+      "epfo-rr-017",
+      "epfo-rr-018",
+      "epfo-rr-034",
+      "epfo-rr-039",
+      "epfo-rr-043",
+      "epfo-rr-051",
+      "epfo-rr-052",
+      "epfo-rr-057",
+      "epfo-rr-090",
+      "epfo-rr-096",
+      "epfo-rr-097",
+      "epfo-rr-098",
+      "epfo-rr-104",
+      "epfo-rr-113",
+      "epfo-rr-114",
+      "epfo-rr-115",
+      "epfo-rr-120",
+      "epfo-rr-122",
+      "epfo-rr-126",
+      "epfo-rr-130",
+      "epfo-rr-164",
+      "epfo-rr-174",
+      "epfo-rr-176"
+    ],
+    "use_count": 26
+  },
+  {
+    "url": "https://cleartax.in/s/epf-form-31",
+    "title": "ClearTax: EPF Form 31 eligibility and documents",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-082",
+      "epfo-rr-083",
+      "epfo-rr-084",
+      "epfo-rr-085",
+      "epfo-rr-086",
+      "epfo-rr-087",
+      "epfo-rr-088",
+      "epfo-rr-089",
+      "epfo-rr-090",
+      "epfo-rr-091",
+      "epfo-rr-092",
+      "epfo-rr-093",
+      "epfo-rr-094",
+      "epfo-rr-095",
+      "epfo-rr-097",
+      "epfo-rr-100",
+      "epfo-rr-120",
+      "epfo-rr-121",
+      "epfo-rr-124",
+      "epfo-rr-125",
+      "epfo-rr-129",
+      "epfo-rr-131",
+      "epfo-rr-171",
+      "epfo-rr-179"
+    ],
+    "use_count": 24
+  },
+  {
+    "url": "https://www.livemint.com/money/personal-finance/epfo-top-reasons-your-employees-provident-fund-settlement-claims-rejected-explained-epf-scheme-document-errors-mismatch-11783073513956.html",
+    "title": "Mint: top reasons EPF claims are rejected (3 Jul 2026) incl. Scheme 2026",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-003",
+      "epfo-rr-012",
+      "epfo-rr-015",
+      "epfo-rr-016",
+      "epfo-rr-018",
+      "epfo-rr-020",
+      "epfo-rr-021",
+      "epfo-rr-024",
+      "epfo-rr-033",
+      "epfo-rr-036",
+      "epfo-rr-040",
+      "epfo-rr-088",
+      "epfo-rr-089",
+      "epfo-rr-090",
+      "epfo-rr-106",
+      "epfo-rr-115",
+      "epfo-rr-120",
+      "epfo-rr-121",
+      "epfo-rr-125",
+      "epfo-rr-157",
+      "epfo-rr-158",
+      "epfo-rr-159",
+      "epfo-rr-177"
+    ],
+    "use_count": 24
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_WSU_new.pdf",
+    "title": "SOP Joint Declaration JD/2022/1 (WSU PDF)",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-002",
+      "epfo-rr-003",
+      "epfo-rr-004",
+      "epfo-rr-011",
+      "epfo-rr-012",
+      "epfo-rr-013",
+      "epfo-rr-024",
+      "epfo-rr-025",
+      "epfo-rr-028",
+      "epfo-rr-030",
+      "epfo-rr-058",
+      "epfo-rr-066",
+      "epfo-rr-071",
+      "epfo-rr-075",
+      "epfo-rr-145",
+      "epfo-rr-153",
+      "epfo-rr-161",
+      "epfo-rr-169",
+      "epfo-rr-170",
+      "epfo-rr-173"
+    ],
+    "use_count": 21
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form5IF_Instructions_Eng.pdf",
+    "title": "Form 5IF instructions (EDLI death claim)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-017",
+      "epfo-rr-026",
+      "epfo-rr-030",
+      "epfo-rr-031",
+      "epfo-rr-047",
+      "epfo-rr-048",
+      "epfo-rr-050",
+      "epfo-rr-060",
+      "epfo-rr-061",
+      "epfo-rr-062",
+      "epfo-rr-063",
+      "epfo-rr-065",
+      "epfo-rr-066",
+      "epfo-rr-067",
+      "epfo-rr-080",
+      "epfo-rr-137",
+      "epfo-rr-138",
+      "epfo-rr-139",
+      "epfo-rr-140",
+      "epfo-rr-141",
+      "epfo-rr-166"
+    ],
+    "use_count": 21
+  },
+  {
+    "url": "https://www.financialexpress.com/money/epfo-pension-rules-settlement-in-20-days-but-heres-why-many-eps-claims-still-get-rejected-4168274/",
+    "title": "Financial Express: why EPS claims get rejected",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-002",
+      "epfo-rr-023",
+      "epfo-rr-029",
+      "epfo-rr-037",
+      "epfo-rr-038",
+      "epfo-rr-042",
+      "epfo-rr-047",
+      "epfo-rr-048",
+      "epfo-rr-062",
+      "epfo-rr-064",
+      "epfo-rr-081",
+      "epfo-rr-101",
+      "epfo-rr-102",
+      "epfo-rr-108",
+      "epfo-rr-110",
+      "epfo-rr-118",
+      "epfo-rr-119",
+      "epfo-rr-128",
+      "epfo-rr-132",
+      "epfo-rr-133"
+    ],
+    "use_count": 20
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-form-10d-the-2026-guide-to-claiming-your-monthly-pension",
+    "title": "Kustodian: Form 10D 2026 guide",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-019",
+      "epfo-rr-023",
+      "epfo-rr-036",
+      "epfo-rr-037",
+      "epfo-rr-038",
+      "epfo-rr-042",
+      "epfo-rr-064",
+      "epfo-rr-081",
+      "epfo-rr-108",
+      "epfo-rr-109",
+      "epfo-rr-110",
+      "epfo-rr-111",
+      "epfo-rr-112",
+      "epfo-rr-118",
+      "epfo-rr-119",
+      "epfo-rr-132",
+      "epfo-rr-133",
+      "epfo-rr-134",
+      "epfo-rr-135"
+    ],
+    "use_count": 19
+  },
+  {
+    "url": "https://epfindia.gov.in/site_docs/PDFs/OTCP_PDFs/MembersFAQ.pdf",
+    "title": "EPFO OTCP Members FAQ (employer rejection reasons, 15-day printout)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-026",
+      "epfo-rr-027",
+      "epfo-rr-032",
+      "epfo-rr-050",
+      "epfo-rr-052",
+      "epfo-rr-058",
+      "epfo-rr-068",
+      "epfo-rr-071",
+      "epfo-rr-072",
+      "epfo-rr-147",
+      "epfo-rr-148",
+      "epfo-rr-149",
+      "epfo-rr-150",
+      "epfo-rr-160",
+      "epfo-rr-164",
+      "epfo-rr-170",
+      "epfo-rr-173",
+      "epfo-rr-175"
+    ],
+    "use_count": 18
+  },
+  {
+    "url": "https://epfigms.gov.in/",
+    "title": "EPFiGMS grievance portal",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-013",
+      "epfo-rr-022",
+      "epfo-rr-029",
+      "epfo-rr-072",
+      "epfo-rr-079",
+      "epfo-rr-097",
+      "epfo-rr-101",
+      "epfo-rr-107",
+      "epfo-rr-114",
+      "epfo-rr-128",
+      "epfo-rr-135",
+      "epfo-rr-144",
+      "epfo-rr-146",
+      "epfo-rr-148",
+      "epfo-rr-150",
+      "epfo-rr-165"
+    ],
+    "use_count": 16
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-form-13-pf-transfer-online-offline-how-to-fill-pdf-status",
+    "title": "Kustodian: Form 13 guide",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-027",
+      "epfo-rr-031",
+      "epfo-rr-068",
+      "epfo-rr-069",
+      "epfo-rr-072",
+      "epfo-rr-073",
+      "epfo-rr-116",
+      "epfo-rr-127",
+      "epfo-rr-142",
+      "epfo-rr-143",
+      "epfo-rr-144",
+      "epfo-rr-145",
+      "epfo-rr-146",
+      "epfo-rr-160"
+    ],
+    "use_count": 14
+  },
+  {
+    "url": "https://www.outlookmoney.com/retirement/pension/epf-claim-settlement-why-epfo-rejects-the-claims-and-what-subscribers-can-do",
+    "title": "Outlook Money: why EPFO rejects claims (MoS reply)",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-029",
+      "epfo-rr-042",
+      "epfo-rr-043",
+      "epfo-rr-047",
+      "epfo-rr-048",
+      "epfo-rr-056",
+      "epfo-rr-060",
+      "epfo-rr-062",
+      "epfo-rr-063",
+      "epfo-rr-064",
+      "epfo-rr-079",
+      "epfo-rr-109",
+      "epfo-rr-165"
+    ],
+    "use_count": 14
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2016-2017/Composite_Claim_Forms_31792.pdf",
+    "title": "Composite Claim Forms introduction circular 2016-17",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-026",
+      "epfo-rr-049",
+      "epfo-rr-082",
+      "epfo-rr-083",
+      "epfo-rr-084",
+      "epfo-rr-085",
+      "epfo-rr-086",
+      "epfo-rr-092",
+      "epfo-rr-129",
+      "epfo-rr-131",
+      "epfo-rr-170",
+      "epfo-rr-173",
+      "epfo-rr-179"
+    ],
+    "use_count": 13
+  },
+  {
+    "url": "https://epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form19_instructions_Eng.pdf",
+    "title": "Form 19 instructions (EPF Scheme)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-024",
+      "epfo-rr-026",
+      "epfo-rr-030",
+      "epfo-rr-033",
+      "epfo-rr-034",
+      "epfo-rr-047",
+      "epfo-rr-048",
+      "epfo-rr-050",
+      "epfo-rr-080",
+      "epfo-rr-170",
+      "epfo-rr-171",
+      "epfo-rr-173"
+    ],
+    "use_count": 12
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-death-claim-process-india",
+    "title": "Kustodian: death claim process",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-056",
+      "epfo-rr-060",
+      "epfo-rr-062",
+      "epfo-rr-063",
+      "epfo-rr-107",
+      "epfo-rr-136",
+      "epfo-rr-140",
+      "epfo-rr-166",
+      "epfo-rr-172",
+      "epfo-rr-180"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfo-joint-declaration-process-member-profile-updation.html",
+    "title": "TaxGuru: Joint Declaration SOP 22 Aug 2023",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-002",
+      "epfo-rr-003",
+      "epfo-rr-004",
+      "epfo-rr-012",
+      "epfo-rr-013",
+      "epfo-rr-025",
+      "epfo-rr-030",
+      "epfo-rr-066",
+      "epfo-rr-161"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://www.axismaxlife.com/blog/retirement-planning/epf-withdrawal-form-31",
+    "title": "Axis Max Life: EPF Form 31 eligibility",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-082",
+      "epfo-rr-083",
+      "epfo-rr-084",
+      "epfo-rr-085",
+      "epfo-rr-086",
+      "epfo-rr-087",
+      "epfo-rr-093",
+      "epfo-rr-094",
+      "epfo-rr-095",
+      "epfo-rr-131"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Circular_RemovalOfUploadingImage.pdf",
+    "title": "Circular removing cancelled-cheque image upload where NPCI verified",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-016",
+      "epfo-rr-021",
+      "epfo-rr-105",
+      "epfo-rr-106",
+      "epfo-rr-115",
+      "epfo-rr-156",
+      "epfo-rr-157",
+      "epfo-rr-158",
+      "epfo-rr-159",
+      "epfo-rr-177"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form10D.pdf",
+    "title": "Form 10D PDF",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-081",
+      "epfo-rr-108",
+      "epfo-rr-109",
+      "epfo-rr-111",
+      "epfo-rr-118",
+      "epfo-rr-132",
+      "epfo-rr-133",
+      "epfo-rr-134",
+      "epfo-rr-135",
+      "epfo-rr-136"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/MiscPDFs/OCS_FAQ_Eligibility_102017.pdf",
+    "title": "EPFO OCS FAQ eligibility (Oct 2017)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-005",
+      "epfo-rr-006",
+      "epfo-rr-008",
+      "epfo-rr-015",
+      "epfo-rr-024",
+      "epfo-rr-035",
+      "epfo-rr-110",
+      "epfo-rr-111",
+      "epfo-rr-178",
+      "epfo-rr-179"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://www.etnownews.com/personal-finance/epfo-pension-rules-why-eps-claims-get-rejected-govt-reveals-basis-errors-kyc-aadhaar-and-more-article-153801634",
+    "title": "ET Now: EPS claim rejection reasons",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-002",
+      "epfo-rr-023",
+      "epfo-rr-029",
+      "epfo-rr-042",
+      "epfo-rr-047",
+      "epfo-rr-064",
+      "epfo-rr-101",
+      "epfo-rr-102",
+      "epfo-rr-108",
+      "epfo-rr-109"
+    ],
+    "use_count": 10
+  },
+  {
+    "url": "https://knowmoney.in/blog/epfo-3-withdrawal-rules-india-2026",
+    "title": "KnowMoney: EPFO 3.0 withdrawal rules 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-082",
+      "epfo-rr-085",
+      "epfo-rr-086",
+      "epfo-rr-088",
+      "epfo-rr-090",
+      "epfo-rr-091",
+      "epfo-rr-092",
+      "epfo-rr-121",
+      "epfo-rr-179"
+    ],
+    "use_count": 9
+  },
+  {
+    "url": "https://labourlawadvisor.in/blog/wp-content/uploads/2019/08/PF-Advance-Rules.pdf",
+    "title": "Labour Law Advisor: Form 31 advance rules PDF",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-083",
+      "epfo-rr-084",
+      "epfo-rr-086",
+      "epfo-rr-087",
+      "epfo-rr-091",
+      "epfo-rr-094",
+      "epfo-rr-129",
+      "epfo-rr-131",
+      "epfo-rr-179"
+    ],
+    "use_count": 9
+  },
+  {
+    "url": "https://www.citizennest.com/guide/epf-transfer-claim-rejected-fix",
+    "title": "CitizenNest: Form 13 transfer rejected",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-027",
+      "epfo-rr-068",
+      "epfo-rr-116",
+      "epfo-rr-117",
+      "epfo-rr-127",
+      "epfo-rr-142",
+      "epfo-rr-144",
+      "epfo-rr-146",
+      "epfo-rr-160"
+    ],
+    "use_count": 9
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Instructions_CCF_aadhar.pdf",
+    "title": "Composite Claim Form (Aadhaar) instructions",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-005",
+      "epfo-rr-007",
+      "epfo-rr-015",
+      "epfo-rr-026",
+      "epfo-rr-049",
+      "epfo-rr-170",
+      "epfo-rr-171",
+      "epfo-rr-173",
+      "epfo-rr-177"
+    ],
+    "use_count": 9
+  },
+  {
+    "url": "https://www.in.kpmg.com/taxflashnews/KPMG-Flash-News-EPFO-Update-Simplifying-process-of-PF-withdrawal-for-International-Workers.pdf",
+    "title": "KPMG: simplifying PF withdrawal for International Workers",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-074",
+      "epfo-rr-075",
+      "epfo-rr-123",
+      "epfo-rr-155",
+      "epfo-rr-167",
+      "epfo-rr-168",
+      "epfo-rr-169",
+      "epfo-rr-171",
+      "epfo-rr-172"
+    ],
+    "use_count": 9
+  },
+  {
+    "url": "https://kustodian.life/resources/provident-fund/form-5if-guide",
+    "title": "Kustodian: Form 5IF guide",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-050",
+      "epfo-rr-061",
+      "epfo-rr-065",
+      "epfo-rr-116",
+      "epfo-rr-137",
+      "epfo-rr-139",
+      "epfo-rr-140",
+      "epfo-rr-141"
+    ],
+    "use_count": 8
+  },
+  {
+    "url": "https://web.umang.gov.in",
+    "title": "UMANG",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-055",
+      "epfo-rr-124",
+      "epfo-rr-130",
+      "epfo-rr-151",
+      "epfo-rr-152",
+      "epfo-rr-174",
+      "epfo-rr-176",
+      "epfo-rr-181"
+    ],
+    "use_count": 8
+  },
+  {
+    "url": "https://www.epfindia.gov.in",
+    "title": "EPFO official website",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-080",
+      "epfo-rr-099",
+      "epfo-rr-103",
+      "epfo-rr-112",
+      "epfo-rr-117",
+      "epfo-rr-147",
+      "epfo-rr-148",
+      "epfo-rr-150"
+    ],
+    "use_count": 8
+  },
+  {
+    "url": "https://www.indiafilings.com/learn/epf-form-31",
+    "title": "IndiaFilings: EPF Form 31",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-083",
+      "epfo-rr-087",
+      "epfo-rr-091",
+      "epfo-rr-092",
+      "epfo-rr-093",
+      "epfo-rr-094",
+      "epfo-rr-095",
+      "epfo-rr-129"
+    ],
+    "use_count": 8
+  },
+  {
+    "url": "https://righttoinformation.wiki/epf-death-claim-without-nominee-legal-heir-india",
+    "title": "RTI Wiki: death claim without nominee",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-061",
+      "epfo-rr-063",
+      "epfo-rr-134",
+      "epfo-rr-135",
+      "epfo-rr-136",
+      "epfo-rr-166",
+      "epfo-rr-172"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/standard-operating-procedure-sop-settlement-claims-epfo.html",
+    "title": "TaxGuru: SOP settlement of claims",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-058",
+      "epfo-rr-059",
+      "epfo-rr-114",
+      "epfo-rr-148",
+      "epfo-rr-150",
+      "epfo-rr-163",
+      "epfo-rr-165"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_en/International_workers.php",
+    "title": "EPFO International Workers page",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-074",
+      "epfo-rr-075",
+      "epfo-rr-105",
+      "epfo-rr-123",
+      "epfo-rr-167",
+      "epfo-rr-168",
+      "epfo-rr-169"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://www.livemint.com/money/personal-finance/changing-jobs-soon-fix-these-epf-transfer-errors-before-resigning-for-a-smooth-pf-transfer-11782808524771.html",
+    "title": "Mint: EPF transfer errors before resigning",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-068",
+      "epfo-rr-069",
+      "epfo-rr-071",
+      "epfo-rr-127",
+      "epfo-rr-142",
+      "epfo-rr-143",
+      "epfo-rr-147"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://www.livemint.com/money/personal-finance/epfo-showing-wrong-service-history-what-employees-should-check-immediately-and-do-next-to-rectify-the-error-11786520369893.html",
+    "title": "Mint: wrong service history",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-025",
+      "epfo-rr-042",
+      "epfo-rr-051",
+      "epfo-rr-077",
+      "epfo-rr-122",
+      "epfo-rr-145",
+      "epfo-rr-149"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1m6co8r/why_so_many_epf_claims_are_being_rejected_and/",
+    "title": "Reddit r/epfoindia: EPS contribution not available",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-029",
+      "epfo-rr-035",
+      "epfo-rr-037",
+      "epfo-rr-042",
+      "epfo-rr-044",
+      "epfo-rr-102",
+      "epfo-rr-104"
+    ],
+    "use_count": 7
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-claim-rejected-reasons-guide",
+    "title": "Kustodian: EPF claim rejected reasons",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-016",
+      "epfo-rr-041",
+      "epfo-rr-059",
+      "epfo-rr-113",
+      "epfo-rr-126",
+      "epfo-rr-130"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfo-clarifies-physical-claim-settlement-seeding-aadhaar.html",
+    "title": "TaxGuru: physical claims without Aadhaar 29 Nov 2024",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-005",
+      "epfo-rr-074",
+      "epfo-rr-123",
+      "epfo-rr-152",
+      "epfo-rr-155",
+      "epfo-rr-163"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://www.bajajfinserv.in/investments/epf-or-pf-withdrawal-rules",
+    "title": "Bajaj Finserv: EPF withdrawal rules",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-033",
+      "epfo-rr-078",
+      "epfo-rr-095",
+      "epfo-rr-100",
+      "epfo-rr-122",
+      "epfo-rr-125"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2024-2025/Circular_SOP_WSU_02082024.pdf",
+    "title": "SOP inoperative/transaction-less accounts WSU 02.08.2024",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-030",
+      "epfo-rr-045",
+      "epfo-rr-059",
+      "epfo-rr-076",
+      "epfo-rr-163",
+      "epfo-rr-165"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_en/OTCP_ForEmployers.php",
+    "title": "EPFO OTCP for employers",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-027",
+      "epfo-rr-028",
+      "epfo-rr-032",
+      "epfo-rr-068",
+      "epfo-rr-147",
+      "epfo-rr-175"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://www.staffnews.in/2025/06/simplification-of-transfer-claim-process.html",
+    "title": "StaffNews: full text overlap circular 20 May 2025",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-041",
+      "epfo-rr-046",
+      "epfo-rr-070",
+      "epfo-rr-071",
+      "epfo-rr-072",
+      "epfo-rr-077"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://zerodha.com/z-connect/varsity/epfo-claim-rejections-what-is-service-overlap-and-how-to-merge-pf-accounts",
+    "title": "Zerodha Z-Connect: service overlap and merge",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-011",
+      "epfo-rr-041",
+      "epfo-rr-046",
+      "epfo-rr-077",
+      "epfo-rr-127",
+      "epfo-rr-162"
+    ],
+    "use_count": 6
+  },
+  {
+    "url": "https://cleartax.in/s/edli",
+    "title": "ClearTax EDLI scheme explainer",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-067",
+      "epfo-rr-137",
+      "epfo-rr-138",
+      "epfo-rr-139",
+      "epfo-rr-141"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://economictimes.indiatimes.com/wealth/invest/epf-members-can-do-kyc-correction-in-provident-fund-account-online-here-is-a-step-by-step-guide-to-do-it/articleshow/108634621.cms",
+    "title": "Economic Times: online Joint Declaration steps",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-001",
+      "epfo-rr-003",
+      "epfo-rr-013",
+      "epfo-rr-014",
+      "epfo-rr-161"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://hrsoftwaredelhi.com/pf-withdrawal-process/",
+    "title": "HR Software Delhi: PF withdrawal process / rejections",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-007",
+      "epfo-rr-010",
+      "epfo-rr-019",
+      "epfo-rr-020",
+      "epfo-rr-024"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfos-pf-withdrawal-rules-claims-rejected.html",
+    "title": "TaxGuru: EPFO PF withdrawal rules / why claims rejected (2026)",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-082",
+      "epfo-rr-085",
+      "epfo-rr-086",
+      "epfo-rr-096",
+      "epfo-rr-121"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://www.business-standard.com/finance/personal-finance/epfo-issues-new-rules-for-inoperative-inactive-accounts-to-combat-fraud-124080600360_1.html",
+    "title": "Business Standard: inoperative accounts fraud rules",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-045",
+      "epfo-rr-076",
+      "epfo-rr-150",
+      "epfo-rr-163",
+      "epfo-rr-165"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Downloads_PDFs/Form20.pdf",
+    "title": "Form 20 PDF",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-107",
+      "epfo-rr-140",
+      "epfo-rr-166",
+      "epfo-rr-172",
+      "epfo-rr-180"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://www.jagranjosh.com/general-knowledge/epf-scheme-withdrawal-rules-2026-3day-settlement-limits-and-online-claim-1820010445-1",
+    "title": "Jagran Josh: EPF Scheme 2026 3-day settlement",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-033",
+      "epfo-rr-039",
+      "epfo-rr-040",
+      "epfo-rr-121",
+      "epfo-rr-125"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://zeenews.india.com/personal-finance/pf-settlement-money-may-not-reach-your-family-for-a-common-mistake-your-e-nomination-will-not-be-valid-until-you-do-this-3054752.html",
+    "title": "Zee: e-nomination not valid unless e-signed",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-056",
+      "epfo-rr-060",
+      "epfo-rr-107",
+      "epfo-rr-124",
+      "epfo-rr-166"
+    ],
+    "use_count": 5
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-claim-rejected-because-of-eps-top-reasons-and-proven-fixes-india-2026-guide",
+    "title": "Kustodian: EPF claim rejected because of EPS (2026)",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-101",
+      "epfo-rr-102",
+      "epfo-rr-119",
+      "epfo-rr-128"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://kustodian.life/resources/provident-fund/edli-claim-process",
+    "title": "Kustodian: EDLI claim process",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-067",
+      "epfo-rr-137",
+      "epfo-rr-138",
+      "epfo-rr-141"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://righttoinformation.wiki/pf-withdrawal-claim-rejected-without-reason-epfo-india",
+    "title": "RTI Wiki: rejected without reason",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-058",
+      "epfo-rr-079",
+      "epfo-rr-114",
+      "epfo-rr-164"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://uidai.gov.in",
+    "title": "UIDAI",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-151",
+      "epfo-rr-152",
+      "epfo-rr-153",
+      "epfo-rr-154"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://www.cnbctv18.com/personal-finance/epfo-relaxes-aadhaar-norms-for-select-employee-categories-key-details-19517361.htm",
+    "title": "CNBC-TV18: Aadhaar relaxation for select categories",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-074",
+      "epfo-rr-123",
+      "epfo-rr-155",
+      "epfo-rr-163"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://www.gconnect.in/epfo/social-security-international-workers-agreements-epf-scheme-1952.html",
+    "title": "GConnect: SSA/international workers brochure summary",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-075",
+      "epfo-rr-167",
+      "epfo-rr-168",
+      "epfo-rr-169"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://www.timesnownews.com/business-economy/personal-finance/epfo-processed-8-3-crore-claims-in-fy26-cancelled-cheque-upload-no-longer-required-article-155357857",
+    "title": "Times Now: cancelled cheque upload no longer required",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-016",
+      "epfo-rr-021",
+      "epfo-rr-106",
+      "epfo-rr-159"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://www.wealthpedia.in/eps-family-pension/",
+    "title": "Wealthpedia: EPS family pension rules 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-132",
+      "epfo-rr-133",
+      "epfo-rr-134",
+      "epfo-rr-136"
+    ],
+    "use_count": 4
+  },
+  {
+    "url": "https://economictimes.indiatimes.com/wealth/save/epfo-clarifies-edli-rules-weekends-holidays-between-two-jobs-not-to-be-counted-as-break-for-settling-insurance-claims/articleshow/126054764.cms",
+    "title": "Economic Times: EDLI weekend/holiday not a break",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-067",
+      "epfo-rr-138",
+      "epfo-rr-139"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://jeevanpramaan.gov.in",
+    "title": "Jeevan Pramaan (life certificate)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-112",
+      "epfo-rr-133",
+      "epfo-rr-135"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://righttoinformation.wiki/practical-guides/pf-transferred-to-wrong-member-id-correction",
+    "title": "RTI Wiki: PF transferred to wrong member ID",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-142",
+      "epfo-rr-144",
+      "epfo-rr-146"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.citizennest.com/guide/pf-claim-rejected-fix",
+    "title": "CitizenNest: PF claim rejected fix",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-057",
+      "epfo-rr-114",
+      "epfo-rr-117"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/AllotmentAndActivationOfUAN_UMANGAppUsingFAT.pdf",
+    "title": "EPFO UAN allotment/activation via UMANG Face Authentication (FAT) manual 2025-26",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-151",
+      "epfo-rr-152",
+      "epfo-rr-181"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.livemint.com/money/personal-finance/epfo-members-account-blocked-uan-no-access-passbook-kyc-pending-common-issues-how-fix-it-provident-fund-portal-umang-app-11785514948903.html",
+    "title": "Mint: EPFO account blocked / UAN / KYC pending fixes (UMANG)",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-151",
+      "epfo-rr-176",
+      "epfo-rr-181"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.reddit.com/r/EPFO/comments/1smfaow/claim_got_rejected_saying_pf_and_eps_being/",
+    "title": "Reddit: PF and EPS being deposited by employers",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-090",
+      "epfo-rr-097",
+      "epfo-rr-098"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1mdyhcm/epfo_claim_rejected_form_31/",
+    "title": "Reddit: Form 31 unemployment insufficient service",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-090",
+      "epfo-rr-096",
+      "epfo-rr-098"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.reddit.com/r/india/comments/1tp295c/epfo_rejected_your_pf_claim_dont_panic_after/",
+    "title": "Reddit r/india: bank KYC not verified",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-010",
+      "epfo-rr-016",
+      "epfo-rr-126"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.staffnews.in/2024/12/settlement-of-physical-claims-without-seeding-of-aadhaar.html",
+    "title": "StaffNews: physical claims without Aadhaar",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-074",
+      "epfo-rr-123",
+      "epfo-rr-155"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.taxbuddy.com/blog/how-incorrect-kyc-details-affect-pf-withdrawal-approval",
+    "title": "TaxBuddy: incorrect KYC and PF withdrawal",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-020",
+      "epfo-rr-153",
+      "epfo-rr-154"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://www.taxbuddy.com/blog/understanding-partial-pf-withdrawal-using-form-31",
+    "title": "TaxBuddy: Form 31 partial withdrawal",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-039",
+      "epfo-rr-040",
+      "epfo-rr-053"
+    ],
+    "use_count": 3
+  },
+  {
+    "url": "https://ascent-hr.com/notification/epfo-simplifies-the-transfer-claim-process-when-there-are-overlapping-service-periods/",
+    "title": "AscentHR: overlap circular note",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-041",
+      "epfo-rr-070"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://economictimes.indiatimes.com/wealth/legal/will/higher-eps-pension-epfo-cant-use-the-excuse-of-employers-deficient-system-of-recordkeeping-as-a-ground-to-deny-higher-pension-to-employees-rules-bombay-hc/articleshow/130464158.cms",
+    "title": "Economic Times: Bombay HC higher EPS pension recordkeeping",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-101",
+      "epfo-rr-128"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://economictimes.indiatimes.com/wealth/save/latest-epfo-rules-how-to-unblock-inoperative-epf-account-settle-claims/articleshow/107544015.cms",
+    "title": "Economic Times: unblock inoperative EPF",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-045",
+      "epfo-rr-076"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://epfwala.com/pf-claim-status-shows-settled-but-amount-not-credited/",
+    "title": "EPFwala: settled but amount not credited",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-022",
+      "epfo-rr-115"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-claim-rejected-name-aadhaar-dob-mismatch-fix-guide-2025",
+    "title": "Kustodian: name/Aadhaar/DOB mismatch",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-066",
+      "epfo-rr-126"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://kustodian.life/resources/provident-fund/epf-scheme-2026-withdrawal-rules-changed",
+    "title": "Kustodian: EPF Scheme 2026 withdrawal rules",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-039",
+      "epfo-rr-040"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://nriinformation.com/nri-info/indian-pension-abroad",
+    "title": "NRI Information: receiving Indian pension abroad",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-105",
+      "epfo-rr-112"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://orbitcareers.com/uan-kyc-pending-for-employer-approval/",
+    "title": "Orbit Careers: KYC pending employer approval",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-028",
+      "epfo-rr-175"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://righttoinformation.wiki/practical-guides/epfo-claim-settled-money-not-credited",
+    "title": "RTI Wiki: settled money not credited",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-022",
+      "epfo-rr-115"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfo-online-system-generation-certificate-coverage-reg.html",
+    "title": "TaxGuru: Online system for Certificate of Coverage",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-167",
+      "epfo-rr-168"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfo-uan-activation-umang-app-face-authentication.html",
+    "title": "TaxGuru: UAN activation via UMANG Face Authentication",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-151",
+      "epfo-rr-181"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2020-2021/Faq_dsc.pdf",
+    "title": "EPFO DSC FAQ for employers",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-028",
+      "epfo-rr-175"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2025-2026/Revamped_F13_Functionality.pdf",
+    "title": "Revamped Form 13 functionality (2025-26 PDF)",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-041",
+      "epfo-rr-070"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Updates/covid_faq_claim_04042020.pdf",
+    "title": "EPFO COVID-19 advance claim FAQ (Apr 2020)",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-088",
+      "epfo-rr-089"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.financialexpress.com/money/epfos-game-changer-move-on-fund-transfer-now-there-will-be-no-claim-rejection-due-to-this-problem-details-3854653/",
+    "title": "Financial Express: transfer overlap game-changer",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-041",
+      "epfo-rr-070"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.key4comply.com/blogposts/epf-for-international-workers-in-india-2026-ssa-certificate-of-coverage-coc-exemption-rules-contributions-withdrawal-at-age-58-latest-court-rulings/",
+    "title": "Key4Comply: EPF International Workers SSA/CoC 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-167",
+      "epfo-rr-169"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.news18.com/business/savings-and-investments/epfo-your-claims-cant-be-rejected-if-there-is-genuine-service-overlapping-read-official-clarification-ws-l-9352924.html",
+    "title": "News18: overlap should not reject transfer claims",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-041",
+      "epfo-rr-070"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.outlookmoney.com/retirement/plan/news/explained-epfos-new-guidelines-for-inoperative-epf-accounts",
+    "title": "Outlook: inoperative EPF guidelines",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-045",
+      "epfo-rr-076"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.paisabazaar.com/saving-schemes/epf-composite-claim-form/",
+    "title": "PaisaBazaar: composite claim form",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-026",
+      "epfo-rr-049"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.pensionbazaar.com/epf/epf-withdrawal-rules/",
+    "title": "PensionBazaar: EPF withdrawal rules 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-039",
+      "epfo-rr-103"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1lwzhcs/my_epfo_claim_got_rejected_form31_after_16_days/",
+    "title": "Reddit: contribution received after date of exit",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-097",
+      "epfo-rr-149"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1tm7e94/raised_a_claim_before_transfer/",
+    "title": "Reddit: raised a claim before transfer",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-145",
+      "epfo-rr-160"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://www.shriramlife.com/blog/advice/form-31-in-epfo",
+    "title": "Shriram Life: Form 31 rules 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-039",
+      "epfo-rr-085"
+    ],
+    "use_count": 2
+  },
+  {
+    "url": "https://cleartax.in/s/pf-withdrawal-online",
+    "title": "ClearTax PF withdrawal (alternate URL)",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-100"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://dailyfinancial.in/epfo-3-0-testing-is-done-but-still-not-live-whats-stopping-upi-and-atm-based-pf-withdrawals-from-launching-right-now/",
+    "title": "Daily Financial: EPFO 3.0 UPI/ATM withdrawal testing status",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-156"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://investmentepfo.com/auto-transfer-of-epf-how-it-works-when-you-switch-jobs/",
+    "title": "Investment EPFO: auto-transfer of EPF explainer",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-143"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://jurigram.com/blog/labour-law/epf-withdrawal-rules-online-process-tax",
+    "title": "JuriGram: EPF withdrawal rules",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-028"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://kustodian.life/resources/epf-joint-declaration-form-name-dob-detail-correction-guide",
+    "title": "Kustodian: Joint Declaration 2026",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-161"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://nriinformation.com/returning-to-india/nri-provident-fund-guide",
+    "title": "NRI Information: EPF/PPF rules for NRIs",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-105"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://pmvbry.epfindia.gov.in/insurance-scheme-edli/",
+    "title": "EPFO Insurance Scheme (EDLI) page",
+    "source_type": "official",
+    "used_by_reason_ids": [
+      "epfo-rr-137"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://righttoinformation.wiki/epfo-claim-rejected-pending-uan-kyc-complaint-india",
+    "title": "RTI Wiki: claim rejected pending UAN KYC",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-079"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://taxguru.in/corporate-law/epfo-issue-certificate-coverage-reg.html",
+    "title": "TaxGuru: Issue of Certificate of Coverage",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-168"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.business-standard.com/finance/personal-finance/unblocking-inactive-epf-account-what-employees-must-do-124100200247_1.html",
+    "title": "Business Standard: unblocking inactive EPF",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-045"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.businesstoday.in/personal-finance/news/story/epfo-revamps-unified-member-portal-uan-activation-shifts-to-umang-what-it-means-for-subscribers-540985-2026-07-04",
+    "title": "Business Today: UAN activation shifts to UMANG",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-181"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.epfindia.gov.in/site_docs/PDFs/Circulars/Y2023-2024/SOP_Exemption_06102023.pdf",
+    "title": "SOP Exemption of establishments (legal status/merger duties)",
+    "source_type": "circular",
+    "used_by_reason_ids": [
+      "epfo-rr-147"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.livemint.com/money/personal-finance/epfo-members-can-pay-lic-premium-using-epf-money-details-here-11645255082822.html",
+    "title": "Mint: EPFO members can pay LIC premium using EPF",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-099"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.news18.com/business/savings-and-investments/no-money-for-lic-premium-epfo-lets-you-pay-it-directly-from-your-pf-account-ws-kl-9810317.html",
+    "title": "News18: Form 14 LIC premium from EPF",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-099"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.pensionbazaar.com/epf/uan-aadhaar-link-issue/",
+    "title": "PensionBazaar: UAN Aadhaar link issue",
+    "source_type": "blog",
+    "used_by_reason_ids": [
+      "epfo-rr-162"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.quora.com/Why-was-my-EPF-claim-rejected",
+    "title": "Quora: why was my EPF claim rejected",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-126"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1qdcnw9/epfo_rejecting_my_form31_due_to_insufficient/",
+    "title": "Reddit: Form 31 insufficient member service",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-096"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.reddit.com/r/epfoindia/comments/1taoams/epfo_pf_transfer_stuck_for_4_years_amount/",
+    "title": "Reddit: PF transfer stuck debit not credited",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-144"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.team-bhp.com/forum/shifting-gears/200123-epf-withdrawal-process-experience-tips.html",
+    "title": "Team-BHP: EPF withdrawal process tips",
+    "source_type": "forum",
+    "used_by_reason_ids": [
+      "epfo-rr-127"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://www.teamleaseregtech.com/updates/article/50901/epfo-issued-an-urgent-clarification-regarding-regulation-of-claims-und/",
+    "title": "Teamlease: EPFO clarification regulating EDLI claims / gaps",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-139"
+    ],
+    "use_count": 1
+  },
+  {
+    "url": "https://zeenews.india.com/photos/business/did-you-know-epfo-allows-you-to-finance-your-lic-policy-for-2-years-eligibility-money-amount-and-other-details-explained-2950269",
+    "title": "Zee: finance LIC policy from PF / Form 14",
+    "source_type": "news",
+    "used_by_reason_ids": [
+      "epfo-rr-099"
+    ],
+    "use_count": 1
+  }
+]
