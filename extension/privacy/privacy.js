@@ -5,10 +5,12 @@
   let ui = Object.fromEntries([
     'status', 'expiry', 'inspect', 'fields', 'crop-form', 'crop-controls',
     'crop-x', 'crop-y', 'crop-width', 'crop-height', 'crop-limits', 'capture',
-    'preview-section', 'preview-image', 'slots', 'review-check', 'confirm',
-    'restore-section', 'restore', 'restore-title-text', 'restored-slots',
+    'preview-section', 'preview-image', 'slots', 'first-last', 'review-check', 'confirm',
+    'outbound-section', 'outbound-slots', 'outbound-meta',
+    'restore-section', 'restore', 'restore-title-text', 'local-restore-banner', 'restored-slots',
     'fill-section', 'fill-fields', 'select-filled', 'clear-filled',
     'fill-confirmation', 'fill', 'fill-outcomes',
+    'provider-mode', 'analyze-consent',
     'cancel', 'close',
   ].map((id) => [id, document.getElementById(id)]));
   let port = null;
@@ -49,6 +51,10 @@
     ui['preview-image'].removeAttribute('src');
     ui['review-check'].checked = false;
     ui['fill-confirmation'].checked = false;
+    ui['first-last'].checked = false;
+    ui['analyze-consent'].checked = false;
+    ui['provider-mode'].value = '';
+    ui['provider-mode'].disabled = true;
     for (const input of document.querySelectorAll('input')) {
       input.value = '';
       input.checked = false;
@@ -107,6 +113,7 @@
     ui.capture.disabled = state !== 'inspected';
     ui['review-check'].disabled = state !== 'preview' || !imageReady;
     ui.confirm.disabled = state !== 'preview' || !imageReady || !ui['review-check'].checked;
+    ui['outbound-section'].hidden = !['preview', 'reviewing', 'reviewed', 'restoring', 'restored', 'filling', 'filled'].includes(state);
     ui['restore-section'].hidden = !['reviewed', 'restoring', 'restored', 'filling'].includes(state) && state !== 'filled';
     ui.restore.disabled = state !== 'reviewed';
     ui['fill-section'].hidden = !['restored', 'filling', 'filled'].includes(state);
@@ -115,6 +122,12 @@
     ui['clear-filled'].disabled = state !== 'restored' || !fillChoices.length;
     ui['fill-confirmation'].disabled = state !== 'restored' || !fillChoices.length;
     ui.fill.disabled = state !== 'restored' || !ui['fill-confirmation'].checked || !selectedFillSlots().length;
+    // Dependencies not ready: stay visibly disabled. Never enable Analyze/upload/provider/first-last here.
+    ui['first-last'].checked = false;
+    ui['first-last'].disabled = true;
+    ui['provider-mode'].disabled = true;
+    ui['analyze-consent'].checked = false;
+    ui['analyze-consent'].disabled = true;
     ui.cancel.disabled = false;
     ui['crop-form'].setAttribute('aria-busy', String(busy));
   }
@@ -193,6 +206,29 @@
     tick();
   }
 
+
+  function renderOutbound(slots) {
+    ui['outbound-meta'].textContent = 'Schema: privacy-slots-1 · transport: disabled · tokens issued in vault (not rendered in DOM)';
+    ui['outbound-slots'].replaceChildren();
+    for (const slot of slots) {
+      const item = document.createElement('li');
+      // Safe labels + filled + fixed mask only. Never copy token/value/id/mask metadata into DOM.
+      item.textContent = `${slot.label || 'Unlabelled field'} — Filled: ${slot.filled ? 'yes' : 'no'} — Mask: *** — token: [vault-held, not shown]`;
+      ui['outbound-slots'].append(item);
+    }
+    ui['outbound-section'].hidden = false;
+  }
+
+  function clearLocalApprovals(reason) {
+    if (!alive() || !ui) return;
+    ui['review-check'].checked = false;
+    ui['fill-confirmation'].checked = false;
+    ui['analyze-consent'].checked = false;
+    ui['first-last'].checked = false;
+    if (reason) ui.status.textContent = reason;
+    controls();
+  }
+
   function previewResult(message) {
     if (typeof message.preview !== 'string' || !/^data:image\/png;base64,/.test(message.preview) ||
         message.coverage !== 'fully-masked' || typeof message.approvalTag !== 'string' ||
@@ -211,8 +247,11 @@
       item.textContent = `${slot.label || 'Unlabelled field'} — Filled: ${slot.filled ? 'yes' : 'no'} — Mask: ***`;
       ui.slots.append(item);
     }
+    renderOutbound(message.slots);
     ui['preview-section'].hidden = false;
     ui['review-check'].checked = false;
+    ui['first-last'].checked = false;
+    ui['analyze-consent'].checked = false;
     imageReady = false;
     state = 'preview';
     ui['preview-image'].onload = () => {
@@ -240,6 +279,7 @@
     if (!alive()) return;
     ui['restore-title-text'].hidden = false;
     ui['restore-title-text'].textContent = message.title;
+    ui['local-restore-banner'].hidden = false;
     ui['restored-slots'].replaceChildren();
     ui['fill-fields'].replaceChildren();
     const legend = document.createElement('legend');
@@ -412,6 +452,24 @@
     ui.status.textContent = 'Filling only your selected fields. Submission remains manual…';
     controls();
     send({ type: 'fill', confirmed: true, slots });
+  });
+  ui['first-last'].addEventListener('change', () => {
+    // Contract: first/last stays off for the personal registry set. Any toggle clears approvals.
+    if (!alive()) return;
+    ui['first-last'].checked = false;
+    clearLocalApprovals('First/last preview is unavailable for the current personal safe-label set. Prior review approvals were cleared.');
+  });
+  ui['provider-mode'].addEventListener('change', () => {
+    if (!alive()) return;
+    // Mode/destination changes invalidate approvals even while the control stays disabled for users.
+    ui['provider-mode'].value = '';
+    clearLocalApprovals('Provider/mode or destination change cleared prior Analyze/Fill approvals. Recapture when a destination is available.');
+  });
+  ui['analyze-consent'].addEventListener('change', () => {
+    if (!alive()) return;
+    // Analyze path is not enabled; consent cannot stick.
+    ui['analyze-consent'].checked = false;
+    controls();
   });
   ui.cancel.addEventListener('click', () => {
     if (!alive() || ui.cancel.disabled) return;
