@@ -17,6 +17,7 @@ from backend.evidence import EvidenceError, EvidenceLedger, read_urls
 from backend.languages import LANGUAGES
 from backend.llm import LLMClient, LLMError, Message, ToolCall
 from backend.llm.types import object_json
+from backend.output_validation import evidence_links
 from backend.tools.budget import Budget, BudgetExceeded, BudgetLimits, KnowledgeError
 from backend.tools.knowledge_files import KnowledgeFiles
 
@@ -55,6 +56,9 @@ def _prompt(request: AnalyzeRequest) -> str:
         "has no URL, read that SAME FILE's Sources section and cite BOTH evidence IDs on that "
         "claim. Do not borrow unrelated source URLs. Include only factual supported guidance; "
         "never invent names, claim numbers, dates, amounts, guarantees or completed actions. "
+        "All prose must contain meaningful nonblank text. Warnings, questions and classification "
+        "prose must contain no URLs or link syntax. Evidence-bearing prose may include only plain "
+        "exact URLs from its cited excerpts, never HTML or Markdown links. "
         "Do not put guidance in warnings/questions to evade citations. Do not generate a draft: "
         "the host creates it from cited action text and literal supplied details/placeholders. "
         f"Output language MUST be {request.language} ({name}); write user-facing prose in that "
@@ -112,6 +116,7 @@ def build_response(
     def resolve(block) -> SupportedText:
         entries = ledger.validate_ids(block.evidence_ids)
         actual_urls = {url for entry in entries for url in entry.source_urls}
+        evidence_links(block.text, actual_urls)
         if not set(read_urls(block.text)).issubset(actual_urls):
             raise EvidenceError("Claim contains a URL absent from its evidence.")
         for entry in entries:

@@ -4,6 +4,8 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 **Current priority:** Anish's Level 2 implementation has explicitly resumed; no level is automatically complete. This round stays local with no push or live provider requests. Ajay independently follows five smaller extension levels in the [extension guide](ajay-extension-guide.md), starting at Level 1 only and stopping after each requested level. Existing tests stay. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, defaults to `en`, and exposes enabled languages through capabilities; acceptance is not verified multilingual quality. Anish retains backend/language ownership.
 
+**Additional requirements tracks:** [extension privacy/provider requirements](extension-privacy-and-provider-guide.md) add five advanced **Extension Privacy Levels** for Ajay (`Ajay-B-Acharya`) and three **Extension UI Levels** for Avyakta (`Avyakta-dev`). These do not replace the five original Extension or five Image levels. Avyakta's knowledge role remains priority while its PR is pending; no merged PR or completed level is implied. Shravya (`Shravya2820`) retains main web UI; Anish (`iotserver24`) approves shared contracts. All new levels are requirements, not implemented features.
+
 ## Shared rules
 
 - The three broad levels below apply to Anish, Avyakta and Shravya; Ajay independently uses the five smaller extension levels in his section and guide. Resuming Anish's Level 2 does not authorize advancing Ajay's levels or declare either track complete.
@@ -81,6 +83,18 @@ These levels turn the [ownership plan](planning/hackathon-plan.md#7-team-ownersh
 
 **Done when:** the team can explain where guidance came from, its limits, and how source changes propagate to Markdown.
 
+### Separate extension UI track — Avyakta
+
+Knowledge Levels 1–3 above remain unchanged and priority while their PR is pending. The following UI work needs a separate explicit request; it does not reassign Shravya's main web frontend or Ajay's security/transport logic.
+
+| Track/level | Small deliverable and linked acceptance artifact |
+| --- | --- |
+| [Extension UI Level 1](extension-privacy-and-provider-guide.md#extension-ui-level-1--privacy-ux-mocks) | Synthetic privacy-flow mocks: mask/crop preview, local-only first/last opt-in, destination disclosure, separate Analyze/Fill and blocked states. |
+| [Extension UI Level 2](extension-privacy-and-provider-guide.md#extension-ui-level-2--controls-preview-and-renderer-integration) | Integrate approved controls, sanitized preview, provider options and safe result renderer; record synthetic flow and stale-state checks. |
+| [Extension UI Level 3](extension-privacy-and-provider-guide.md#extension-ui-level-3--accessibility-errors-and-completion) | Accessibility/error/completion matrix and extension UI handoff; distinguish analysis, restoration, Fill and manual submission. |
+
+Stop/report after each requested level. Disabled dependencies stay visibly unavailable, not mock success presented as live behavior.
+
 ## Shravya — frontend and user experience
 
 **Read first:** [citation/response design](planning/markdown-agent-design.md#citation-and-response-contract), [frontend/API plan](planning/hackathon-plan.md), historical [PRD](text/saral-sahayak-prd.md) and [presentation](pdfs/setu-inferentia-public.pdf). Shravya retains web UI ownership and coordinates shared labels, response states, citations and accessibility with Ajay's [extension work](ajay-extension-guide.md); this does not transfer the web UI to him.
@@ -125,3 +139,21 @@ Build a Chrome/Brave MV3 popup using the same backend; a service worker is optio
 | 5 | Security/accessibility/browser regression and handoff | Check Chrome/Brave, limits, aborts, stale async completions, safe sources and transient storage. Record pass/fail/not-run; ZIP only if asked, no store publishing. Stop. |
 
 Levels 1–3 need no live agent. Level 4's successful production analysis still depends on the absent corpus and authorized model/grounding evaluation; resumed agent implementation and honest 503 transport tests are not end-to-end success. Read capabilities and offer only enabled languages rather than hardcoding the six accepted codes; none has verified quality. Keep existing backend tests, no keys or broad data collection, and follow the guide's 8,000-character/32,768-byte UTF-8 body limits. Start **Level 1 only**, then wait for an explicit request before each next level.
+
+### Separate advanced extension privacy track — Ajay
+
+The [main privacy/provider guide](extension-privacy-and-provider-guide.md) supplies detailed requirements and acceptance artifacts. Ajay owns security implementation; Avyakta owns extension UI; Anish approves shared contracts. No feature or check below is claimed implemented.
+
+| Track/level | Small deliverable and linked acceptance artifact |
+| --- | --- |
+| [Extension Privacy Level 1](extension-privacy-and-provider-guide.md#extension-privacy-level-1--threat-contract) | Threat/data-flow contract: prohibited secrets, vault bindings/TTL, masking, consent and mode boundaries; planning only. |
+| [Extension Privacy Level 2](extension-privacy-and-provider-guide.md#extension-privacy-level-2--client-vault-and-redacted-capture) | Isolated client vault and sanitized pixel capture with crop/block fail-closed behavior; synthetic lifecycle/preview evidence. |
+| [Extension Privacy Level 3](extension-privacy-and-provider-guide.md#extension-privacy-level-3--placeholder-filling-and-local-restoration) | Opaque token filling, validated one-pass local restoration and separately approved exact-field Fill; adversarial token/output checks. |
+| [Extension Privacy Level 4](extension-privacy-and-provider-guide.md#extension-privacy-level-4--provider-settings-and-modes) | Trusted API-base/model/key settings and backend/direct/optional companion modes; secret/permission/grounding matrix. |
+| [Extension Privacy Level 5](extension-privacy-and-provider-guide.md#extension-privacy-level-5--cross-mode-security-acceptance) | Cross-mode/browser security acceptance and handoff, limitations and blockers; no automatic submission or privacy guarantees. |
+
+Use request-bound placeholders, filled flags and safe labels only at the AI boundary; no sensitive values, partial characters or length hints. Preview stars/optional non-sensitive first-last masks stay local. No original screenshot/base64 transmission; future redacted-image upload requires the separately approved image path. Identical redaction applies to remote and local models. Stop/report after each explicitly requested level; issue creation is the coordinator's separate task.
+
+### Separate image/OCR track
+
+**Separate image/OCR handoff:** Ajay leads image implementation and tests; Anish approves shared backend/API/protocol/security changes. The [secure image guide](ajay-image-input-guide.md) defines five separate Image Levels, starting with planning/contracts only. It does not implement or automatically advance image or extension work.
