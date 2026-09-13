@@ -139,6 +139,18 @@ This supplies the same **bounded worker-only observation** as Brave, not popup-t
 - No keys, real claimant details, documents, original screenshots or HARs were staged. The desktop images contain unrelated browser chrome and remain outside Git. The extension was reloaded only after its synthetic data were cleared.
 - Issue 6 remains OPEN. Both browsers now have individual forward-focus evidence; full reverse/zoom/assistive checks and popup-plus-worker network coverage remain outstanding. Spoken screen-reader output is not available in this tool channel and requires independently recorded assistive acceptance. No issue or later dependency is closed by this fix.
 
+## Brave reverse traversal and label visibility — 2026-09-13
+
+Baseline `dbe3c47`; actual Brave toolbar popup after extension reload, no provider or backend action. The merged Clear-reset fix was verified: Enter on focused Clear retained a fully visible label and focus outline without Ctrl+End.
+
+With AI setup closed and no backend connection, each of the eleven reverse transitions was individually observed in full-display screenshots: Clear → Save & scan → AI setup → file control → Address → Phone → Email → Full name → Connect backend → Rejection remark → Detect → Open local-only privacy capture. No intervening control was activated. **PASS: complete reverse reachability for this initial state**, not expanded setup or later workflow states.
+
+The same run found a visual defect: reverse scrolling placed Email and Full name against the top viewport edge, hiding their labels and clipping the top focus outline; Detect's top outline was clipped too. The CSS fix extends the existing Clear-only 8px scroll margin to popup controls and gives directly labelled field inputs/selects/textareas a 32px top margin. It changes scroll positioning only, not layout dimensions, focus ownership, capture, storage or network behavior.
+
+After reopening the actual popup to load the CSS, traversed to Clear and reversed to Email and Full name. Both labels and the complete focus outlines were now visible with space above them. **PASS: before/after Brave regression for those two fields.** No claim of universal zoom, every control's visual retest, or screen-reader announcement quality follows from that check. The Clear-specific 8px margin remains preserved through the shared rule.
+
+An attempted Ctrl+= zoom check dismissed the popup and enlarged the extensions management page instead. Two Ctrl+- presses restored the observed page scale. That attempt is excluded from popup zoom evidence. Chrome reverse traversal, expanded-setup reverse traversal, popup-target network instrumentation and spoken assistive output remain NOT RUN. No credentials, private values, capture, Analyze, Fill or external request action was used; screenshots containing unrelated browser chrome were not committed.
+
 ## Manifest beyond original Level 1
 
 Current `manifest.json` is MV3 with `background.js`, `activeTab`, `scripting`, `storage`, OpenAI host permission and loopback host permission. There is no manifest-declared persistent content script. The popup includes a general form assistant and a separate EPFO path. It is **not** a zero-permission/offline-only extension. Keys/profile/file state currently use trusted extension session storage; this is not the approved future isolated privacy vault.
