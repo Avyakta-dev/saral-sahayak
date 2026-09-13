@@ -128,6 +128,20 @@ afterEach(() => {
 });
 
 describe('API discovery and explicit consent', () => {
+  it('disables unsupported live image actions with an explanation but preserves local examples', async () => {
+    const { fake } = await ready();
+    expect(screen.getByRole('button', { name: /Add a screenshot/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Take a photo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Add a screenshot/ })).toHaveAccessibleDescription(
+      'Text-only analysis after approval. No images sent.',
+    );
+    fireEvent.click(screen.getByLabelText('Add a file'));
+    expect(screen.getByRole('button', { name: /Upload an image/ })).toBeDisabled();
+    expect(fake.analyze).not.toHaveBeenCalled();
+    examples();
+    expect(screen.getByRole('button', { name: /Add a screenshot/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Upload an image/ })).toBeEnabled();
+  });
   it('discovers metadata only, gates pending capabilities and sends nothing until explicit Analyze', async () => {
     const metadata = deferred<Capabilities>();
     const fake = client();

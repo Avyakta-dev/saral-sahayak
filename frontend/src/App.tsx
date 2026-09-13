@@ -797,36 +797,54 @@ export default function App({
               detail: connectionMessage,
             };
 
+  // "Fully ready" = actually working, with nothing pending for the user to act on.
+  // A failure (including access_denied, which is deliberately still "ready" above -
+  // capability metadata is not gateway authorization) must keep the detail visible.
+  const isFullyReady = backendStatus.kind === 'ready' && !connectionFailure;
+
   const composer = (
     <div className="composer-dock">
       {mode === 'api' && (
         <div className="api-connection" data-state={connectionState}>
-          <aside className="demo-readiness" aria-label={t('analysisReadiness')} lang={locale}>
-            <p className={`backend-status backend-status-${backendStatus.kind}`} role="status">
-              {backendStatus.label}
-            </p>
-            {backendStatus.detail && backendStatus.detail !== connectionMessage && (
-              <p>{backendStatus.detail}</p>
-            )}
-            <p lang={locale}>{t('readinessCaveat')}</p>
-          </aside>
-          <p role="status" lang={locale}>
-            {connectionMessage}
-          </p>
-          <div className="api-connection-actions">
-            <button
-              type="button"
-              className="text-button"
-              onClick={refreshConnection}
-              disabled={!configuration.client || connectionState === 'loading' || refreshes >= 2}
-            >
-              {t('refreshConnection')}
-            </button>
-            <button type="button" className="text-button" onClick={useExamples}>
-              {t('useExamples')}
-            </button>
-          </div>
-          {refreshes >= 2 && <small>{t('refreshLimit', { count: 2 })}</small>}
+          {/* Only surface this once things are NOT simply working: the honesty
+              requirement is that a real failure must never be hidden behind a
+              silent fixture swap, not that a working connection needs a running
+              status commentary every time it's fine. */}
+          {!isFullyReady && (
+            <>
+              <aside className="demo-readiness" aria-label={t('analysisReadiness')} lang={locale}>
+                <p
+                  className={`backend-status backend-status-${backendStatus.kind}`}
+                  role="status"
+                >
+                  {backendStatus.label}
+                </p>
+                {backendStatus.detail && backendStatus.detail !== connectionMessage && (
+                  <p>{backendStatus.detail}</p>
+                )}
+                <p lang={locale}>{t('readinessCaveat')}</p>
+              </aside>
+              <p role="status" lang={locale}>
+                {connectionMessage}
+              </p>
+              <div className="api-connection-actions">
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={refreshConnection}
+                  disabled={
+                    !configuration.client || connectionState === 'loading' || refreshes >= 2
+                  }
+                >
+                  {t('refreshConnection')}
+                </button>
+                <button type="button" className="text-button" onClick={useExamples}>
+                  {t('useExamples')}
+                </button>
+              </div>
+              {refreshes >= 2 && <small>{t('refreshLimit', { count: 2 })}</small>}
+            </>
+          )}
         </div>
       )}
       {clarification && (
@@ -936,7 +954,8 @@ export default function App({
               <div className="attachment-options">
                 <button
                   type="button"
-                  disabled={pending || readingFile}
+                  disabled={pending || readingFile || (mode === 'api' && !imageEnabled)}
+                  title={mode === 'api' && !imageEnabled ? t('liveLimit') : undefined}
                   onClick={() => {
                     closeMenu();
                     fileInput.current?.click();
@@ -950,7 +969,8 @@ export default function App({
                 </button>
                 <button
                   type="button"
-                  disabled={pending || readingFile}
+                  disabled={pending || readingFile || (mode === 'api' && !imageEnabled)}
+                  title={mode === 'api' && !imageEnabled ? t('liveLimit') : undefined}
                   onClick={() => {
                     closeMenu();
                     cameraInput.current?.click();
@@ -981,14 +1001,16 @@ export default function App({
             <button
               className="icon-button camera-shortcut"
               type="button"
-              disabled={pending || readingFile}
+              disabled={pending || readingFile || (mode === 'api' && !imageEnabled)}
               onClick={() => cameraInput.current?.click()}
               aria-label={t('photo')}
-              title={t('cameraTitle')}
+              title={mode === 'api' && !imageEnabled ? t('liveLimit') : t('cameraTitle')}
             >
               <Camera size={19} aria-hidden="true" />
             </button>
-            <span className="composer-formats">{t('textImages')}</span>
+            <span className="composer-formats">
+              {mode === 'api' && !imageEnabled ? t('capabilityText') : t('textImages')}
+            </span>
           </div>
           <div className="send-tools">
             {readingFile ? (
@@ -1193,7 +1215,8 @@ export default function App({
               <button
                 className="starter-card"
                 type="button"
-                disabled={readingFile}
+                disabled={readingFile || (mode === 'api' && !imageEnabled)}
+                aria-describedby={mode === 'api' && !imageEnabled ? 'image-unavailable' : undefined}
                 onClick={() => fileInput.current?.click()}
               >
                 <span className="starter-illustration image-illustration">
@@ -1201,7 +1224,9 @@ export default function App({
                 </span>
                 <span>
                   <strong>{t('addScreenshot')}</strong>
-                  <small>{t('dropCaption')}</small>
+                  <small id="image-unavailable">
+                    {mode === 'api' && !imageEnabled ? t('liveLimit') : t('dropCaption')}
+                  </small>
                 </span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
@@ -1499,8 +1524,12 @@ export default function App({
             <span>{t('capabilityText')}</span>
           </li>
           <li>
-            <Check size={17} aria-hidden="true" />
-            <span>{t('capabilityImage')}</span>
+            {mode === 'api' && !imageEnabled ? (
+              <CircleAlert size={17} aria-hidden="true" />
+            ) : (
+              <Check size={17} aria-hidden="true" />
+            )}
+            <span>{mode === 'api' && !imageEnabled ? t('liveLimit') : t('capabilityImage')}</span>
           </li>
           <li>
             <Check size={17} aria-hidden="true" />

@@ -100,7 +100,12 @@ class FinalAnalysis(StrictModel):
 TOOLS = (
     ToolDefinition(
         name="list_files",
-        description="List a bounded page of public Markdown paths. No recursive listing.",
+        description=(
+            "List a bounded page of public Markdown paths. No recursive listing. "
+            "Use an entry's relative_path as read_file.relative_path for a file, or as "
+            "list_files.relative_dir for a directory. Use the page's relative_dir for pagination. "
+            "Returned path fields are canonical citation paths, NOT tool-input paths."
+        ),
         parameters=ListFilesArgs.model_json_schema(),
     ),
     ToolDefinition(
@@ -109,6 +114,9 @@ TOOLS = (
             "Read a bounded public Markdown excerpt, using a root-relative path (e.g. "
             "reasons/epfo-rr-001.md), exact heading or start_line, or continuation cursor. "
             "Returns immutable evidence_id, exact heading, line/column range and literal URLs. "
+            "Use returned relative_path for subsequent reads. Returned path is the canonical "
+            "citation path, NOT a tool input: references/knowledge/epfo/reasons/epfo-rr-001.md "
+            "is cited as-is, but the tool input is reasons/epfo-rr-001.md. "
             "An excerpt with heading=null is navigation only and cannot be cited. "
             "Use one scalar heading string per call; batch separate calls for multiple sections. "
             "Do not re-read the same path and heading already returned. "

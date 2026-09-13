@@ -155,6 +155,43 @@ def test_listing_pages_and_cursor_binding(root):
         assert not tools.ledger.entries
 
 
+@pytest.mark.parametrize("prefix", ["references/knowledge/epfo", "public/docs"])
+def test_tool_paths_round_trip_without_changing_citation_namespace(root, prefix):
+    (root / "reasons").mkdir()
+    (root / "reasons" / "epfo-rr-001.md").write_text("## Fix\nSynthetic guidance.\n")
+    with KnowledgeFiles(root, budget=generous(), citation_prefix=prefix) as tools:
+        top = tools.list_files()
+        assert top.relative_dir == ""
+        directory = next(entry for entry in top.entries if entry.type == "directory")
+        assert directory.relative_path == "reasons"
+        page = tools.list_files(directory.relative_path)
+        assert page.relative_dir == "reasons"
+        entry = page.entries[0]
+        assert entry.path == f"{prefix}/reasons/epfo-rr-001.md"
+        assert entry.relative_path == "reasons/epfo-rr-001.md"
+        first = tools.read_file(entry.relative_path, heading="Fix", max_lines=1)
+        second = tools.read_file(first.relative_path, cursor=first.next_cursor)
+        assert first.relative_path == second.relative_path == entry.relative_path
+        assert first.path == second.path == entry.path
+        canonical = tools.ledger.get(first.evidence_id)
+        assert canonical.path == entry.path
+        assert "relative_path" not in canonical.model_dump()
+        # Citation paths do not become aliases accepted by the filesystem boundary.
+        with pytest.raises(KnowledgeError) as error:
+            tools.read_file(entry.path, heading="Fix")
+        assert error.value.code == "read_denied"
+        with pytest.raises(KnowledgeError):
+            tools.read_file(f"{prefix}/../README.md")
+
+
+def test_listing_navigation_metadata_is_charged(root):
+    with KnowledgeFiles(root) as tools:
+        result = tools.list_files()
+        assert result.entries[0].relative_path == "README.md"
+        assert tools.budget.usage.output_bytes == len(result.model_dump_json().encode("utf-8"))
+        assert tools.budget.usage.output_tokens == tools.budget.usage.output_bytes
+
+
 def test_line_pages_and_citation_prefix(root):
     content = "".join(f"line {i}\n" for i in range(125))
     (root / "doc.md").write_text(content)

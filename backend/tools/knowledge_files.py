@@ -23,18 +23,22 @@ from backend.tools.budget import Budget, BudgetExceeded, KnowledgeError
 class FileEntry(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     path: str
+    relative_path: str
     type: Literal["directory", "file"]
 
 
 class ListResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     path: str
+    relative_dir: str
     entries: tuple[FileEntry, ...]
     truncated: bool
     next_cursor: str | None = None
 
 
 class ReadResult(EvidenceEntry):
+    # Tool navigation only; the immutable ledger retains the canonical citation path.
+    relative_path: str
     truncated: bool
     next_cursor: str | None = None
 
@@ -205,7 +209,15 @@ class KnowledgeFiles:
             path = "/".join([self.citation_prefix, *parts])
             result = ListResult(
                 path=path,
-                entries=tuple(FileEntry(path=f"{path}/{name}", type=kind) for name, kind in page),
+                relative_dir=relative_dir,
+                entries=tuple(
+                    FileEntry(
+                        path=f"{path}/{name}",
+                        relative_path="/".join([*parts, name]),
+                        type=kind,
+                    )
+                    for name, kind in page
+                ),
                 truncated=truncated,
                 next_cursor=next_cursor,
             )
@@ -383,7 +395,10 @@ class KnowledgeFiles:
                 source_urls=read_urls(url_text),
             )
             result = ReadResult(
-                **entry.model_dump(), truncated=bool(next_position), next_cursor=next_cursor
+                **entry.model_dump(),
+                relative_path=relative_path,
+                truncated=bool(next_position),
+                next_cursor=next_cursor,
             )
             self.budget.check(deadline)
             self.budget.charge_output(result)
