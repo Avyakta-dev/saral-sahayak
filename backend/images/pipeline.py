@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import logging
 import secrets
 import time
 import warnings
@@ -17,6 +18,7 @@ from backend.tools.budget import Budget, KnowledgeError
 from .config import ImageConfig
 from .extractor import extract_rejection_text
 from .storage import (
+    DELETE_TIMEOUT_SECONDS,
     InvalidImage,
     R2Storage,
     StorageError,
@@ -28,6 +30,9 @@ from .storage import (
 _NOT_ADMITTED = "That image reference is not accepted."
 _UNAVAILABLE = "Image input is unavailable."
 _FORMATS = {"image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WEBP"}
+_LOG = logging.getLogger(__name__)
+# Separate from the analysis budget: cleanup must still run after that expires.
+CLEANUP_TIMEOUT_SECONDS = DELETE_TIMEOUT_SECONDS
 
 
 @dataclass(frozen=True, repr=False)
@@ -76,13 +81,16 @@ def validate_image(
                 image.verify()
             with Image.open(io.BytesIO(data)) as image:
                 image.load()  # Reject truncated/invalid raster data, not just its header.
-                oriented = ImageOps.exif_transpose(image)
-                rgba = oriented.convert("RGBA")
-                flattened = Image.new("RGB", rgba.size, "white")
-                flattened.paste(rgba, mask=rgba.getchannel("A"))
-                output = _BoundedOutput(config.max_bytes)
-                flattened.save(output, format="PNG")
-                return output.getvalue()
+                with (
+                    ImageOps.exif_transpose(image) as oriented,
+                    oriented.convert("RGBA") as rgba,
+                    Image.new("RGB", rgba.size, "white") as flattened,
+                    rgba.getchannel("A") as alpha,
+                    _BoundedOutput(config.max_bytes) as output,
+                ):
+                    flattened.paste(rgba, mask=alpha)
+                    flattened.save(output, format="PNG")
+                    return output.getvalue()
     except (
         UnidentifiedImageError,
         OSError,
@@ -91,7 +99,8 @@ def validate_image(
         Image.DecompressionBombError,
         Image.DecompressionBombWarning,
     ):
-        raise InvalidImage() from None
+        pass
+    raise InvalidImage()
 
 
 class ImagePipeline:
@@ -110,13 +119,16 @@ class ImagePipeline:
         self.storage = storage if storage is not None else R2Storage(config)
         _endpoint = urlsplit(config.endpoint)
         self._image_host = _endpoint.hostname
+        invalid_port = False
         try:
             # .port raises ValueError for an out-of-range/non-numeric port instead of
             # returning None; ImageConfig.https_origin doesn't validate port syntax, so
             # this must not escape as an unhandled ValueError past this typed error.
             self._image_port = _endpoint.port
         except ValueError:
-            raise StorageError(_UNAVAILABLE) from None
+            invalid_port = True
+        if invalid_port:
+            raise StorageError(_UNAVAILABLE)
         if not self._image_host:
             # ImageConfig.https_origin already guarantees a truthy hostname, so this
             # should never fire; it exists so a broken invariant fails loud here rather
@@ -144,13 +156,53 @@ class ImagePipeline:
         }
         if len(self._tickets) >= self.config.max_pending_tickets:
             raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
+        failed = False
         try:
             key = new_object_key(self.config, content_type)
             url, ttl = self.storage.presign_put(key, content_type, content_length)
         except StorageError:
-            raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503) from None
+            failed = True
+        if failed:
+            raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
         self._tickets[key] = _Ticket(content_type, content_length, language, now + ttl)
         return key, url, ttl
+
+    async def _cleanup(self, *keys: str) -> None:
+        """Join each bounded delete even if the caller is repeatedly cancelled.
+
+        Only cleanup is shielded, never the image/model work. Every created task is
+        retrieved before returning; cancellation is re-raised after both attempts.
+        The storage implementation must cooperate with cancellation (R2Storage does).
+        """
+        cancelled = False
+
+        async def delete(key: str) -> None:
+            try:
+                async with asyncio.timeout(CLEANUP_TIMEOUT_SECONDS):
+                    await self.storage.delete(key)
+            except Exception:
+                # A cleanup error must not replace the result or original safe error.
+                # Never include the exception, key or storage response in logs.
+                _LOG.warning("Image cleanup failed; configured lifecycle must expire the object.")
+
+        for key in keys:
+            task = asyncio.create_task(delete(key))
+            while not task.done():
+                try:
+                    await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    cancelled = True
+            if task.cancelled():
+                cancelled = True
+            else:
+                task.result()
+        if cancelled:
+            raise asyncio.CancelledError()
+
+    def _check_ticket(self, ticket: _Ticket, budget: Budget) -> None:
+        budget.check()
+        if ticket.expires_at <= self._clock():
+            raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422)
 
     async def extract(self, image_key: str, budget: Budget, *, language: str = "en") -> str:
         # Check and consume synchronously before the first await. The opaque key is
@@ -163,6 +215,7 @@ class ImagePipeline:
             raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422)
         provider_key = None
         acquired = False
+        failure = None
         try:
             if ticket.expires_at <= self._clock() or ticket.language != language:
                 raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422)
@@ -174,18 +227,19 @@ class ImagePipeline:
                 data = await self.storage.read(
                     image_key, ticket.content_type, ticket.content_length
                 )
-                budget.check()
+                self._check_ticket(ticket, budget)
                 validated = await joined_thread(
                     validate_image, data, ticket.content_type, ticket.content_length, self.config
                 )
-                budget.check()
+                self._check_ticket(ticket, budget)
                 # Not CopyObject: use exactly the decoded bytes, never mutable inbox.
                 # This key has never had a PUT signature; only server writes it once.
                 provider_key = f"validated/{secrets.token_hex(16)}.png"
                 await self.storage.put_validated(provider_key, validated)
-                budget.check()
+                self._check_ticket(ticket, budget)
                 image_url = self.storage.presign_get(provider_key)
-                return await extract_rejection_text(
+                self._check_ticket(ticket, budget)
+                text = await extract_rejection_text(
                     self.client,
                     image_url,
                     budget,
@@ -195,25 +249,34 @@ class ImagePipeline:
                     allowed_port=self._image_port,
                 )
         except InvalidImage:
-            raise AnalysisError("image_not_admitted", _NOT_ADMITTED, 422) from None
+            failure = AnalysisError("image_not_admitted", _NOT_ADMITTED, 422)
         except StorageError:
-            raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503) from None
+            failure = AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
         except KnowledgeError:
-            raise AnalysisError(
+            failure = AnalysisError(
                 "budget_exhausted", "Analysis exceeded its request budget.", 503
-            ) from None
+            )
         except TimeoutError:
-            raise AnalysisError("analysis_timeout", "Analysis timed out.", 504) from None
+            failure = AnalysisError("analysis_timeout", "Analysis timed out.", 504)
         finally:
-            # Joined writes cannot complete after this cleanup. Storage retries twice;
-            # mandatory lifecycle covers failures, crashes, abandonment and late PUTs.
+            # Joined writes cannot complete after cleanup. Both deletes have their
+            # own deadline; a stalled inbox delete cannot skip the validated copy.
             try:
-                try:
-                    await self.storage.delete(image_key)
-                finally:
-                    # Cancellation/failure of inbox cleanup must not skip the copy.
-                    if provider_key is not None:
-                        await self.storage.delete(provider_key)
+                keys = (image_key,) if provider_key is None else (image_key, provider_key)
+                await self._cleanup(*keys)
             finally:
                 if acquired:
                     self._active -= 1
+        # No raw SDK/decode error remains active when the sanitized error is raised.
+        if failure is not None:
+            raise failure
+        # Cleanup time cannot grant the downstream text agent a fresh allowance.
+        try:
+            budget.check()
+        except KnowledgeError:
+            failure = AnalysisError(
+                "budget_exhausted", "Analysis exceeded its request budget.", 503
+            )
+        if failure is not None:
+            raise failure
+        return text

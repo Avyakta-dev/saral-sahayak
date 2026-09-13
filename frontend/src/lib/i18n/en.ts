@@ -278,6 +278,156 @@ export const en = {
   errorTextLength:
     'Keep the text file within 8,000 Unicode characters, including surrounding spaces.',
   errorTextBlank: 'This text file has no readable text. Add some text and try again.',
+
+  aboutApi: 'About API analysis',
+  useApi: 'Use API',
+  useExamples: 'Use examples',
+  refreshConnection: 'Refresh connection',
+  readinessCaveat:
+    'Availability is configuration and structure metadata, not authorization, verified model connectivity, policy accuracy or language quality.',
+  sourceHint:
+    'Grounded EPFO guidance with Markdown evidence and original source URLs. Ask for clarification or abstain when evidence is insufficient.',
+  enabledLanguagesFooter: '{count} enabled languages · quality flags are metadata',
+  exampleLanguagesFooter: '{count} example languages · quality unreviewed',
+  serverAccess: 'Server-controlled access',
+  sampleGalleryTitle: 'Explore sample replies',
+  sampleGalleryNote: 'These examples never analyze your own message.',
+  serviceLanguages: 'Service language capabilities',
+  exampleLanguages: 'Example language capabilities',
+  serviceLanguageNote:
+    'Languages come only from the service capabilities response. Quality flags are reported metadata, not an independent review.',
+  exampleLanguageNote:
+    'The language selector uses this validated offline response, not a live service check. Sample translations have not been independently reviewed.',
+  qualityUnverified: 'Quality not verified',
+
+  failureConfiguration:
+    'The analysis service configuration is invalid. Ask the site operator to check it.',
+  failureAccess:
+    'Analysis access was denied. Ask the site operator to configure the trusted gateway. Do not enter access tokens or provider keys in this UI.',
+  failureCapacity:
+    'The analysis service is at capacity. Try later; this request will not be retried.',
+  failureTimeout: 'The service took too long to respond. Your text is still here.',
+  failureCancelled: 'The request was cancelled. Your text is still here.',
+  failureRequest:
+    'The service could not accept this text. Edit or shorten it before sending again.',
+  failureLanguage:
+    'This language is no longer enabled. Refresh the connection and choose an enabled language.',
+  failureReadiness:
+    'Analysis is unavailable until the service configuration or knowledge is ready.',
+  failureBudget:
+    'The analysis budget was exhausted. Edit the remark with a shorter, focused question.',
+  failureResponse: 'The service returned an unreadable response. No guidance has been substituted.',
+  failureUnknown: 'The analysis service could not complete the request. Your text is still here.',
+  connectionChecking: 'Checking service capabilities… No claim text is sent.',
+  connectionReady: 'Text analysis is configured. Review your text before sending.',
+  connectionUnavailable: 'Text analysis is unavailable. Refresh the connection or use examples.',
+  gatewayNotReady: 'Analysis gateway not ready',
+  backendChecking: 'Checking analysis backend…',
+  backendUnreachable: 'Analysis backend unreachable',
+  backendNotReady: 'Backend reachable — analysis not ready',
+  backendReady: 'Analysis available (config + structure only)',
+  backendReadyDetail:
+    'Not a policy, connectivity, or language-quality certificate. Synthetic inputs only.',
+  waitingModel: 'Waiting on: model configuration.',
+  waitingKnowledge: 'Waiting on: knowledge corpus structure.',
+  waitingBoth: 'Waiting on: model configuration and knowledge corpus structure.',
+  analysisReadiness: 'Analysis readiness',
+  refreshLimit: 'Connection refresh limit reached ({count}). Reload to start a new connection.',
+  clarificationContext: 'Clarification context',
+  clarificationPrompt: 'Add these details to your original remark',
+  imageLocalText: 'Image stays local. Paste its wording; only typed text is sent.',
+  imageAddedApproved: 'Image added locally. It is uploaded only if you approve analysis.',
+  languagesUnavailable: 'Languages unavailable',
+  serviceLanguageTitle:
+    'Enabled languages reported by the service; quality flags are metadata only',
+  exampleLanguageTitle:
+    'Enabled languages from the offline capabilities example; sample quality is unreviewed',
+  answerUnreachable: 'Could not reach an answer',
+  analysisWaiting: 'Waiting for the analysis service…',
+  retryExplanationOne:
+    'Retry resends the same text to the analysis service. Up to {count} manual retry per message.',
+  retryExplanationOther:
+    'Retry resends the same text to the analysis service. Up to {count} manual retries per message.',
+  retryAnalysis: 'Retry analysis',
+  retryLimit: 'Retry limit reached. Edit the remark or try later.',
+  noAutomaticRetry: 'No automatic retry.',
+  gallerySuccess: 'A detail needs review',
+  galleryClarification: 'More context needed',
+  galleryUnsupported: 'Insufficient evidence',
+  galleryError: 'Service unavailable',
+  gallerySuccessDescription: 'Synthetic explanation, citations and a non-submittable draft.',
+  galleryClarificationDescription: 'An imaginary question, without guidance or a draft.',
+  galleryUnsupportedDescription: 'A limitation notice, without unsupported advice.',
+  galleryErrorDescription: 'A fictional unavailable-service notice, not a live backend check.',
+  serviceQualityTrue: 'Service quality flag: true',
+  fixtureQualityTrue: 'Fixture quality flag: true',
+  serviceAvailability:
+    'Service analysis availability: {state}. Availability describes configuration and structural checks, not verified connectivity, accurate guidance or fluent output.',
+  fixtureAvailability:
+    'Fixture analysis availability: {state}. Availability describes configuration and structural checks, not verified connectivity, accurate guidance or fluent output.',
+  configuredState: 'configured',
+  unavailableState: 'unavailable',
+  sampleQualityNote: 'Sample language quality has not been independently reviewed.',
+  serviceQualityNote:
+    'The service reports reviewed language quality; this does not guarantee this answer.',
+  outputQualityNote: 'Output language quality has not been independently verified.',
+  classificationUncertainty: 'Classification uncertainty',
+  classificationConfidence: 'Classification confidence:',
+  sampleConfidenceNote: 'A sample label, not policy certainty or source verification.',
+  liveConfidenceNote:
+    'Classification confidence is not source verification or a guarantee of the outcome.',
+  errorCode: 'Error code:',
+  tryAgain: 'Try again',
+  notChatbot: 'Not a general chatbot',
+  evidencePrinciple: 'Cites EPFO Markdown paths and original source URLs from the evidence ledger.',
+  abstentionPrinciple: 'Abstains or asks for clarification when evidence is thin.',
+  draftPrinciple: 'Checklists and drafts come from cited blocks, not free-form chat.',
+  downloadDraft: 'Download draft',
+  downloadingDraft: 'Preparing…',
+  downloadedDraft: 'Draft downloaded, including disclosures.',
+  downloadDraftError: 'Could not download. Use Copy draft instead.',
+  columnEndpoints: 'Column endpoints (zero-based)',
+  columnRange: 'Line {startLine}, column {startColumn} → line {endLine}, column {endColumn}',
+  exportSource: 'Source {id} ({provenance})',
+  exportSynthetic: 'synthetic, unverified',
+  exportService: 'supplied by the analysis service; not independently verified',
+  exportRecord: 'Record ID: {record}',
+  exportSupporting: 'supporting document',
+  exportHeading: 'Heading: {heading}',
+  exportLines: 'Lines: {start}–{end}',
+  exportColumns: '; zero-based columns: {start}–{end}',
+  unreachableBase:
+    'Could not reach {base}. Is the API running, and does CORS_ORIGINS include this page origin?',
+  unreachableSameOrigin:
+    'No separate API base (same-origin). Start the backend and set VITE_API_BASE_URL for local demos.',
+  unavailableModel:
+    'Analysis is not available on this server right now (model configuration). Your message was not turned into guidance.',
+  unavailableKnowledge:
+    'Analysis is not available on this server right now (knowledge corpus structure). Your message was not turned into guidance.',
+  unavailableBoth:
+    'Analysis is not available on this server right now (model configuration and knowledge corpus structure). Your message was not turned into guidance.',
+  unavailableGeneric:
+    'Analysis is not available on this server right now (model configuration or knowledge gates). Your message was not turned into guidance.',
+  transportUnreachable: 'The analysis service could not be reached.',
+  transportAccess:
+    'Analysis access was denied by the server (protected mode). Browser demos must not send ANALYSIS_ACCESS_TOKEN; use local mode or a gateway.',
+  transportCapacity:
+    'Analysis capacity is limited right now (HTTP 429). Wait briefly, then retry once; do not spam Send.',
+  transportTimeout:
+    'Analysis timed out before a complete answer. Raise reviewed budgets only when authorized; do not invent success.',
+  downloadSample: 'Download sample',
+  downloadedSample: 'Sample downloaded, including its disclosures.',
+  downloadSampleError: 'Could not download. Use Copy sample instead.',
+  noticeLanguageService: 'That language is not enabled by the service. The default is selected.',
+  noticeLanguageExample:
+    'That language is not enabled in this capabilities example. The default is selected.',
+  noticeCapabilitiesAnalysis: 'Capabilities changed; the pending analysis was cancelled.',
+  noticeCapabilitiesExample: 'Capabilities changed; the pending example was cancelled.',
+  imageAddedDisabled: 'Image added locally. Image analysis is not enabled on this backend.',
+  noticeAnalysisCancelled: 'Analysis cancelled. Your text is still here; edit it or analyze again.',
+  noticeExampleMode: 'Example mode. Nothing is sent; your input is preserved.',
+  noticeApiMode: 'API mode. Review your text before choosing Analyze text.',
+  noticeExampleLoaded: 'Example reply loaded. This is not live analysis.',
 } as const;
 
 export type MessageKey = keyof typeof en;

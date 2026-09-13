@@ -288,6 +288,15 @@ async def test_unsafe_or_malformed_output_stops_without_downstream_work(payload)
         await run(client)
     assert error.value.code in {"image_unreadable", "invalid_image_output"}
     assert len(client.calls) == 1
+    assert error.value.__context__ is None and error.value.__cause__ is None
+
+
+async def test_private_malformed_json_is_detached_from_extraction_error():
+    secret = "synthetic-private-ocr-payload"
+    with pytest.raises(AnalysisError) as error:
+        await run(FakeClient(reply('{"text": "' + secret)))
+    assert error.value.__context__ is None and error.value.__cause__ is None
+    assert secret not in str(error.value)
 
 
 async def test_oversized_transcription_is_rejected():
@@ -341,7 +350,7 @@ async def test_multiline_and_indic_joiner_text_survives():
         (LLMError("provider_error"), "model_unavailable", 502),
         (LLMError("auth"), "model_unavailable", 502),
         (LLMError("bad_response"), "model_unavailable", 502),
-        (TimeoutError(), "analysis_timeout", 504),
+        (TimeoutError("private-detail"), "analysis_timeout", 504),
     ],
 )
 async def test_provider_failures_are_sanitized(failure, code, status):
@@ -350,6 +359,7 @@ async def test_provider_failures_are_sanitized(failure, code, status):
         await run(client)
     assert error.value.code == code and error.value.http_status == status
     assert "private-detail" not in str(error.value)
+    assert error.value.__context__ is None and error.value.__cause__ is None
     assert len(client.calls) == 1
 
 

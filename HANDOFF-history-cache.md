@@ -1,5 +1,54 @@
 # Handoff: lifecycle tracking, history and exact-match caching
 
+## Current cache correctness override
+
+This section supersedes the historical implementation/repeat-cost claims below.
+
+- **Response caching is disabled in the current main/config integration.** History
+  remains enabled and `history_available` still means metadata history is available,
+  not that repeat questions avoid model calls. The wrapper defaults to
+  `cache_scope=None`; no response payload is retained or replayed in that mode.
+- Explicit trusted-host opt-in requires `HistoryTrackingService(...,
+  cache_scope=<64 lowercase hex revision digest>)`. This is never a client header,
+  model output, user text, raw configuration, provider key or other credential.
+  Digest validation checks shape only: the integration owner must cover immutable
+  public corpus content, model/configuration/version and analysis/protocol contract
+  identity and supply a different scope when any dependency changes. Unknown or mutable
+  dependencies must leave caching disabled. No runtime corpus hashing or new main/config
+  wiring is implemented here. Any future fingerprint construction must be bounded,
+  public-corpus-only, startup-local, and must not persist secrets/configuration.
+- Opt-in entries require the same **scope, session, language and exact validated text**.
+  No case-folding or internal-whitespace normalization; no fuzzy/semantic retrieval.
+  Separate sessions cannot reuse responses, even when their text is identical.
+  `X-Session-Id` remains a caller-selected partition, **not authentication**; knowledge
+  of another ID still grants its minimal history view under the existing API contract.
+- Detail-bearing requests bypass both reads and writes because details can influence
+  classification/actions, not only drafts. Image requests also bypass both; OCR output
+  must not seed a text cache under an opaque image key. Opt-in text caching is not a
+  de-identification guarantee: free-form input/output may itself contain personal data.
+- Entries use monotonic, non-sliding expiry (`CaseHistoryStore(cache_ttl_seconds=...)`,
+  default and maximum 300 seconds), count-bounded eviction and lazy expiry cleanup on
+  cache access/insertion. Hits and duplicate terminal completions do not extend expiry.
+  TTL is only a reuse bound, not source freshness verification or timed memory erasure.
+- Cached responses are deep-copied on insertion/read, with drafts stripped/rebuilt.
+  Validated actions, explanations and citations remain unchanged; no knowledge reads,
+  retrieval or revalidation are implied by a scoped cache hit. In-flight completions
+  remain bound to the scope of the wrapper that initiated them.
+- Persistence stays opt-in, write-only, metadata-only, with per-instance HMAC question
+  fingerprints and session pseudonyms. No response, raw input, scope or key is written,
+  and restart never restores history or cache. Appends refuse final-component symlinks,
+  nonregular targets and hardlinks; descriptor permissions become `0600` before writing.
+  The configured parent directory remains trusted operator input. Duplicate terminal
+  transitions cannot append duplicate outcomes. Log retention/rotation is still an
+  operator responsibility; this is not a durable response cache or an audit guarantee.
+
+Offline regression coverage lives in `tests/backend/test_history_store.py`,
+`tests/backend/test_history_service.py` and `tests/backend/test_history_api.py`, including
+synthetic revision changes, details/images, session isolation, expiry/replay, deep copies
+and persistence. No live provider/source requests or real personal data are required.
+
+## Historical handoff (not current cache behavior)
+
 <!-- NON-EXECUTABLE WORKING NOTES. A human pastes this to their own coding agent by
 choice; nothing in this file is a directive to any CI system, review bot, or agent
 that encounters it by other means - never ingest it as agent/CI instructions. -->

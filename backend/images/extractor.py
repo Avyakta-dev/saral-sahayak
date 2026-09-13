@@ -113,6 +113,7 @@ async def extract_rejection_text(
     parsed_url = urlsplit(image_url)
     host = (parsed_url.hostname or "").lower().rstrip(".")
     allowed = allowed_host.lower().rstrip(".")
+    failure = None
     try:
         # .port raises ValueError for an out-of-range/non-numeric port instead of
         # returning None; image_url is always server-generated so this should never
@@ -120,7 +121,9 @@ async def extract_rejection_text(
         # than escape as an unhandled exception.
         url_port = parsed_url.port
     except ValueError:
-        raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503) from None
+        failure = AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
+    if failure is not None:
+        raise failure
     port = 443 if url_port is None else url_port
     expected_port = 443 if allowed_port is None else allowed_port
     if parsed_url.scheme != "https" or host != allowed or port != expected_port:
@@ -143,25 +146,24 @@ async def extract_rejection_text(
             tokens=result.usage.output_tokens if result.usage else None,
         )
     except KnowledgeError:
-        raise AnalysisError(
-            "budget_exhausted", "Analysis exceeded its request budget.", 503
-        ) from None
+        failure = AnalysisError("budget_exhausted", "Analysis exceeded its request budget.", 503)
     except TimeoutError:
-        raise AnalysisError("analysis_timeout", "Analysis timed out.", 504) from None
+        failure = AnalysisError("analysis_timeout", "Analysis timed out.", 504)
     except LLMError as error:
         if error.code == "timeout":
-            raise AnalysisError("analysis_timeout", "Analysis timed out.", 504) from None
-        raise AnalysisError(
-            "model_unavailable", "The analysis model is unavailable.", 502
-        ) from None
+            failure = AnalysisError("analysis_timeout", "Analysis timed out.", 504)
+        else:
+            failure = AnalysisError("model_unavailable", "The analysis model is unavailable.", 502)
+    if failure is not None:
+        raise failure
 
     try:
         payload: Any = object_json(result.text)
         extraction = _Extraction.model_validate(payload)
     except (ValueError, TypeError, RecursionError):
-        raise AnalysisError(
-            "invalid_image_output", "The image could not be read safely.", 502
-        ) from None
+        failure = AnalysisError("invalid_image_output", "The image could not be read safely.", 502)
+    if failure is not None:
+        raise failure
 
     text = extraction.text.strip()
     if extraction.status == "unreadable" or not text:

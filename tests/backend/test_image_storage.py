@@ -26,6 +26,17 @@ ENDPOINT = "https://account.r2.cloudflarestorage.com"
 SIGNED = "https://account.r2.cloudflarestorage.com/synthetic-bucket/inbox/signed"
 
 
+@pytest.fixture(autouse=True)
+def isolated_sdk_configuration(isolated_environment_and_no_network, monkeypatch, tmp_path):
+    # Even the offline signer must not consult a developer's ~/.aws files or reuse
+    # another test's cached session/credential chain. These paths do not exist.
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "no-aws-config"))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "no-aws-credentials"))
+    monkeypatch.setenv("BOTO_CONFIG", str(tmp_path / "no-boto-config"))
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+    monkeypatch.setattr(boto3, "DEFAULT_SESSION", None)
+
+
 def config(**overrides):
     values = {"endpoint": ENDPOINT, "bucket": "synthetic-bucket"}
     values.update(overrides)
@@ -369,6 +380,208 @@ async def test_cancelled_write_is_joined_before_delete_even_when_cancelled_twice
     with pytest.raises(asyncio.CancelledError):
         await task
     assert [op for op, _ in client.calls] == ["write_completed", "delete_object"]
+
+
+def test_sdk_socket_and_retry_bounds_are_explicit_without_credentials(monkeypatch):
+    captured = {}
+
+    def connect(service, **kwargs):
+        captured.update(kwargs)
+        assert service == "s3"
+        return FakeS3()
+
+    monkeypatch.setattr(boto3, "client", connect)
+    R2Storage(config())
+    sdk = captured["config"]
+    assert sdk.connect_timeout == sdk.read_timeout == 3
+    assert sdk.retries == {"total_max_attempts": 1, "mode": "standard"}
+    assert sdk.signature_version == "s3v4" and captured["endpoint_url"] == ENDPOINT
+
+
+@pytest.mark.parametrize("operation", ["head", "read"])
+async def test_cancelled_read_operations_are_joined_and_bodies_closed(operation):
+    entered, release = threading.Event(), threading.Event()
+    completed = threading.Event()
+    body = io.BytesIO(b"abcd")
+
+    class Delayed(FakeS3):
+        def head_object(self, **kwargs):
+            entered.set()
+            assert release.wait(3)
+            completed.set()
+            return {"ContentType": "image/png", "ContentLength": 4}
+
+        def get_object(self, **kwargs):
+            entered.set()
+            assert release.wait(3)
+            completed.set()
+            return {"Body": body, "ContentType": "image/png", "ContentLength": 4}
+
+    store = R2Storage(config(), client=Delayed())
+    before = asyncio.all_tasks()
+    coroutine = (
+        store.head("inbox/key.png")
+        if operation == "head"
+        else store.read("inbox/key.png", "image/png", 4)
+    )
+    task = asyncio.create_task(coroutine)
+    try:
+        async with asyncio.timeout(1):
+            while not entered.is_set():
+                await asyncio.sleep(0.001)
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done() and not completed.is_set()
+    finally:
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 1)
+    assert completed.is_set()
+    if operation == "read":
+        assert body.closed
+    else:
+        body.close()
+    assert asyncio.all_tasks() - before == set()
+
+
+async def test_download_abort_closes_stream_and_hides_error():
+    class BrokenBody(io.BytesIO):
+        def read(self, amount):
+            raise OSError("private storage detail")
+
+    client = ReadS3()
+    client.body = BrokenBody()
+    with pytest.raises(StorageError) as error:
+        await R2Storage(config(), client=client).read("inbox/key.png", "image/png", 4)
+    assert client.body.closed and "private" not in str(error.value)
+
+
+@pytest.mark.parametrize("response", [None, [], {}, {"Body": None}, {"Body": b"secret"}])
+async def test_malformed_object_response_is_not_admitted(response):
+    class Malformed(FakeS3):
+        def get_object(self, **kwargs):
+            return response
+
+    with pytest.raises(InvalidImage):
+        await R2Storage(config(), client=Malformed()).read("inbox/key.png", "image/png", 4)
+
+
+@pytest.mark.parametrize("length", [True, 4.0, "4", None])
+async def test_noninteger_object_lengths_are_rejected_and_closed(length):
+    client = ReadS3(length=length)
+    with pytest.raises(InvalidImage):
+        await R2Storage(config(), client=client).read("inbox/key.png", "image/png", 4)
+    assert client.body.closed
+
+
+@pytest.mark.parametrize("data", [None, "abcd", bytearray(b"abcd")])
+async def test_malformed_stream_result_is_rejected_and_closed(data):
+    class MalformedBody(io.BytesIO):
+        def read(self, amount):
+            return data
+
+    client = ReadS3()
+    client.body = MalformedBody()
+    with pytest.raises(InvalidImage):
+        await R2Storage(config(), client=client).read("inbox/key.png", "image/png", 4)
+    assert client.body.closed
+
+
+async def test_malformed_head_response_is_sanitized():
+    with pytest.raises(StorageError):
+        await R2Storage(config(), client=FakeS3(head=["private"])).head("inbox/key.png")
+
+
+async def test_partial_snapshot_is_rejected_and_closed():
+    class Partial(ReadS3):
+        def get_object(self, **kwargs):
+            return {**super().get_object(**kwargs), "ContentRange": "bytes 0-3/8"}
+
+    client = Partial()
+    with pytest.raises(InvalidImage):
+        await R2Storage(config(), client=client).read("inbox/key.png", "image/png", 4)
+    assert client.body.closed
+
+
+async def test_slow_sdk_delete_returns_before_thread_without_retry_or_async_orphans(monkeypatch):
+    import backend.images.storage as storage_module
+
+    monkeypatch.setattr(storage_module, "DELETE_TIMEOUT_SECONDS", 0.02)
+    entered, release, completed = threading.Event(), threading.Event(), threading.Event()
+
+    class Delayed(FakeS3):
+        def delete_object(self, **kwargs):
+            self.calls.append(("delete_object", kwargs))
+            entered.set()
+            assert release.wait(3)
+            completed.set()
+            raise OSError("private late failure")
+
+    client = Delayed()
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(R2Storage(config(), client=client).delete("inbox/key.png"))
+    try:
+        async with asyncio.timeout(1):
+            while not entered.is_set():
+                await asyncio.sleep(0.001)
+        assert not await asyncio.wait_for(task, 0.5)
+        assert not completed.is_set()  # The SDK thread cannot be forcibly preempted.
+        assert len(client.calls) == 1  # No racing retry after the timeout.
+        assert asyncio.all_tasks() - before == set()
+    finally:
+        release.set()  # Test teardown must not leak even the deliberately blocked thread.
+        async with asyncio.timeout(1):
+            while not completed.is_set():
+                await asyncio.sleep(0.001)
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.parametrize("operation", ["connect", "sign", "head", "read", "write"])
+@pytest.mark.parametrize("failure_kind", ["value", "sdk", "missing"])
+async def test_storage_sanitization_detaches_raw_exception_chains(
+    monkeypatch, operation, failure_kind
+):
+    secret = "synthetic-private-sdk-payload"
+
+    def fail(*args, **kwargs):
+        if failure_kind == "value":
+            if operation == "write":
+                raise OSError(secret)
+            raise ValueError(secret)
+        raise ClientError(
+            {
+                "Error": {"Message": secret},
+                "ResponseMetadata": {"HTTPStatusCode": 404 if failure_kind == "missing" else 500},
+            },
+            "SyntheticOperation",
+        )
+
+    client = FakeS3()
+    for method in ("generate_presigned_url", "head_object", "get_object", "put_object"):
+        monkeypatch.setattr(client, method, fail, raising=False)
+    store = R2Storage(config(), client=client)
+    if operation == "connect":
+        monkeypatch.setattr(R2Storage, "_connect", fail)
+    expected = InvalidImage if operation == "read" and failure_kind == "missing" else StorageError
+    if operation == "head" and failure_kind == "missing":
+        assert await store.head("inbox/key.png") is None
+        return
+    with pytest.raises(expected) as captured:
+        if operation == "connect":
+            R2Storage(config())
+        elif operation == "sign":
+            store.presign_get("validated/" + "a" * 32 + ".png")
+        elif operation == "head":
+            await store.head("inbox/key.png")
+        elif operation == "read":
+            await store.read("inbox/key.png", "image/png", 4)
+        else:
+            await store.put_validated("validated/" + "a" * 32 + ".png", b"data")
+    assert captured.value.__context__ is None
+    assert captured.value.__cause__ is None
+    assert secret not in str(captured.value)
 
 
 async def test_cleanup_retries_and_logs_only_content_free_warning(caplog):

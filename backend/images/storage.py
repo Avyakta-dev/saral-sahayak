@@ -16,6 +16,9 @@ from .config import ImageConfig
 PREFIX = "inbox/"
 _KEY = re.compile(rf"^{PREFIX}[0-9a-f]{{32}}\.(?:png|jpg|jpeg|webp)$")
 _LOG = logging.getLogger(__name__)
+# A delete may finish late safely: keys are random and never reused. Unlike writes,
+# it need not be joined indefinitely before request capacity can be released.
+DELETE_TIMEOUT_SECONDS = 7.0
 
 
 @dataclass(frozen=True)
@@ -77,8 +80,11 @@ class R2Storage:
         self.config = config
         try:
             self._client = client if client is not None else self._connect()
+            return
         except (BotoCoreError, ClientError, OSError, ValueError):
-            raise StorageError("Image storage is unavailable.") from None
+            pass
+        # Raise outside the handler: `from None` hides, but retains, raw context.
+        raise StorageError("Image storage is unavailable.")
 
     def _connect(self) -> Any:
         return boto3.client(
@@ -101,7 +107,8 @@ class R2Storage:
                 operation, Params={"Bucket": self.config.bucket, **params}, ExpiresIn=ttl
             )
         except (BotoCoreError, ClientError, TypeError, ValueError):
-            raise StorageError("Image storage is unavailable.") from None
+            pass
+        raise StorageError("Image storage is unavailable.")
 
     def presign_put(self, key: str, content_type: str, content_length: int) -> tuple[str, int]:
         """Sign the exact type AND byte count; browser derives length from the File body."""
@@ -124,12 +131,15 @@ class R2Storage:
             response = await joined_thread(self._head, key)
             if response is None:
                 return None
+            if not isinstance(response, dict):
+                raise StorageError("Image storage is unavailable.")
             return ObjectInfo(
                 content_type=str(response.get("ContentType") or ""),
                 size=int(response.get("ContentLength") or 0),
             )
         except (BotoCoreError, ClientError, OSError, TypeError, ValueError):
-            raise StorageError("Image storage is unavailable.") from None
+            pass
+        raise StorageError("Image storage is unavailable.")
 
     def _head(self, key: str) -> dict[str, Any] | None:
         try:
@@ -143,29 +153,39 @@ class R2Storage:
         try:
             return await joined_thread(self._read, key, content_type, content_length)
         except ClientError as error:
-            if _status(error) == 404:
-                raise InvalidImage() from None
-            raise StorageError("Image storage is unavailable.") from None
+            missing = _status(error) == 404
         except (BotoCoreError, OSError, TypeError, ValueError):
-            raise StorageError("Image storage is unavailable.") from None
+            missing = False
+        if missing:
+            raise InvalidImage()
+        raise StorageError("Image storage is unavailable.")
 
     def _read(self, key: str, content_type: str, content_length: int) -> bytes:
         # One GET snapshot, not HEAD followed by an unchecked mutable GET URL.
+        if type(content_length) is not int or not 0 < content_length <= self.config.max_bytes:
+            raise InvalidImage()
         response = self._client.get_object(Bucket=self.config.bucket, Key=key)
-        body = response["Body"]
+        if not isinstance(response, dict):
+            raise InvalidImage()
+        body = response.get("Body")
+        close = getattr(body, "close", None)
         try:
             if (
-                response.get("ContentType") != content_type
-                or response.get("ContentLength") != content_length
-                or not 0 < content_length <= self.config.max_bytes
+                not callable(close)
+                or not callable(getattr(body, "read", None))
+                or response.get("ContentType") != content_type
+                or type(response.get("ContentLength")) is not int
+                or response["ContentLength"] != content_length
+                or response.get("ContentRange") is not None
             ):
                 raise InvalidImage()
             data = body.read(content_length + 1)
-            if len(data) != content_length:
+            if not isinstance(data, bytes) or len(data) != content_length:
                 raise InvalidImage()
             return data
         finally:
-            body.close()
+            if callable(close):
+                close()
 
     async def put_validated(self, key: str, data: bytes) -> None:
         if not re.fullmatch(r"validated/[0-9a-f]{32}\.png", key):
@@ -181,16 +201,29 @@ class R2Storage:
                 IfNoneMatch="*",
                 CacheControl="no-store",
             )
+            return
         except (BotoCoreError, ClientError, OSError):
-            raise StorageError("Image storage is unavailable.") from None
+            pass
+        raise StorageError("Image storage is unavailable.")
 
     async def delete(self, key: str) -> bool:
-        """Two bounded attempts; lifecycle is mandatory for outages and late PUT replay."""
-        for _ in range(2):
-            try:
-                await joined_thread(self._client.delete_object, Bucket=self.config.bucket, Key=key)
-                return True
-            except (BotoCoreError, ClientError, OSError):
-                pass
+        """At most two attempts within one cleanup deadline, with no detached async task.
+
+        Cancelling the executor future cannot preempt a running SDK thread. A timed-out
+        delete can finish later, but must not start a concurrent retry. Socket limits
+        remain necessary; lifecycle is the fallback, not a promise of immediate erasure.
+        """
+        try:
+            async with asyncio.timeout(DELETE_TIMEOUT_SECONDS):
+                for _ in range(2):
+                    try:
+                        await asyncio.to_thread(
+                            self._client.delete_object, Bucket=self.config.bucket, Key=key
+                        )
+                        return True
+                    except (BotoCoreError, ClientError, OSError):
+                        pass
+        except TimeoutError:
+            pass
         _LOG.warning("Image cleanup failed; configured storage lifecycle must expire the object.")
         return False

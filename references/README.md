@@ -1,6 +1,10 @@
 # Start here: team and agent references
 
-**Current status and assignments:** [team issue board](team-issue-board.md). The 181-record runtime corpus is now merged; older statements below about missing knowledge/pending PRs are superseded by that board.
+## Current implementation — 2026-09-12
+
+**Current status and assignments:** [team issue board](team-issue-board.md#current-implementation--2026-09-12-reconciliation). The supplied `main` baseline `1fcd433` includes PR #84: the 181-record runtime corpus, text agent, streaming, session history, image path and six-language UI exist. Core text accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, defaulting to `en`; quality remains unverified. History/cache hardening is in progress. See [demo acceptance status](../docs/demo-acceptance-status.md) for the non-passing current-model matrix and remaining acceptance gates.
+
+This note supersedes older missing-corpus/pending-PR, unimplemented-image, future-frontend and “no live requests this round” statements below, without rewriting historical evidence or completing owner levels. The web image path uploads the reviewed original file privately before backend validation/flattening; it is not local personal-data redaction or the extension's redacted screenshot contract. Keep cloud readiness, consent, screenshot/placeholder restrictions and Anish's shared-contract approval intact. The folder map's knowledge subtree is existing generated output, not merely a proposed target; regenerate from the source records/catalog to prevent drift.
 
 This folder is the shared reference library for Saral Sahayak. Give your coding agent your name and ask it to read this file before planning or implementing your work. The FastAPI foundation, adapters, bounded file tools and evidence ledger now have an analysis service. The production corpus is still absent: analysis is gated with 503 for missing model configuration or structurally incomplete knowledge, not a missing-agent placeholder. The API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, with `en` unchanged as default; `GET /api/v1/capabilities` reports only enabled languages, native names and `quality_verified: false`. Configuration/structural readiness is not model, source or translation verification.
 

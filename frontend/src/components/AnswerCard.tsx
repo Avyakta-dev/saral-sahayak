@@ -13,6 +13,7 @@ import {
 import type { AnalyzeResponse, Language } from '../lib/contracts';
 import { downloadDraftText, draftDownloadFilename } from '../lib/draftExport';
 import { useLocale } from '../lib/i18n';
+import { failureKey } from '../lib/backendStatus';
 import { Evidence } from './Evidence';
 
 type AnswerCardProps = {
@@ -32,7 +33,7 @@ type AnswerCardProps = {
   downloadsAvailable?: boolean;
 };
 
-// Interface language is English; response content keeps its requested output language.
+// Preserve legacy English presentation; response content keeps its requested output language.
 const labels = {
   sample: 'Sample only · not real claim advice',
   title: 'Your sample answer',
@@ -124,6 +125,10 @@ function useAnswerLabels(sample: boolean) {
       draftNotice: t(sample ? 'sampleDraftNotice' : 'liveDraftNotice'),
       missing: t('missing'),
       missingList: (fields: string) => t('missingList', { fields }),
+      download: t(sample ? 'downloadSample' : 'downloadDraft'),
+      downloading: t('downloadingDraft'),
+      downloaded: t(sample ? 'downloadedSample' : 'downloadedDraft'),
+      downloadError: t(sample ? 'downloadSampleError' : 'downloadDraftError'),
       copy: t(sample ? 'copySample' : 'copyDraft'),
       copying: t('copying'),
       copied: t(sample ? 'sampleCopied' : 'draftCopied'),
@@ -139,6 +144,32 @@ function useAnswerLabels(sample: boolean) {
     },
   };
 }
+
+const displayableErrorCodes = new Set([
+  'invalid_configuration',
+  'access_denied',
+  'analysis_capacity',
+  'request_timeout',
+  'analysis_timeout',
+  'timeout',
+  'cancelled',
+  'aborted',
+  'invalid_request',
+  'request_too_large',
+  'language_disabled',
+  'model_not_configured',
+  'knowledge_unavailable',
+  'budget_exhausted',
+  'invalid_response',
+  'response_too_large',
+  'model_unavailable',
+  'invalid_model_output',
+  'analysis_failed',
+  'service_unavailable',
+  'network_error',
+  'image_unavailable',
+  'invalid_image',
+]);
 
 const canonicalFields = new Set(['claimant_name', 'claim_id', 'claim_type']);
 function highlightPlaceholders(text: string, sample: boolean) {
@@ -167,6 +198,7 @@ function ResponseTabs({
   downloadsAvailable?: boolean;
 }) {
   const { text, locale } = useAnswerLabels(isSample);
+  const { t } = useLocale();
   const id = useId();
   const [selected, setSelected] = useState(0);
   const [checked, setChecked] = useState<Set<number>>(() => new Set());
@@ -219,11 +251,17 @@ function ResponseTabs({
     const sourceNotes = response.citations
       .filter((citation) => draftCitationIds.has(citation.id))
       .flatMap((citation) => [
-        `Source ${citation.id} (${isSample ? 'synthetic, unverified' : 'supplied by the analysis service; not independently verified'})`,
+        t('exportSource', {
+          id: citation.id,
+          provenance: t(isSample ? 'exportSynthetic' : 'exportService'),
+        }),
         citation.path,
-        `Record ID: ${citation.record_id ?? 'supporting document'}`,
-        `Heading: ${citation.heading}`,
-        `Lines: ${citation.start_line}–${citation.end_line}${citation.start_column != null && citation.end_column != null ? `; zero-based columns: ${citation.start_column}–${citation.end_column}` : ''}`,
+        t('exportRecord', { record: citation.record_id ?? t('exportSupporting') }),
+        t('exportHeading', { heading: citation.heading }),
+        t('exportLines', { start: citation.start_line, end: citation.end_line }) +
+          (citation.start_column != null && citation.end_column != null
+            ? t('exportColumns', { start: citation.start_column, end: citation.end_column })
+            : ''),
         ...citation.source_urls,
       ]);
     return [
@@ -494,11 +532,12 @@ export function AnswerCard({
   sample = legacySample ?? true,
   qualityVerified = false,
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
   downloadsAvailable = false,
 }: AnswerCardProps) {
   const isSample = mode === undefined ? sample : mode === 'sample';
   const { text, locale } = useAnswerLabels(isSample);
+  const { t } = useLocale();
   const id = useId();
   const title =
     response.status === 'success'
@@ -525,23 +564,26 @@ export function AnswerCard({
           <Pencil size={15} aria-hidden="true" /> {text.edit}
         </button>
       </header>
-      <p className="sample-quality-note" lang="en">
+      <p className="sample-quality-note" lang={locale}>
         {isSample
-          ? 'Sample language quality has not been independently reviewed.'
+          ? t('sampleQualityNote')
           : qualityVerified
-            ? 'The service reports reviewed language quality; this does not guarantee this answer.'
-            : 'Output language quality has not been independently verified.'}
+            ? t('serviceQualityNote')
+            : t('outputQualityNote')}
       </p>
       {response.status === 'success' && response.classification && (
-        <aside className="answer-uncertainty" aria-label="Classification uncertainty" lang="en">
+        <aside
+          className="answer-uncertainty"
+          aria-label={t('classificationUncertainty')}
+          lang={locale}
+        >
           <span>
-            Classification confidence: <strong>{response.classification.confidence}</strong>
+            {t('classificationConfidence')}{' '}
+            <strong lang="en">{response.classification.confidence}</strong>
           </span>
           <p lang={response.language}>{response.classification.rationale}</p>
-          <small lang="en">
-            {isSample
-              ? 'A sample label, not policy certainty or source verification.'
-              : 'Classification confidence is not source verification or a guarantee of the outcome.'}
+          <small lang={locale}>
+            {isSample ? t('sampleConfidenceNote') : t('liveConfidenceNote')}
           </small>
         </aside>
       )}
@@ -557,26 +599,31 @@ export function AnswerCard({
             lang={
               response.status === 'unsupported' && response.warnings[0]
                 ? sampleTextLanguage(response.warnings[0])
-                : response.status === 'error' && response.error?.message
+                : isSample && response.status === 'error' && response.error?.message
                   ? response.language
-                  : 'en'
+                  : locale
             }
           >
             {response.status === 'needs_clarification'
               ? text.clarification
               : response.status === 'unsupported'
                 ? response.warnings[0] || text.unsupported
-                : response.error?.message || text.error}
+                : isSample
+                  ? response.error?.message || text.error
+                  : t(failureKey(response.error?.code ?? ''))}
           </p>
-          {!isSample && response.status === 'error' && response.error?.code && (
-            <p className="answer-error-code" lang="en">
-              Error code: <code>{response.error.code}</code>
-            </p>
-          )}
+          {!isSample &&
+            response.status === 'error' &&
+            response.error?.code &&
+            displayableErrorCodes.has(response.error.code) && (
+              <p className="answer-error-code" lang={locale}>
+                {t('errorCode')} <code lang="en">{response.error.code}</code>
+              </p>
+            )}
           {!isSample && response.status === 'error' && onRetry && (
-            <div className="reply-actions answer-retry-actions">
+            <div className="reply-actions answer-retry-actions" lang={locale}>
               <button className="light-button" type="button" onClick={onRetry}>
-                {retryLabel}
+                {retryLabel ?? t('tryAgain')}
               </button>
             </div>
           )}
@@ -595,12 +642,12 @@ export function AnswerCard({
         </summary>
         <p lang={locale}>{text.disclosureNote}</p>
         {!isSample && (
-          <div className="not-chatbot-note" lang="en">
-            <strong>Not a general chatbot</strong>
+          <div className="not-chatbot-note" lang={locale}>
+            <strong>{t('notChatbot')}</strong>
             <ul>
-              <li>Cites EPFO Markdown paths and original source URLs from the evidence ledger.</li>
-              <li>Abstains or asks for clarification when evidence is thin.</li>
-              <li>Checklists and drafts come from cited blocks, not free-form chat.</li>
+              <li>{t('evidencePrinciple')}</li>
+              <li>{t('abstentionPrinciple')}</li>
+              <li>{t('draftPrinciple')}</li>
             </ul>
           </div>
         )}

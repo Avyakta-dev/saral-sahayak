@@ -2,6 +2,12 @@
 
 Ownership follows the [current Markdown agent design](references/planning/markdown-agent-design.md) and [hackathon implementation plan](references/planning/hackathon-plan.md#7-team-ownership).
 
+## Current implementation — 2026-09-12
+
+Use the [current board note](references/team-issue-board.md#current-implementation--2026-09-12-reconciliation) for the supplied `main`/`1fcd433` baseline including PR #84. The 181-record corpus, text agent, streaming, session history, image path and six-language UI exist; core text accepts `en`, `hi`, `kn`, `ta`, `te`, `ml` with `en` default and unverified quality. History/cache hardening is still in progress. The [demo acceptance status](docs/demo-acceptance-status.md) records the non-passing current-model matrix and remaining gates.
+
+The implemented image path uses a reviewed original file uploaded privately, with backend validation/flattening; it is not the extension's locally redacted screenshot path or proof of cloud readiness. Owner/approval boundaries and separate Extension, Image, Extension Privacy and Extension UI checkpoints remain unchanged. Older “absent corpus,” “pending knowledge PR,” “deferred images,” “future frontend” and “no live requests this round” statements below describe earlier sequencing, not current inventory or authorization. The first-deliverable lists and branch commands are workflow guidance, not permission to restart completed work or perform Git/network operations in this documentation-only task.
+
 | Owner | Responsibilities |
 | --- | --- |
 | Anish | Architecture, backend API and schemas, read-only Markdown tools, safe budgets, agent/LLM integration, citations, deployment and multilingual APIs; Level 2 explicitly resumed, not declared complete |

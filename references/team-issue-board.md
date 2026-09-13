@@ -1,6 +1,18 @@
 # Team issue board
 
-## Current verified baseline
+## Current implementation — 2026-09-12 reconciliation
+
+For this documentation-only task, the supplied integration baseline is `main` at `1fcd433`, including [PR #84](https://github.com/iotserver24/saral-sahayak/pull/84), on `task/demo-acceptance-hardening`. Selective local source inspection confirms the following; no Git changes, environment inspection or network tests were performed for this reconciliation.
+
+- **Implemented:** all 181 canonical reason Markdown files and the five supporting/index documents exist under `references/knowledge/epfo/`. The bounded read-only Markdown agent, analysis streaming, session history, image-input path and six-language interface bundles exist. This is not corpus policy/source verification, native-language quality approval or milestone completion.
+- **Languages:** the core text API accepts `en`, `hi`, `kn`, `ta`, `te`, `ml` (default `en`); UI bundles cover the same six. Capabilities report the configured subset with `quality_verified: false`. Configuration/structural readiness is not verified connectivity or fluent output.
+- **Images:** the implemented web path uploads the exact reviewed original file to private storage, then the backend validates/flattens it for extraction. Flattening removes metadata/active structure, not visible personal information. This is separate from the extension's locally redacted screenshot contract; it does not authorize original screenshot/base64 transmission, relax consent or prove cloud privacy/lifecycle readiness. Image availability remains gated by configuration.
+- **Remaining gates:** history/cache hardening is in progress, not finally accepted. The recorded current-model matrix failed acceptance because ambiguous KYC returned success. See the maintained [demo acceptance status](../docs/demo-acceptance-status.md) for exact runs, limits, timings and subsequent evidence rather than duplicating them here. No source, native-language, cloud-image or deployment verification is implied.
+- **Ownership/authority unchanged:** Ajay owns Extension, Image and Extension Privacy tracks; Avyakta owns knowledge quality and Extension UI; Shravya owns main web UI; Anish approves shared backend/API/protocol/security and grounding contracts. Verify the requested level's evidence before advancing it; merged code does not auto-complete levels or grant permission for live calls, pushes or new scope.
+
+This note supersedes older present-tense claims of absent corpus, universally unimplemented image/UI work, English-only support or “no live requests this round.” Historical test/run evidence below remains historical; it is not a current acceptance result.
+
+## Earlier verified baseline and merge evidence
 
 - Repo transferred from `Avyakta-dev/saral-sahayak` → [`iotserver24/saral-sahayak`](https://github.com/iotserver24/saral-sahayak). Prefer `iotserver24` issue/PR links going forward.
 - [PR #5](https://github.com/iotserver24/saral-sahayak/pull/5) merged output-security fixes, Ajay's image handoff and advanced extension privacy/provider requirements.
@@ -10,6 +22,8 @@
 - The advanced extension/image/UI features are assigned work, not implemented features. Read the issue for the next unfinished level, inspect code, and report evidence before closing it.
 
 ## Assigned work
+
+The table retains earlier issue/checkpoint handoff notes, not freshly verified issue states. Its absent-implementation or pending-integration assumptions are superseded by the dated current note above. Keep owner assignments and evidence gates; consult current issue evidence when authorized before changing a level's status.
 
 | Owner                   | Track                                        | Issues                                                                                                                                                                                                                                                                                                                    | Next notes                                                                                                                                    |
 | ----------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |

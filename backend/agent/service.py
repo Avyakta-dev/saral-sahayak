@@ -54,22 +54,45 @@ _GUIDANCE_HEADINGS = frozenset(
     }
 )
 
+_APPLICABILITY_RULE = (
+    "Citation completeness is not applicability: source URLs and matching phrases do not prove "
+    "which reason applies to this user. Success requires supplied facts that distinguish the "
+    "selected reason from plausible alternatives, plus evidence supporting each claim. If a "
+    "discriminator fact is missing, return needs_clarification with focused questions; if no "
+    "supported match can be established, return unsupported with a limitation. Do not infer "
+    "missing facts or raise confidence because sources exist or reads are stopping."
+)
+
+_GUIDANCE_FIDELITY_RULES = (
+    "When paraphrasing or translating an action, preserve all attached prohibitions, timing "
+    "restrictions, prerequisites, limits and source-authority caveats in that same action. "
+    "Do not silently drop them or move them only into warnings; omit the entire action if "
+    "its qualifications cannot be preserved, and clarify or abstain if that leaves insufficient "
+    "supported guidance. "
+    "Do not present narrative or a paraphrase as an exact quoted rejection remark unless the "
+    "literal wording is present in the supplied user text or cited evidence; distinguish "
+    "user-reported wording from a source quotation. "
+    "Use plain requested-language prose in its primary script, not untranslated English phrase "
+    "paraphrases. Preserve canonical technical IDs, URLs, supplied identities and essential "
+    "proper names; these exceptions do not permit leaving ordinary guidance in English. "
+)
+
 _FINISH_NUDGE = (
-    "Host note: stop tool use now. Return one FinalAnalysis JSON object immediately using only "
-    "evidence_ids already returned in this history. Do not re-read the same path or heading, and "
-    "do not paginate unless a cited URL was cut. Every explanation/action/required_document claim "
-    "that cites a non-Sources excerpt must also cite that same file's Sources evidence_id on the "
-    "same claim. If guidance plus same-file Sources for a candidate reason (including "
-    "initials/name-mismatch comparison evidence) are already present, prefer a grounded success; "
-    "otherwise clarify or abstain. No invented IDs, URLs or identities."
+    "Host note: stop tool use now to preserve the shared budget, not because a match is proven. "
+    "Return one FinalAnalysis JSON object using only evidence_ids already in this history. "
+    "Do not re-read or paginate. On every claim, pair non-Sources excerpts with that same file's "
+    "Sources evidence_id. "
+    + _APPLICABILITY_RULE
+    + " Non-success must have null classification and empty explanation/actions/required_documents. "
+    "No invented IDs, URLs or identities."
 )
 
 _FINISH_TOOL_MESSAGE = (
-    "Further reads are blocked to preserve the shared evidence budget for a validated final "
-    "answer. Emit FinalAnalysis JSON now using evidence_ids already in this history. On every "
-    "claim, pair non-Sources excerpts with that same file's Sources evidence_id. Prefer success "
-    "when a reason, explanation, actions and same-file source URLs are present; otherwise clarify "
-    "or abstain. Do not invent evidence or identities."
+    "Further reads are blocked to preserve the shared evidence budget. Emit FinalAnalysis JSON "
+    "now using evidence_ids already in this history. On every claim, pair non-Sources excerpts "
+    "with that same file's Sources evidence_id. "
+    + _APPLICABILITY_RULE
+    + " Non-success must have null classification and empty explanation/actions/required_documents."
 )
 
 
@@ -80,12 +103,16 @@ def _repair_message(detail: str) -> str:
         f"Your final object failed host validation: {reason}. Correct it once using the same "
         "schema, requested language and evidence IDs from this history. Every claim that cites a "
         "non-Sources excerpt must also cite that same file's Sources evidence_id on that claim. "
-        "Do not call tools. No citation metadata or draft fields. If evidence is insufficient, "
-        "clarify or abstain. Do not invent evidence or identities."
+        "Do not call tools. No citation metadata or draft fields. "
+        + _APPLICABILITY_RULE
+        + " "
+        + _GUIDANCE_FIDELITY_RULES
+        + "Do not invent evidence or identities."
     )
 
 
-def _prompt(request: AnalyzeRequest) -> str:
+def _prompt(request: AnalyzeRequest, limits: BudgetLimits | None = None) -> str:
+    limits = limits if limits is not None else BudgetLimits()
     name = LANGUAGES[request.language][0]
     return (
         "You analyze EPFO rejection text by selecting and reading public Markdown evidence. "
@@ -97,19 +124,27 @@ def _prompt(request: AnalyzeRequest) -> str:
         "do not enumerate/read the whole corpus or the JSON appendix. Read named sections instead "
         "of whole reason files. Standard headings are Rejection phrase and aliases, Classification, "
         "What it means, Root cause, Fix, Required documents, and Sources and verification. "
-        "Request the best candidate's Classification, What it means, Fix, and Sources and "
-        "verification together in one turn; "
-        "read additional candidate sections only when needed. Never re-read the same path and "
-        "heading already returned in this history. Use heading or cursor for continuation only "
-        "when a needed URL or sentence was truncated. "
-        "As soon as one candidate has citable guidance plus that same file's Sources and "
-        "verification (for example initials versus expanded-name mismatch evidence), emit the "
-        "FinalAnalysis JSON immediately - do not keep exploring nearby records. "
-        "Compare ambiguous reasons, applicability, caveats and source limitations before answering "
-        "only when those reads are still missing. "
-        "Source confidence/dates are metadata, not proof of correctness. Unknown cases must "
-        "abstain (unsupported with a warning); ambiguous cases must ask focused questions "
-        "(needs_clarification). Neither state may contain classification or guidance. "
+        "For a plausible candidate, request Classification, What it means, Fix, and Sources and "
+        "verification together in one turn using separate read_file calls, one scalar heading "
+        "string per call (never an array or a combined heading). Compare plausible alternatives "
+        "and caveats before selecting a reason; read additional sections only when needed and "
+        "within budget. Never re-read the same path and heading already returned in this history. "
+        "Use a continuation cursor only when a needed URL or sentence was truncated. "
+        "Before success, check whether the user's supplied facts establish applicability, "
+        "separately from whether the citations are complete. Explain the distinguishing supplied "
+        "facts in classification.rationale; do not merely report a phrase match or source presence. "
+        "For overlapping KYC reasons, distinguish the affected KYC item and displayed status: "
+        "employer approval pending versus bank/NPCI validation failure require different facts. "
+        "An upload alone does not establish either. Ask for the affected item and exact status "
+        "without personal identifiers when these discriminator facts are absent; more source "
+        "reads cannot supply missing user facts. Do not combine alternative remedies into a "
+        "success checklist or hide unresolved applicability in warnings or low confidence. "
+        + _APPLICABILITY_RULE
+        + " Once applicability and cited guidance are sufficient, emit FinalAnalysis immediately "
+        "rather than exploring nearby records. Otherwise clarify or abstain, even when a host "
+        "finish note stops reads. Source confidence/dates are metadata, not proof of correctness. "
+        "Unknown cases must abstain (unsupported with a warning); ambiguous cases must ask focused "
+        "questions (needs_clarification). Neither state may contain classification or guidance. "
         "Success requires a reason actually read, explanation, actions, and original source URLs "
         "actually returned by tools. Every explanation/action/required document uses evidence_ids "
         "from the tool responses. No invented IDs, citation metadata, paths or URLs. An excerpt "
@@ -126,17 +161,20 @@ def _prompt(request: AnalyzeRequest) -> str:
         "the host creates it from cited action text and literal supplied details/placeholders. "
         f"Output language MUST be {request.language} ({name}); write user-facing prose in that "
         "language's primary script, preserving canonical IDs, URLs and supplied identities. "
-        "Return a single JSON object matching this schema (no markdown fences). Tool calls "
-        "may precede the final JSON, but after enough evidence prefer the schema object over "
-        "more tools. Limits include 12 total tool calls, 8 distinct files, "
-        "120 lines/3072 UTF-8 text bytes per read and a shared 30-second deadline; "
-        "the host may lower these and may refuse further reads to protect the final answer.\n"
+        + _GUIDANCE_FIDELITY_RULES
+        + "Return a single JSON object matching this schema (no markdown fences). Tool calls "
+        "may precede the final JSON; a budget stop requires a final state, not a success state. "
+        f"Limits include {limits.tool_calls} total tool calls, {limits.files} distinct files, "
+        f"{limits.read_lines} lines/{min(3072, limits.read_bytes)} UTF-8 text bytes per read "
+        f"and a shared {limits.request_seconds:g}-second deadline for the entire request, "
+        "including any earlier stages, not a fresh allowance per turn. The host may refuse "
+        "further reads to protect the final answer.\n"
         + json.dumps(FinalAnalysis.model_json_schema(), ensure_ascii=False)
     )
 
 
-def _has_answerable_evidence(ledger: EvidenceLedger) -> bool:
-    """True when citable guidance plus same-record Sources exist (not semantic proof)."""
+def _has_guidance_source_pair(ledger: EvidenceLedger) -> bool:
+    """Budget-stop heuristic only: a guidance/source pair cannot establish applicability."""
     guidance: set[str] = set()
     sourced: set[str] = set()
     for entry in ledger.entries:
@@ -152,14 +190,14 @@ def _has_answerable_evidence(ledger: EvidenceLedger) -> bool:
 
 def _should_stop_tools(ledger: EvidenceLedger, budget: Budget) -> bool:
     """Refuse further reads so a final/repair turn keeps evidence-budget headroom."""
-    if _has_answerable_evidence(ledger):
-        # Live Azure traces kept exploring after guidance+sources and burned ~10.8k/12k
-        # evidence tokens before any validated FinalAnalysis. Stop as soon as one record
-        # is citable; the prior turn already delivered those excerpts.
+    if _has_guidance_source_pair(ledger):
+        # Preserve the early stop that prevents repeated nearby reads exhausting the budget.
+        # This does not select a reason or imply enough user facts: the final turn must
+        # clarify/abstain if the citable candidate's applicability remains unresolved.
         return True
     used = budget.usage.output_tokens
     limit = budget.limits.output_tokens
-    # Without enough evidence, force a finish/abstain attempt before hard exhaustion.
+    # Without a guidance/source pair, still force a final-state attempt before exhaustion.
     return used >= (limit * 92) // 100 or budget.usage.tool_calls >= 10
 
 
@@ -361,7 +399,7 @@ class AnalysisService:
         activity: RequestActivity | None,
     ) -> AnalyzeResponse:
         history = [
-            Message(role="system", content=_prompt(request)),
+            Message(role="system", content=_prompt(request, budget.limits)),
             Message(role="user", content=request.model_dump_json()),
         ]
         repaired = False
@@ -442,7 +480,7 @@ class AnalysisService:
                             history.append(dispatch_tool(tools, call, activity))
                         if trace is not None:
                             trace.emit(budget, AnalysisPhase.TOOL_COMPLETE)
-                    if stop_tools or _has_answerable_evidence(tools.ledger):
+                    if stop_tools or _has_guidance_source_pair(tools.ledger):
                         if not finish_nudged:
                             history.append(Message(role="user", content=_FINISH_NUDGE))
                             finish_nudged = True

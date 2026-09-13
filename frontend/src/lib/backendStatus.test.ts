@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { previewCapabilities } from './capabilities';
+import { locales, dictionaries, translate } from './i18n';
 import {
   probeBackendStatus,
+  liveTransportFailureMessage,
   statusFromCapabilities,
   unavailableFailureMessage,
   unreachableStatus,
@@ -72,4 +74,50 @@ describe('probeBackendStatus', () => {
     );
     await expect(probeBackendStatus()).resolves.toMatchObject({ kind: 'ready' });
   });
+});
+
+it.each(locales)(
+  'localizes ready/missing/unreachable helper states in %s without changing gates',
+  (locale) => {
+    for (const [model, knowledge, key] of [
+      [false, true, 'waitingModel'],
+      [true, false, 'waitingKnowledge'],
+      [false, false, 'waitingBoth'],
+    ] as const) {
+      const caps = {
+        analysis_available: false,
+        checks: { model_configured: model, knowledge_structure_ready: knowledge },
+      };
+      expect(statusFromCapabilities(caps, locale)).toEqual({
+        kind: 'not_ready',
+        label: dictionaries[locale].backendNotReady,
+        detail: translate(locale, key),
+      });
+    }
+    expect(statusFromCapabilities({ analysis_available: true }, locale).label).toBe(
+      dictionaries[locale].backendReady,
+    );
+    expect(unavailableFailureMessage(undefined, locale)).toBe(
+      dictionaries[locale].unavailableGeneric,
+    );
+    import.meta.env.VITE_API_BASE_URL = '';
+    expect(unreachableStatus(undefined, locale).detail).toBe(
+      dictionaries[locale].unreachableSameOrigin,
+    );
+  },
+);
+
+it.each(locales)('never echoes raw transport bodies while localizing %s', (locale) => {
+  expect(liveTransportFailureMessage('PRIVATE_PROVIDER_SECRET', locale)).toBe(
+    dictionaries[locale].failureUnknown,
+  );
+  expect(liveTransportFailureMessage('cors_origins PRIVATE_PROVIDER_SECRET', locale)).toBe(
+    dictionaries[locale].transportUnreachable,
+  );
+  expect(liveTransportFailureMessage('429 PRIVATE_PROVIDER_SECRET', locale)).toBe(
+    dictionaries[locale].transportCapacity,
+  );
+  expect(liveTransportFailureMessage('access_denied PRIVATE_PROVIDER_SECRET', locale)).toBe(
+    dictionaries[locale].transportAccess,
+  );
 });

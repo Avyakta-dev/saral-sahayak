@@ -10,6 +10,12 @@ Read the [team issue board](references/team-issue-board.md) first for the curren
 4. Read the [current Markdown agent design](references/planning/markdown-agent-design.md), then the [hackathon plan](references/planning/hackathon-plan.md) and relevant historical product/source references.
 5. Inspect the actual source, tests and working context before claiming progress. Documents are plans, not proof that runtime code exists. Respect task-specific restrictions on Git operations or file access.
 
+## Current implementation — 2026-09-12
+
+The [current board note](references/team-issue-board.md#current-implementation--2026-09-12-reconciliation) supersedes stale status below. The supplied `main` baseline `1fcd433` includes PR #84: the 181-record Markdown corpus, grounded text agent, streaming, history, image path and six-language UI exist. Core text accepts `en`, `hi`, `kn`, `ta`, `te`, `ml`, defaulting to `en`; no language has verified quality. History/cache hardening remains in progress. The recorded current-model matrix is not passing semantic acceptance; use [demo acceptance status](docs/demo-acceptance-status.md) for current evidence, not historical run counts.
+
+The web image path is a private, reviewed-original-file upload followed by backend validation/flattening, not the extension's locally redacted screenshot contract. Flattening is not personal-data redaction; cloud privacy/lifecycle and capability gates still apply. Existing image code does not complete Ajay's Image levels or relax screenshot/placeholder rules. Historical “absent corpus,” “pending knowledge PR,” “deferred images” and “no live requests this round” wording is not current implementation status or standing authorization. Preserve ownership, requested-level checkpoints and task-specific restrictions; this documentation reconciliation makes no Git/environment changes or network tests.
+
 ## Name-based handoff
 
 When a user says "I am <name>", map the name to the documented role, explain their levels and identify the first unfinished milestone based on the code. An identity statement alone is not a request to implement, switch branches, commit or push. When implementation is requested, work within the contributor's scope and coordinate shared contracts with Anish.

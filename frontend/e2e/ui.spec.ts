@@ -31,7 +31,7 @@ const sourceUrl = 'https://example.invalid/synthetic-evidence';
 const input = (page: Page) => page.getByRole('textbox', { name: 'Your message', exact: true });
 const send = (page: Page) => page.getByRole('button', { name: 'Send message', exact: true });
 const language = (page: Page) =>
-  page.getByRole('combobox', { name: 'Sample language', exact: true });
+  page.getByRole('combobox', { name: 'Output language', exact: true });
 const menu = (page: Page) => page.locator('summary[aria-label="Add a file"]');
 const imageInput = (page: Page) => page.getByLabel('Choose image file', { exact: true });
 const textInput = (page: Page) => page.getByLabel('Choose text file', { exact: true });

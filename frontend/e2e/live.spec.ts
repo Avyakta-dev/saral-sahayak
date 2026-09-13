@@ -34,6 +34,7 @@ const capabilities = {
   },
   inputs: ['text'],
   downloads_available: false,
+  history_available: false,
 };
 const liveSuccess = {
   ...success,
@@ -215,7 +216,7 @@ for (const [name, json, status, heading] of [
   });
 }
 
-test('images never transmit; removing one requires fresh text approval and strips file metadata', async ({
+test('text-only capabilities block images; removal requires fresh text approval without file metadata', async ({
   page,
 }) => {
   const requests: unknown[] = [];

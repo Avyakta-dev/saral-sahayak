@@ -4,12 +4,16 @@ import traceback
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 from backend.agent import AnalysisError, AnalysisService
-from backend.agent.models import FinalAnalysis
+from backend.agent.models import TOOLS, FinalAnalysis, ReadFileArgs
 from backend.agent.service import (
+    _APPLICABILITY_RULE,
     _FINISH_NUDGE,
-    _has_answerable_evidence,
+    _FINISH_TOOL_MESSAGE,
+    _has_guidance_source_pair,
+    _prompt,
     _repair_message,
     _should_stop_tools,
     build_response,
@@ -584,11 +588,203 @@ async def test_repair_includes_concrete_same_file_sources_error(root):
     ]
 
 
-def test_answerable_evidence_helper_requires_same_record_sources(root):
+def test_guidance_source_pair_is_only_a_same_record_budget_heuristic(root):
+    other = "reasons/epfo-rr-002.md"
+    (root / other).write_text("## Sources\nhttps://example.org/other\n")
     with KnowledgeFiles(root) as files:
         files.read_file(PATH, heading="Fix")
-        assert not _has_answerable_evidence(files.ledger)
+        files.read_file(other, heading="Sources")
+        assert not _has_guidance_source_pair(files.ledger)
         assert not _should_stop_tools(files.ledger, files.budget)
         files.read_file(PATH, heading="Sources")
-        assert _has_answerable_evidence(files.ledger)
+        assert _has_guidance_source_pair(files.ledger)
         assert _should_stop_tools(files.ledger, files.budget)
+
+
+def test_all_completion_guidance_separates_provenance_from_applicability():
+    prompt = _prompt(AnalyzeRequest(text="Synthetic input"))
+    for message in [prompt, _FINISH_NUDGE, _FINISH_TOOL_MESSAGE, _repair_message("Invalid state")]:
+        assert _APPLICABILITY_RULE in message
+        assert "source URLs and matching phrases do not prove" in message
+        assert "supplied facts that distinguish" in message
+        assert "If a discriminator fact is missing, return needs_clarification" in message
+        assert "raise confidence because sources exist or reads are stopping" in message
+        assert "same file's Sources" in message or "SAME FILE's Sources" in message
+        for obsolete in ["prefer a grounded success", "Prefer success", "initials/name-mismatch"]:
+            assert obsolete not in message
+    assert "affected KYC item and displayed status" in prompt
+    assert "employer approval pending versus bank/NPCI validation failure" in prompt
+    assert "An upload alone does not establish either" in prompt
+    assert "more source reads cannot supply missing user facts" in prompt
+    assert "Do not combine alternative remedies" in prompt
+    assert "classification.rationale" in prompt
+    assert "budget stop requires a final state, not a success state" in prompt
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_prompt_and_repair_preserve_action_qualifications_quotes_and_language(language):
+    """Instruction regression only; not semantic or native-language verification."""
+    prompt = _prompt(AnalyzeRequest(text="Synthetic input", language=language))
+    repair = _repair_message("Claim requires source evidence from the same file.")
+    for message in [prompt, repair]:
+        assert "paraphrasing or translating an action" in message
+        assert "prohibitions, timing restrictions, prerequisites, limits" in message
+        assert "source-authority caveats in that same action" in message
+        assert "Do not silently drop them or move them only into warnings" in message
+        assert "omit the entire action" in message
+        assert "clarify or abstain if that leaves insufficient supported guidance" in message
+        assert "exact quoted rejection remark unless the literal wording is present" in message
+        assert "user-reported wording from a source quotation" in message
+        assert "plain requested-language prose in its primary script" in message
+        assert "not untranslated English phrase paraphrases" in message
+        assert "canonical technical IDs, URLs, supplied identities and essential proper names" in (
+            message
+        )
+        # Rules are generic, not a fixed policy answer or a record-specific routing rule.
+        assert "Do not refile the same day" not in message
+        assert "epfo-rr-001" not in message
+    assert f"Output language MUST be {language}" in prompt
+
+
+@pytest.mark.parametrize("blocked_read", [False, True])
+async def test_citable_candidate_allows_clarification_without_guidance(root, blocked_read):
+    """Scripted policy regression, not proof of live model semantic behavior."""
+
+    def clarify(history):
+        assert any(m.content == _FINISH_NUDGE for m in history)
+        assert len(read_ids(history)) == 2
+        if blocked_read:
+            error = next(m for m in history if m.role == "tool" and m.is_error)
+            assert json.loads(error.content)["message"] == _FINISH_TOOL_MESSAGE
+        return text_result(
+            {
+                "status": "needs_clarification",
+                "language": "en",
+                "questions": ["Which item is affected, and what exact status is displayed?"],
+            }
+        )
+
+    steps = [tool_result(read_call("fix"), read_call("sources", "Sources"))]
+    if blocked_read:
+        steps.append(tool_result(read_call("extra", "What it means")))
+    client = FakeClient(*steps, clarify)
+    response = await AnalysisService(client, root).analyze(AnalyzeRequest(text="Unclear status"))
+    assert response.status == "needs_clarification"
+    assert response.questions
+    assert response.classification is None and response.draft is None
+    assert not response.explanation and not response.actions and not response.required_documents
+    assert not response.citations
+    assert len(client.calls) == (3 if blocked_read else 2)
+
+
+@pytest.mark.parametrize(
+    "status,field,value",
+    [
+        ("success", "classification", None),
+        ("success", "explanation", []),
+        ("success", "actions", []),
+        ("success", "questions", ["Which status?"]),
+        ("needs_clarification", "questions", []),
+        ("unsupported", "warnings", []),
+        ("unsupported", "questions", ["Which status?"]),
+        *[
+            (status, field, "guidance")
+            for status in ["needs_clarification", "unsupported"]
+            for field in ["classification", "explanation", "actions", "required_documents"]
+        ],
+    ],
+)
+def test_model_state_crossfield_rules_reject_contradictory_outcomes(status, field, value):
+    success = payload(["ev-synthetic"])
+    final = (
+        success.copy()
+        if status == "success"
+        else {
+            "status": status,
+            "language": "en",
+            "questions" if status == "needs_clarification" else "warnings": ["Missing facts"],
+        }
+    )
+    final[field] = success[field] if value == "guidance" else value
+    with pytest.raises(ValidationError):
+        FinalAnalysis.model_validate(final)
+
+
+def test_model_schema_documents_existing_state_rules_without_new_public_fields():
+    schema = FinalAnalysis.model_json_schema()
+    assert "Success requires classification" in schema["description"]
+    assert "Both non-success states require null classification" in schema["description"]
+    assert "unsupported requires a limitation in warnings and no questions" in schema["description"]
+    assert "supplied discriminator facts" in schema["properties"]["classification"]["description"]
+    assert set(schema["properties"]) == {
+        "status",
+        "language",
+        "classification",
+        "explanation",
+        "actions",
+        "required_documents",
+        "questions",
+        "warnings",
+    }
+
+
+def test_multi_section_requests_use_separate_calls_with_scalar_headings():
+    description = next(t.description for t in TOOLS if t.name == "read_file")
+    assert "scalar heading string per call" in description
+    assert "not proof of applicability" in description
+    prompt = _prompt(AnalyzeRequest(text="Synthetic"))
+    assert "separate read_file calls, one scalar heading string per call" in prompt
+    assert (
+        "not an array or combined headings"
+        in (ReadFileArgs.model_json_schema()["properties"]["heading"]["description"])
+    )
+    with pytest.raises(ValidationError):
+        ReadFileArgs.model_validate({"relative_path": PATH, "heading": ["Fix", "Sources"]})
+
+
+async def test_prompt_uses_supplied_shared_budget_limits_not_service_defaults(root):
+    now = [0.0]
+    budget = Budget(
+        BudgetLimits(request_seconds=65, tool_calls=7, files=3, read_lines=60, read_bytes=2048),
+        clock=lambda: now[0],
+    )
+    now[0] = 20  # Simulate time spent by an earlier stage without resetting the request clock.
+    client = FakeClient(
+        text_result(
+            {
+                "status": "unsupported",
+                "language": "en",
+                "warnings": ["No supported match"],
+            }
+        )
+    )
+    client.config.timeout_seconds = 100
+    await AnalysisService(client, root, BudgetLimits(request_seconds=30)).analyze(
+        AnalyzeRequest(text="Synthetic"),
+        budget=budget,
+    )
+    prompt = client.calls[0][0][0].content
+    assert "7 total tool calls, 3 distinct files, 60 lines/2048 UTF-8 text bytes" in prompt
+    assert "shared 65-second deadline" in prompt
+    assert "including any earlier stages, not a fresh allowance per turn" in prompt
+    assert "30-second deadline" not in prompt
+    assert client.calls[0][2]["timeout_seconds"] == 45
+
+
+@pytest.mark.parametrize("resource", ["output_tokens", "tool_calls"])
+def test_finish_headroom_remains_enforced_without_source_pair(root, resource):
+    budget = Budget(BudgetLimits(output_tokens=1000), tokenizer=lambda text: 10)
+    with KnowledgeFiles(root, budget=budget) as files:
+        if resource == "output_tokens":
+            for _ in range(91):
+                budget.charge_output({"synthetic": True})
+        else:
+            for _ in range(9):
+                budget.begin_tool()
+        assert not _should_stop_tools(files.ledger, budget)
+        if resource == "output_tokens":
+            budget.charge_output({"synthetic": True})
+        else:
+            budget.begin_tool()
+        assert not _has_guidance_source_pair(files.ledger)
+        assert _should_stop_tools(files.ledger, budget)

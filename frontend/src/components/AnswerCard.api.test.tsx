@@ -1,10 +1,12 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { getWalkthrough } from '../lib/walkthrough';
 import { getDemoResponse } from '../lib/demo';
 import { AnswerCard } from './AnswerCard';
 import { Evidence } from './Evidence';
+import { LocaleProvider, useLocale, locales, dictionaries } from '../lib/i18n';
+import { failureKey } from '../lib/backendStatus';
 
 // Synthetic response data exercises the live renderer, not a provider or source verification.
 describe('analysis-service answer presentation', () => {
@@ -113,7 +115,8 @@ describe('analysis-service answer presentation', () => {
       expect(container.querySelector('.answer-uncertainty')).toBeNull();
       expect(container.querySelector('.evidence')).toBeNull();
       expect(screen.getByRole('button', { name: 'Edit remark' })).toBeVisible();
-      if (response.error) expect(screen.getByText(response.error.message)).toBeVisible();
+      if (response.error)
+        expect(screen.getByText(dictionaries.en[failureKey(response.error.code)])).toBeVisible();
       if (response.questions.length) expect(screen.getByText(response.questions[0])).toBeVisible();
       if (state === 'unsupported')
         expect(screen.getAllByText(response.warnings[0])[0]).toBeVisible();
@@ -141,4 +144,38 @@ describe('analysis-service answer presentation', () => {
       screen.getByText('No source URL supplied. The underlying source cannot be verified here.'),
     ).toBeVisible();
   });
+});
+
+it('localizes safe live error codes reactively and never displays raw envelope prose', () => {
+  let change!: ReturnType<typeof useLocale>['setLocale'];
+  function Capture() {
+    change = useLocale().setLocale;
+    return null;
+  }
+  const response = getDemoResponse('error', 'hi');
+  response.error = { code: 'model_unavailable', message: 'PRIVATE_ERROR_SENTINEL' };
+  const view = render(
+    <LocaleProvider>
+      <Capture />
+      <AnswerCard response={response} onEdit={vi.fn()} mode="live" />
+    </LocaleProvider>,
+  );
+  for (const locale of locales) {
+    act(() => change(locale));
+    expect(screen.getByText(dictionaries[locale].failureUnknown)).toBeVisible();
+    expect(screen.queryByText('PRIVATE_ERROR_SENTINEL')).not.toBeInTheDocument();
+    expect(screen.getByText('model_unavailable')).toHaveAttribute('lang', 'en');
+  }
+  response.error = { code: 'PRIVATE_CODE_SENTINEL', message: 'PRIVATE_ERROR_SENTINEL' };
+  view.rerender(
+    <LocaleProvider>
+      <Capture />
+      <AnswerCard response={response} onEdit={vi.fn()} mode="live" />
+    </LocaleProvider>,
+  );
+  expect(screen.queryByText('PRIVATE_CODE_SENTINEL')).not.toBeInTheDocument();
+  expect(screen.queryByText('PRIVATE_ERROR_SENTINEL')).not.toBeInTheDocument();
+  view.unmount();
+  render(<AnswerCard response={response} onEdit={vi.fn()} mode="sample" />);
+  expect(screen.getByText('PRIVATE_ERROR_SENTINEL')).toHaveAttribute('lang', 'hi');
 });

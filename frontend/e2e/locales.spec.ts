@@ -28,6 +28,7 @@ const capabilities = {
   },
   inputs: ['text', 'image'],
   downloads_available: false,
+  history_available: false,
 };
 const remark = 'SYNTHETIC unchanged wording';
 for (const locale of locales)
@@ -55,6 +56,19 @@ for (const locale of locales)
     await page.locator('#ui-language').selectOption(locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
     await expect(page.getByRole('heading', { name: t.welcomeTitle, exact: true })).toBeVisible();
+    await expect(page.getByText(t.sourceHint, { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(t.enabledLanguagesFooter.replace('{count}', '6'), { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(t.serverAccess, { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: t.refreshConnection, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('complementary', { name: t.analysisReadiness })
+        .getByText(t.readinessCaveat, { exact: true }),
+    ).toBeVisible();
     expect(
       await page.locator('#welcome-title').evaluate((element) => {
         const range = document.createRange();
@@ -70,7 +84,29 @@ for (const locale of locales)
       true,
     );
     await page.getByRole('button', { name: t.details, exact: true }).click();
+    const details = page.getByRole('dialog', { name: t.aboutApi, exact: true });
+    await expect(details.getByRole('button', { name: t.useApi, exact: true })).toBeVisible();
+    await expect(details.getByRole('button', { name: t.useExamples, exact: true })).toBeVisible();
+    await expect(
+      details.getByRole('heading', { name: t.sampleGalleryTitle, exact: true }),
+    ).toBeVisible();
+    await expect(details.getByText(t.sampleGalleryNote, { exact: true })).toBeVisible();
+    for (const label of [
+      t.gallerySuccess,
+      t.galleryClarification,
+      t.galleryUnsupported,
+      t.galleryError,
+    ]) {
+      await expect(details.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
+    await expect(
+      details.getByRole('button', { name: t.galleryError, exact: true }),
+    ).toHaveAttribute('title', t.galleryErrorDescription);
+    await details.locator('summary').filter({ hasText: t.serviceLanguages }).click();
+    await expect(details.getByText(t.serviceLanguageNote, { exact: true })).toBeVisible();
+    await expect(details.getByText(t.qualityUnverified, { exact: true })).toHaveCount(6);
     await expect(page.getByText(t.uiReview, { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`${locale}-details.png`), fullPage: true });
     await page.keyboard.press('Escape');
     await page.getByRole('textbox', { name: t.yourMessage, exact: true }).press('Enter');
     await expect(page.getByRole('alert')).toHaveText(t.errorWhitespace);
@@ -106,7 +142,7 @@ for (const locale of locales)
   });
 
 for (const locale of locales)
-  test(`image consent and exact upload are explicit in ${locale}`, async ({ page }) => {
+  test(`image consent and exact upload are explicit in ${locale}`, async ({ page }, info) => {
     const t = dictionaries[locale];
     const events: string[] = [];
     const png = Buffer.from(
@@ -155,6 +191,12 @@ for (const locale of locales)
       .setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: png });
     await expect(page.getByRole('img', { name: t.attachedPreview })).toBeVisible();
     expect(events).toEqual([]);
+    const input = page.getByRole('textbox', { name: t.yourMessage, exact: true });
+    await input.fill(remark);
+    await page.getByRole('button', { name: t.reviewAnalysis, exact: true }).click();
+    await expect(page.getByRole('alert')).toHaveText(t.imageOnly);
+    expect(events).toEqual([]);
+    await input.fill('   ');
     await page.getByRole('button', { name: t.reviewAnalysis, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: t.imageConsentTitle });
     await expect(dialog).toBeVisible();
@@ -162,6 +204,7 @@ for (const locale of locales)
     await expect(dialog.getByText(t.imageConsentPrivacy, { exact: true })).toBeVisible();
     await expect(dialog.getByRole('img', { name: t.attachedPreview })).toBeVisible();
     await expect(dialog.getByText(t.consentDestination, { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath(`${locale}-image-consent.png`), fullPage: true });
     expect(events).toEqual([]);
     await dialog.getByRole('button', { name: t.backEdit }).click();
     expect(events).toEqual([]);
@@ -171,3 +214,75 @@ for (const locale of locales)
     expect(events).toEqual(['ticket', 'upload', 'analyze']);
     await expect(page.getByRole('button', { name: 'Retry analysis', exact: true })).toHaveCount(0);
   });
+
+for (const locale of locales) {
+  test(`localized missing readiness and analysis failure in ${locale} never refetch on UI changes`, async ({
+    page,
+  }, info) => {
+    const t = dictionaries[locale];
+    let metadata = 0;
+    let analyses = 0;
+    let serviceReady = false;
+    await page.route('**/api/v1/capabilities', (route) => {
+      metadata++;
+      return route.fulfill({
+        json: !serviceReady
+          ? {
+              ...capabilities,
+              analysis_available: false,
+              checks: {
+                ...capabilities.checks,
+                model_configured: false,
+                knowledge_structure_ready: false,
+              },
+            }
+          : capabilities,
+      });
+    });
+    await page.route('**/api/v1/analyze/stream', (route) => {
+      analyses++;
+      return route.fulfill({
+        status: 429,
+        json: { error: { code: 'analysis_capacity', message: 'PRIVATE_UNTRUSTED' } },
+      });
+    });
+    await page.goto('/');
+    await page.locator('#ui-language').selectOption(locale);
+    await expect(page.getByText(t.waitingBoth, { exact: true })).toBeVisible();
+    await expect(page.getByText(t.connectionUnavailable, { exact: true })).toBeVisible();
+    const initialMetadataRequests = metadata;
+    expect(initialMetadataRequests).toBeGreaterThan(0);
+    await page.locator('#ui-language').selectOption(locale === 'en' ? 'hi' : 'en');
+    await page.locator('#ui-language').selectOption(locale);
+    await expect(page.getByText(t.waitingBoth, { exact: true })).toBeVisible();
+    expect(metadata).toBe(initialMetadataRequests);
+    await page.screenshot({
+      path: info.outputPath(`${locale}-missing-readiness.png`),
+      fullPage: true,
+    });
+    serviceReady = true;
+    await page.getByRole('button', { name: t.refreshConnection, exact: true }).click();
+    await expect(page.getByText(t.backendReady, { exact: true })).toBeVisible();
+    await page.getByRole('textbox', { name: t.yourMessage, exact: true }).fill(remark);
+    await page.getByRole('button', { name: t.reviewAnalysis, exact: true }).click();
+    await page.getByRole('button', { name: t.analyzeReviewed, exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: t.answerUnreachable, exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.api-transport-error')).toContainText(t.failureCapacity);
+    await expect(page.getByRole('button', { name: t.retryAnalysis, exact: true })).toHaveCount(0);
+    await expect(page.getByText('PRIVATE_UNTRUSTED')).toHaveCount(0);
+    await page.screenshot({
+      path: info.outputPath(`${locale}-capacity-error.png`),
+      fullPage: true,
+    });
+    await page.locator('#ui-language').selectOption(locale === 'en' ? 'hi' : 'en');
+    await page.locator('#ui-language').selectOption(locale);
+    await expect(page.locator('.api-transport-error')).toContainText(t.failureCapacity);
+    await expect(page.getByRole('textbox', { name: t.yourMessage, exact: true })).toHaveValue(
+      remark,
+    );
+    expect(metadata).toBe(initialMetadataRequests + 1);
+    expect(analyses).toBe(1);
+  });
+}

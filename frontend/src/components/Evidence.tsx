@@ -58,10 +58,14 @@ export function Evidence({
               </div>
               {citation.start_column != null && citation.end_column != null && (
                 <div>
-                  <dt>Column endpoints (zero-based)</dt>
+                  <dt>{t('columnEndpoints')}</dt>
                   <dd>
-                    Line {citation.start_line}, column {citation.start_column} → line{' '}
-                    {citation.end_line}, column {citation.end_column}
+                    {t('columnRange', {
+                      startLine: citation.start_line,
+                      startColumn: citation.start_column,
+                      endLine: citation.end_line,
+                      endColumn: citation.end_column,
+                    })}
                   </dd>
                 </div>
               )}

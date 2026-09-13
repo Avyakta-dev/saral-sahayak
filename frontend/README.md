@@ -47,7 +47,7 @@ Only an explicit Analyze action submits text to `POST /api/v1/analyze`. A typed 
 
 Optional images require an explicit `image` input in validated capabilities and backend image configuration. One image is an alternative to text, not additional context. Review shows the selected image and disclosures before a separate **Analyze reviewed image** action. The complete selected file, including embedded metadata, is uploaded by presigned PUT to service-controlled private storage; the backend processes it with its configured model (possibly remote). The browser does not automatically redact personal data. Remove identifiers manually before attaching. Upload tickets include exact byte length; PUT uses the original File and no manually set Content-Length header. Images do not receive automatic or blind same-message retries. Cancellation cannot recall data already received.
 
-The independent six-language Interface language selector changes local controls and disclosures, never user text, response prose, evidence metadata or the output language. Native-language review remains outstanding.
+The independent six-language Interface language selector reactively changes authored controls, readiness/status helpers, safe transport errors, gallery labels, notices, capability prose, answer/evidence labels and draft-export framing. It does not change user text, model explanations/questions, original sample content, evidence identifiers/paths/URLs or the output language, and it does not issue requests. Live error-envelope prose is not displayed: known error codes select fixed localized messages, with a generic fallback. Original sample error prose remains sample content. Native-language and assistive-technology review remain outstanding; dictionary parity and browser mocks are not fluency certification.
 
 When enabled, streaming uses `POST /api/v1/analyze/stream`. Its SSE reader accepts up to 128 strictly validated activity events plus one final result, handles split UTF-8/CRLF and comments, and fails closed on incomplete, excessive or unexpected events. The chat activity panel shows only host-reported phases and actual Markdown paths, headings and line ranges; it invents no timed steps, percentages or source checks. Activity history stays per turn in memory after completion/error, in a bounded scrollable list. Working animation respects reduced motion. Source files are not fetched by the browser. The final answer appears only after a validated result and complete stream; an error never becomes a partial draft.
 
@@ -61,7 +61,7 @@ When enabled, streaming uses `POST /api/v1/analyze/stream`. Its SSE reader accep
 - **Use examples** or **Show me an example** is an explicit switch to labelled offline content. Failed API requests never substitute a sample answer. **Use API** explicitly returns to the configured connection.
 - Overview, Next steps and Draft remain compact keyboard-accessible tabs. Source disclosures preserve paths, record IDs, exact headings, lines, zero-based columns and URLs. Copying a draft retains its factual-block citations, limitations and missing-field placeholders.
 - Output language selection affects future replies, not independent interface controls or earlier responses. Preview options come from a validated six-language fixture; API options come only from live capabilities. Quality flags are reported metadata rather than fluency guarantees.
-- Text and local images are kept in browser memory only; new chat/reload clears them. Only the latest six turns are retained. API mode intentionally sends reviewed text to the configured service, never silently in the background.
+- The frontend retains only the latest six turns in browser memory; new chat/reload clears local state, not data already transmitted. API mode sends the approved text or, when enabled, the complete reviewed image file to the configured service/storage path. It does not automatically redact images or recall uploads on cancellation.
 
 ## Safety and limits
 
@@ -69,10 +69,10 @@ When enabled, streaming uses `POST /api/v1/analyze/stream`. Its SSE reader accep
 - `.txt` imports are limited to 64 KiB and 8,000 Unicode code points. Invalid UTF-8, binary controls, blank content and misleading file types are rejected.
 - Requests enforce the original 8,000-codepoint limit and a 32,768-byte serialized JSON budget, including schema defaults. Text is not silently truncated.
 - HTTP responses are streamed with a 1 MiB limit, validated JSON content type/schema and matching response language. Redirects are rejected. Small 400/401/413/422/429/504 envelopes are handled separately from full analysis errors. Unknown/invalid responses produce safe messages without printing raw bodies or configuration.
-- There are no automatic retries, accounts, analytics, remote fonts or persisted claim history. Local object URLs are released on removal, replacement, dropped turns, reset and unmount.
+- The frontend performs no automatic retries and does not implement accounts, analytics, remote fonts or persisted claim history. Backend retention is a separate service concern; local cleanup is not a server-deletion guarantee. Local object URLs are released on removal, replacement, dropped turns, reset and unmount.
 - React renders untrusted content as text. Only validated HTTP(S) citation links can be opened, without opener/referrer access. A citation is not independent policy verification.
 
-No provider keys, real claim fixtures or private originals belong in Git. Use synthetic or redacted material for testing. Download, OCR, PDF and voice controls remain unavailable without an agreed service contract. A true future download-availability flag alone is insufficient to invent a document endpoint.
+No provider keys, real claim fixtures or private originals belong in Git. Use synthetic or manually redacted material for testing. Image processing requires the configured image service; actual OCR/provider accuracy is not certified by frontend mocks. A true download-availability flag enables local draft text export, not an invented document endpoint. PDF and voice services remain separate scope.
 
 ## Implementation map
 

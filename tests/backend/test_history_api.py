@@ -1,4 +1,4 @@
-"""API-level proof: an identical repeat text query costs no second model call."""
+"""API-level proof: unscoped requests always rerun validated analysis; history stays isolated."""
 
 import json
 import os
@@ -101,7 +101,7 @@ def _client(complete_corpus, monkeypatch):
     return app, http, calls
 
 
-def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call(
+def test_unscoped_repeat_and_detail_requests_rerun_analysis_with_metadata_history(
     complete_corpus, monkeypatch
 ):
     app, http, calls = _client(complete_corpus, monkeypatch)
@@ -121,24 +121,32 @@ def test_identical_repeat_query_is_served_from_cache_without_a_second_model_call
             second = client.post(
                 "/api/v1/analyze",
                 json={
-                    "text": "synthetic   TEST only",  # same after normalization
+                    "text": "Synthetic test only",
                     "language": "en",
                     "details": {"claimant_name": "Second Caller"},
                 },
                 headers={"X-Session-Id": "reader-1"},
             )
             assert second.status_code == 200, second.json()
-            assert len(calls) == 2, "identical repeat must not reach the model again"
+            assert len(calls) == 4, "details must reach a fresh validated analysis"
             assert second.json()["classification"]["reason_id"] == "epfo-rr-001"
             assert second.json()["draft"]["blocks"][1]["text"] == "Second Caller"
+
+            third = client.post(
+                "/api/v1/analyze",
+                json={"text": "Synthetic test only", "language": "en"},
+                headers={"X-Session-Id": "reader-1"},
+            )
+            assert third.status_code == 200, third.json()
+            assert len(calls) == 6, "even an exact details-free repeat needs a trusted scope"
+            assert app.state.history_store._cache == {}
 
             history = client.get("/api/v1/history", headers={"X-Session-Id": "reader-1"})
             assert history.status_code == 200
             assert history.headers["cache-control"] == "no-store"
             cases = history.json()["cases"]
-            assert len(cases) == 2
-            assert cases[0]["from_cache"] is True  # most recent first
-            assert cases[1]["from_cache"] is False
+            assert len(cases) == 3
+            assert all(case["from_cache"] is False for case in cases)
             assert all(case["reason_id"] == "epfo-rr-001" for case in cases)
 
             other_session = client.get("/api/v1/history", headers={"X-Session-Id": "someone-else"})

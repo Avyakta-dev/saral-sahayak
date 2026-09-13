@@ -393,6 +393,55 @@ def test_byte_pixel_dimension_animation_and_output_bounds():
         _BoundedOutput(2).write(b"123")
 
 
+def test_exif_rotation_is_applied_without_preserving_private_metadata():
+    exif = Image.Exif()
+    exif[274] = 6  # Rotate 90 degrees clockwise.
+    exif[315] = SECRET_TEXT
+    data = raster("JPEG", size=(8, 4), exif=exif)
+    output = validate_image(data, "image/jpeg", len(data), config())
+    with Image.open(io.BytesIO(output)) as decoded:
+        assert decoded.size == (4, 8) and decoded.mode == "RGB" and decoded.info == {}
+    assert SECRET_TEXT.encode() not in output
+
+
+def test_reencoding_expansion_is_bounded_even_for_small_valid_input():
+    # A compact palette input expands after flattening; no large fixture is needed.
+    out = io.BytesIO()
+    image = Image.new("P", (64, 64))
+    image.putpalette([255, 0, 0, 0, 0, 255] + [0] * 762)
+    image.putdata([(x + y) % 2 for y in range(64) for x in range(64)])
+    image.save(out, format="PNG", bits=1, optimize=True)
+    data = out.getvalue()
+    expanded = validate_image(data, "image/png", len(data), config())
+    assert len(expanded) > len(data)
+    with pytest.raises(InvalidImage):
+        validate_image(data, "image/png", len(data), config(max_bytes=len(data)))
+    image.close()
+
+
+async def test_download_deadline_still_cleans_consumed_ticket_without_provider():
+    entered, closed = asyncio.Event(), asyncio.Event()
+
+    class WaitingRead(FakeStorage):
+        async def read(self, *args):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                closed.set()
+
+    storage = WaitingRead()
+    client = FakeClient(admitted())
+    store = pipeline(storage, client)
+    key = mint(store)
+    shared = Budget(BudgetLimits(request_seconds=0.02))
+    with pytest.raises(AnalysisError) as error:
+        await asyncio.wait_for(store.extract(key, shared), 1)
+    assert error.value.code == "analysis_timeout"
+    assert entered.is_set() and closed.is_set() and store._active == 0
+    assert storage.deleted == [key] and not client.calls and not storage.copies
+
+
 def test_lifecycle_is_a_required_dependency():
     with pytest.raises(StorageError):
         pipeline(lifecycle_configured=False)
@@ -436,6 +485,191 @@ async def test_expired_budget_never_reads_storage_or_calls_provider():
         await store.extract(key, shared)
     assert error.value.code == "budget_exhausted"
     assert storage.reads == [] and storage.deleted == [key]
+
+
+@pytest.mark.parametrize("outcome", ["success", "unreadable", "cancel"])
+async def test_stalled_cleanup_is_bounded_and_leaves_no_async_tasks(monkeypatch, outcome):
+    import backend.images.pipeline as image_pipeline
+
+    monkeypatch.setattr(image_pipeline, "CLEANUP_TIMEOUT_SECONDS", 0.02)
+    provider_entered = asyncio.Event()
+    cleanup_entered = asyncio.Event()
+    cleaned = []
+
+    class StalledDelete(FakeStorage):
+        async def delete(self, key):
+            self.deleted.append(key)
+            cleanup_entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cleaned.append(key)
+
+    class Client(FakeClient):
+        async def complete(self, *args, **kwargs):
+            provider_entered.set()
+            if outcome == "cancel":
+                await asyncio.Event().wait()
+            return admitted() if outcome == "success" else admitted("unreadable", "")
+
+    storage = StalledDelete()
+    store = pipeline(storage, Client())
+    key = mint(store)
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(store.extract(key, budget()))
+    await asyncio.wait_for(provider_entered.wait(), 1)
+    if outcome == "cancel":
+        task.cancel()
+    await asyncio.wait_for(cleanup_entered.wait(), 1)
+    if outcome == "cancel":
+        task.cancel()  # A second disconnect cannot strand the shielded cleanup task.
+    if outcome == "success":
+        assert await asyncio.wait_for(task, 1) == "Name does not match Aadhaar."
+    elif outcome == "unreadable":
+        with pytest.raises(AnalysisError) as error:
+            await asyncio.wait_for(task, 1)
+        assert error.value.code == "image_unreadable"
+    else:
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 1)
+    assert storage.deleted == cleaned == [key, *storage.presigned]
+    assert store._active == 0 and key not in store._tickets
+    assert asyncio.all_tasks() - before == set()
+
+
+async def test_cleanup_exception_does_not_replace_original_error_or_leak(caplog):
+    class BrokenDelete(FakeStorage):
+        async def delete(self, key):
+            self.deleted.append(key)
+            raise RuntimeError(SECRET_TEXT)
+
+    storage = BrokenDelete()
+    store = pipeline(storage, FakeClient(admitted("unreadable", "")))
+    key = mint(store)
+    with pytest.raises(AnalysisError) as error:
+        await store.extract(key, budget())
+    assert error.value.code == "image_unreadable"
+    assert storage.deleted == [key, *storage.presigned] and store._active == 0
+    assert SECRET_TEXT not in caplog.text and key not in caplog.text and URL not in caplog.text
+
+
+async def test_cancel_during_download_aborts_before_decode_and_consumes_ticket():
+    entered, closed = asyncio.Event(), asyncio.Event()
+
+    class WaitingRead(FakeStorage):
+        async def read(self, *args):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                closed.set()
+
+    storage = WaitingRead()
+    client = FakeClient(admitted())
+    store = pipeline(storage, client)
+    key = mint(store)
+    task = asyncio.create_task(store.extract(key, budget()))
+    await asyncio.wait_for(entered.wait(), 1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 1)
+    assert closed.is_set() and storage.deleted == [key] and store._active == 0
+    assert not storage.copies and not client.calls
+    with pytest.raises(AnalysisError):
+        await store.extract(key, budget())
+    assert storage.deleted == [key]
+
+
+@pytest.mark.parametrize("stage", ["read", "decode", "write", "sign"])
+async def test_ticket_expiring_during_preparation_stops_before_provider(monkeypatch, stage):
+    import backend.images.pipeline as image_pipeline
+
+    now = [0.0]
+
+    class Expiring(FakeStorage):
+        async def read(self, *args):
+            data = await super().read(*args)
+            if stage == "read":
+                now[0] = 120.0
+            return data
+
+        async def put_validated(self, *args):
+            await super().put_validated(*args)
+            if stage == "write":
+                now[0] = 120.0
+
+        def presign_get(self, *args):
+            url = super().presign_get(*args)
+            if stage == "sign":
+                now[0] = 120.0
+            return url
+
+    def decode(*args):
+        data = validate_image(*args)
+        if stage == "decode":
+            now[0] = 120.0
+        return data
+
+    monkeypatch.setattr(image_pipeline, "validate_image", decode)
+    storage = Expiring()
+    client = FakeClient(admitted())
+    store = ImagePipeline(config(), client, storage, clock=lambda: now[0])
+    key = mint(store)
+    with pytest.raises(AnalysisError) as error:
+        await store.extract(key, budget())
+    assert error.value.code == "image_not_admitted"
+    assert not client.calls and store._active == 0
+    assert storage.deleted == [key, *storage.copies]
+    with pytest.raises(AnalysisError):
+        await store.extract(key, budget())
+    assert storage.reads == [key]
+
+
+async def test_cleanup_time_does_not_extend_downstream_budget():
+    now = [0.0]
+
+    class SlowDelete(FakeStorage):
+        async def delete(self, key):
+            now[0] = 31.0
+            return await super().delete(key)
+
+    storage = SlowDelete()
+    store = pipeline(storage, FakeClient(admitted()))
+    shared = Budget(BudgetLimits(), clock=lambda: now[0])
+    key = mint(store)
+    with pytest.raises(AnalysisError) as error:
+        await store.extract(key, shared)
+    assert error.value.code == "budget_exhausted"
+    assert storage.deleted == [key, *storage.presigned] and store._active == 0
+
+
+@pytest.mark.parametrize(
+    "failure", [StorageError(SECRET_TEXT), InvalidImage(SECRET_TEXT), TimeoutError(SECRET_TEXT)]
+)
+async def test_pipeline_sanitization_detaches_raw_exception_chains(failure):
+    storage = FakeStorage()
+    store = pipeline(storage)
+    key = mint(store)
+    storage.failure = failure
+    with pytest.raises(AnalysisError) as captured:
+        await store.extract(key, budget())
+    assert captured.value.__context__ is None and captured.value.__cause__ is None
+    assert SECRET_TEXT not in str(captured.value)
+    assert storage.deleted == [key] and store._active == 0
+
+
+def test_admission_and_decode_sanitization_detach_raw_exception_chains(monkeypatch):
+    with pytest.raises(AnalysisError) as captured:
+        mint(pipeline(FakeStorage(failure=StorageError(SECRET_TEXT))))
+    assert captured.value.__context__ is None and captured.value.__cause__ is None
+
+    def fail(*args, **kwargs):
+        raise OSError(SECRET_TEXT)
+
+    monkeypatch.setattr(Image, "open", fail)
+    with pytest.raises(InvalidImage) as decoded:
+        validate_image(PNG, "image/png", len(PNG), config())
+    assert decoded.value.__context__ is None and decoded.value.__cause__ is None
 
 
 async def test_cancellation_of_original_cleanup_does_not_skip_provider_cleanup():

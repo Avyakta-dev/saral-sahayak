@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import * as api from './lib/api';
 import { ApiError, type ApiClient } from './lib/api';
+import { failureKey } from './lib/backendStatus';
 import { capabilitiesSchema, previewCapabilities, type Capabilities } from './lib/capabilities';
 import type { AnalyzeResponse, Language } from './lib/contracts';
 import * as demo from './lib/demo';
 import * as attachments from './lib/attachments';
 import { getWalkthrough } from './lib/walkthrough';
+import { LocaleProvider, locales, dictionaries, translate } from './lib/i18n';
 
 const input = () => screen.getByRole('textbox', { name: 'Your message' });
 const languages = () => screen.getByRole('combobox', { name: 'Output language' });
@@ -149,7 +151,7 @@ describe('API discovery and explicit consent', () => {
         .map((item) => item.getAttribute('value')),
     ).toEqual(['hi', 'en']);
     expect(fake.analyze).not.toHaveBeenCalled();
-    expect(screen.getByText(/Omit personal IDs/)).toBeVisible();
+    expect(screen.getByText(/without Aadhaar, PAN, UAN, bank details/)).toBeVisible();
     fireEvent.click(analyzeButton());
     await settle();
     expect(fake.analyze).toHaveBeenCalledExactlyOnceWith(
@@ -320,7 +322,10 @@ describe('real response states, edit context and explicit examples', () => {
         expect(screen.getByText(result.questions[0])).toBeVisible();
       if (status === 'unsupported')
         expect(screen.getAllByText(result.warnings[0])[0]).toBeVisible();
-      if (status === 'error') expect(screen.getByText(result.error!.message)).toBeVisible();
+      if (status === 'error')
+        expect(
+          screen.getAllByText(dictionaries.en[failureKey(result.error!.code)])[0],
+        ).toBeVisible();
       expect(load).not.toHaveBeenCalled();
     },
   );
@@ -402,7 +407,9 @@ describe('real response states, edit context and explicit examples', () => {
     capabilities.languages[0].quality_verified = true;
     await ready(client(capabilities));
     fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-    expect(screen.getByText(/configuration and knowledge structure only/)).toBeVisible();
+    expect(
+      within(screen.getByRole('dialog')).getByText(/configuration and structure metadata/),
+    ).toBeVisible();
     expect(screen.getByText(/Live drafts can save a local text file/)).toBeVisible();
     fireEvent.click(screen.getByText('Service language capabilities'));
     expect(screen.getByText('Service quality flag: true')).toBeVisible();
@@ -456,7 +463,8 @@ describe('failures and bounded manual retries', () => {
     await ready(fake);
     await submit();
     expect(screen.getByRole('heading', { name: 'Could not prepare an answer' })).toBeVisible();
-    expect(screen.getByText('Service supplied typed failure detail.')).toBeVisible();
+    expect(screen.queryByText('Service supplied typed failure detail.')).not.toBeInTheDocument();
+    expect(screen.getAllByText(dictionaries.en[failureKey(code)])[0]).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Retry analysis' })).not.toBeInTheDocument();
     await tick(300_000);
     expect(fake.analyze).toHaveBeenCalledOnce();
@@ -694,4 +702,126 @@ describe('capability readiness, refresh and cancellation', () => {
       ).not.toBeInTheDocument();
     },
   );
+});
+
+describe('reactive interface localization without extra requests', () => {
+  it('updates pending, missing gates and refresh errors in all six locales without refetching', async () => {
+    const metadata = deferred<Capabilities>();
+    const fake = client();
+    fake.getCapabilities.mockReturnValueOnce(metadata.promise);
+    render(
+      <LocaleProvider>
+        <App apiClient={fake} />
+      </LocaleProvider>,
+    );
+    const change = (code: (typeof locales)[number]) =>
+      fireEvent.change(document.querySelector('#ui-language')!, { target: { value: code } });
+    for (const code of locales) {
+      change(code);
+      expect(screen.getByText(dictionaries[code].backendChecking)).toBeVisible();
+      expect(screen.getByText(dictionaries[code].connectionChecking)).toBeVisible();
+      expect(fake.getCapabilities).toHaveBeenCalledOnce();
+    }
+    const missing = caps();
+    missing.analysis_available = false;
+    missing.checks.model_configured = false;
+    missing.checks.knowledge_structure_ready = false;
+    await act(async () => metadata.resolve(missing));
+    for (const code of locales) {
+      change(code);
+      expect(screen.getByText(dictionaries[code].waitingBoth)).toBeVisible();
+      expect(
+        screen.getByRole('complementary', { name: dictionaries[code].analysisReadiness }),
+      ).toHaveAttribute('lang', code);
+      expect(fake.getCapabilities).toHaveBeenCalledOnce();
+    }
+    fake.getCapabilities.mockRejectedValue(new ApiError('invalid_response', 'PRIVATE_UNTRUSTED'));
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(screen.getByRole('button', { name: dictionaries.ml.refreshConnection }));
+      await settle();
+    }
+    for (const code of locales) {
+      change(code);
+      expect(screen.getByText(dictionaries[code].failureResponse)).toBeVisible();
+      expect(screen.getByText(translate(code, 'refreshLimit', { count: 2 }))).toBeVisible();
+      expect(
+        screen.getByRole('button', { name: dictionaries[code].refreshConnection }),
+      ).toBeDisabled();
+      expect(fake.getCapabilities).toHaveBeenCalledTimes(3);
+      expect(fake.analyze).not.toHaveBeenCalled();
+      expect(document.body.textContent).not.toContain('PRIVATE_UNTRUSTED');
+    }
+  });
+
+  it('reactively translates stored transport errors and retry limits without changing input or retrying', async () => {
+    const fake = client();
+    fake.analyze.mockRejectedValue(new ApiError('model_unavailable', 'PRIVATE_UNTRUSTED'));
+    render(
+      <LocaleProvider>
+        <App apiClient={fake} />
+      </LocaleProvider>,
+    );
+    await settle();
+    await submit();
+    for (const code of locales) {
+      fireEvent.change(document.querySelector('#ui-language')!, { target: { value: code } });
+      expect(
+        screen.getByRole('heading', { name: dictionaries[code].answerUnreachable }),
+      ).toBeVisible();
+      expect(screen.getByText(dictionaries[code].failureUnknown)).toBeVisible();
+      expect(
+        screen.getByText(translate(code, 'retryExplanationOther', { count: 2 })),
+      ).toBeVisible();
+      expect(fake.analyze).toHaveBeenCalledOnce();
+      expect(fake.getCapabilities).toHaveBeenCalledOnce();
+      expect(screen.getByRole('textbox', { name: dictionaries[code].yourMessage })).toHaveValue(
+        remark,
+      );
+    }
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(screen.getByRole('button', { name: dictionaries.ml.retryAnalysis }));
+      await settle();
+    }
+    for (const code of locales) {
+      fireEvent.change(document.querySelector('#ui-language')!, { target: { value: code } });
+      expect(screen.getByText(dictionaries[code].retryLimit)).toBeVisible();
+      expect(screen.getByRole('button', { name: dictionaries[code].retryAnalysis })).toBeDisabled();
+      expect(fake.analyze).toHaveBeenCalledTimes(3);
+    }
+    expect(document.body.textContent).not.toContain('PRIVATE_UNTRUSTED');
+  });
+
+  it('localizes capacity and access denials in every locale while preserving no-retry behavior', async () => {
+    const fake = client();
+    fake.analyze.mockRejectedValue(new ApiError('analysis_capacity', 'PRIVATE_CAPACITY'));
+    const view = render(
+      <LocaleProvider>
+        <App apiClient={fake} />
+      </LocaleProvider>,
+    );
+    await settle();
+    await submit();
+    for (const code of locales) {
+      fireEvent.change(document.querySelector('#ui-language')!, { target: { value: code } });
+      expect(screen.getAllByText(dictionaries[code].failureCapacity)[0]).toBeVisible();
+      expect(
+        screen.queryByRole('button', { name: dictionaries[code].retryAnalysis }),
+      ).not.toBeInTheDocument();
+      expect(fake.analyze).toHaveBeenCalledOnce();
+    }
+    view.unmount();
+    fake.getCapabilities.mockRejectedValue(new ApiError('access_denied', 'PRIVATE_ACCESS'));
+    render(
+      <LocaleProvider>
+        <App apiClient={fake} />
+      </LocaleProvider>,
+    );
+    await settle();
+    for (const code of locales) {
+      fireEvent.change(document.querySelector('#ui-language')!, { target: { value: code } });
+      expect(screen.getByText(dictionaries[code].gatewayNotReady)).toBeVisible();
+      expect(screen.getByText(dictionaries[code].failureAccess)).toBeVisible();
+      expect(fake.getCapabilities).toHaveBeenCalledTimes(2);
+    }
+  });
 });

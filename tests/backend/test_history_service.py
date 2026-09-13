@@ -1,5 +1,6 @@
-"""HistoryTrackingService: cache short-circuit, lifecycle recording, per-session isolation."""
+"""Offline history/cache checks. All requests and model responses are synthetic."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from backend.history.service import HistoryTrackingService
 from backend.history.store import CaseHistoryStore
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs" / "examples"
+SCOPE = "a" * 64
 
 
 def synthetic_response(**overrides) -> AnalyzeResponse:
@@ -30,141 +32,200 @@ class StubInner:
         return self.response
 
 
-async def test_repeat_text_query_hits_cache_and_never_calls_inner_again():
+def scoped(inner, store, session_id="alice", scope=SCOPE):
+    return HistoryTrackingService(inner, store, session_id=session_id, cache_scope=scope)
+
+
+async def test_default_scope_disables_response_retention_but_keeps_history():
     store = CaseHistoryStore()
     inner = StubInner(synthetic_response())
     service = HistoryTrackingService(inner, store, session_id="alice")
+    request = AnalyzeRequest(text="My claim was rejected")
+    await service.analyze(request)
+    await service.analyze(request)
+    assert len(inner.calls) == 2
+    assert store._cache == {}
+    assert [record.from_cache for record in store.history("alice")] == [False, False]
 
-    request = AnalyzeRequest(text="My claim was rejected", language="en")
+
+async def test_repeat_text_query_hits_explicit_scope_and_preserves_evidence():
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    service = scoped(inner, store)
+    request = AnalyzeRequest(text="My claim was rejected")
     first = await service.analyze(request)
+    second = await service.analyze(request)
     assert len(inner.calls) == 1
-    assert first.classification.reason_id == "epfo-rr-001"
-
-    second = await service.analyze(
-        AnalyzeRequest(
-            text="my   claim WAS rejected",
-            language="en",
-            details={"claimant_name": "Someone Else"},
-        )
-    )
-    assert len(inner.calls) == 1, "identical query must not re-run the inner analysis"
-    assert second.classification.reason_id == "epfo-rr-001"
-
-    history = store.history("alice")
-    assert [record.status for record in history] == ["completed", "completed"]
-    assert history[0].from_cache is True
-    assert history[1].from_cache is False
-
-
-async def test_cache_hit_rebuilds_draft_from_the_new_callers_own_details():
-    store = CaseHistoryStore()
-    inner = StubInner(synthetic_response())
-    service = HistoryTrackingService(inner, store, session_id="alice")
-
-    await service.analyze(AnalyzeRequest(text="My claim was rejected", language="en"))
-    second = await service.analyze(
-        AnalyzeRequest(
-            text="my claim was rejected",
-            language="en",
-            details={"claimant_name": "Priya Verma"},
-        )
-    )
+    assert second.citations == first.citations
+    assert second.actions == first.actions
+    assert second.explanation == first.explanation
     assert second.draft is not None
-    assert any(block.text == "Priya Verma" for block in second.draft.blocks)
-    assert "claimant_name" not in second.draft.missing_fields
+    assert second.draft.missing_fields  # no synthetic fixture identity is replayed
+    assert [record.status for record in store.history("alice")] == ["completed", "completed"]
+    assert [record.from_cache for record in store.history("alice")] == [True, False]
 
 
-async def test_different_text_or_language_never_shares_a_cache_slot():
+@pytest.mark.parametrize(
+    "details",
+    [
+        {"claimant_name": "Synthetic Second Caller"},
+        {"claim_id": "SYNTHETIC-CLAIM-2"},
+        {"claim_type": "Form 19"},
+        {"claimant_name": ""},  # supplied empty strings still differ from absent details
+    ],
+)
+async def test_details_bypass_both_cache_lookup_and_write(details):
     store = CaseHistoryStore()
     inner = StubInner(synthetic_response())
-    service = HistoryTrackingService(inner, store, session_id="alice")
+    service = scoped(inner, store)
+    text = "My claim was rejected"
+    await service.analyze(AnalyzeRequest(text=text))
+    original = store.find_cached("en", text, session_id="alice", cache_scope=SCOPE)
+    inner.response = synthetic_response()
+    inner.response.classification.rationale = "SYNTHETIC PRIVATE DETAIL ECHO"
+    detailed = AnalyzeRequest(text=text, details=details)
+    await service.analyze(detailed)
+    await service.analyze(detailed)
+    assert len(inner.calls) == 3, "details must not consume even a generic cached answer"
+    cached = store.find_cached("en", text, session_id="alice", cache_scope=SCOPE)
+    assert cached == original, "details must not replace the generic cache entry"
+    assert "SYNTHETIC PRIVATE DETAIL ECHO" not in cached.model_dump_json()
+    # Nor may a detail-bearing request seed a fresh slot.
+    await service.analyze(AnalyzeRequest(text="New synthetic question", details=details))
+    assert (
+        store.find_cached("en", "New synthetic question", session_id="alice", cache_scope=SCOPE)
+        is None
+    )
 
-    await service.analyze(AnalyzeRequest(text="My claim was rejected", language="en"))
-    await service.analyze(AnalyzeRequest(text="A completely different question", language="en"))
-    await service.analyze(AnalyzeRequest(text="My claim was rejected", language="hi"))
+
+@pytest.mark.parametrize(
+    "text,language",
+    [
+        ("my claim was rejected", "en"),
+        ("My  claim was rejected", "en"),
+        ("A completely different question", "en"),
+        ("My claim was rejected", "hi"),
+    ],
+)
+async def test_different_exact_text_or_language_never_shares_a_cache_slot(text, language):
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    service = scoped(inner, store)
+    await service.analyze(AnalyzeRequest(text="My claim was rejected"))
+    await service.analyze(AnalyzeRequest(text=text, language=language))
+    assert len(inner.calls) == 2
+
+
+async def test_image_requests_bypass_both_cache_lookup_and_write():
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    service = scoped(inner, store)
+    key = "synthetic-opaque-key-1"
+    await service.analyze(AnalyzeRequest(text=key))
+    original = store.find_cached("en", key, session_id="alice", cache_scope=SCOPE)
+    inner.response = synthetic_response()
+    inner.response.classification.rationale = "SYNTHETIC OCR ECHO"
+    request = AnalyzeRequest(image_key=key)
+    await service.analyze(request)
+    await service.analyze(request)
     assert len(inner.calls) == 3
-
-
-async def test_image_requests_are_never_cache_checked_but_are_still_recorded():
-    store = CaseHistoryStore()
-    inner = StubInner(synthetic_response())
-    service = HistoryTrackingService(inner, store, session_id="alice")
-
-    request = AnalyzeRequest(image_key="opaque-key-1", language="en")
-    await service.analyze(request)
-    await service.analyze(request)
-    assert len(inner.calls) == 2, "image requests always re-run; caching needs extracted text"
-    assert len(store.history("alice")) == 2
+    assert len(store.history("alice")) == 3
+    assert store.find_cached("en", key, session_id="alice", cache_scope=SCOPE) == original
+    await service.analyze(AnalyzeRequest(image_key="new-synthetic-image-key"))
+    assert (
+        store.find_cached("en", "new-synthetic-image-key", session_id="alice", cache_scope=SCOPE)
+        is None
+    )
 
 
 async def test_failure_is_recorded_and_never_cached():
     store = CaseHistoryStore()
-    inner = StubInner(RuntimeError("boom"))
-    service = HistoryTrackingService(inner, store, session_id="alice")
-
+    inner = StubInner(RuntimeError("synthetic failure"))
+    service = scoped(inner, store)
     with pytest.raises(RuntimeError):
-        await service.analyze(AnalyzeRequest(text="Question that fails", language="en"))
-
-    history = store.history("alice")
-    assert history[0].status == "failed"
-    assert store.find_cached("en", "Question that fails") is None
-
-
-async def test_cross_session_cache_hit_on_a_details_free_seed_is_still_shared():
-    """The exact-match cache is deliberately global (see HANDOFF-history-cache.md), so a
-    second, unrelated session can hit a slot a different session filled - that is the
-    whole point for the common case where neither caller submitted details.
-    """
-    store = CaseHistoryStore()
-    inner = StubInner(synthetic_response())
-    alice = HistoryTrackingService(inner, store, session_id="alice")
-    bob = HistoryTrackingService(inner, store, session_id="bob")
-
-    await alice.analyze(AnalyzeRequest(text="My claim was rejected", language="en"))
-    assert len(inner.calls) == 1
-
-    bob_response = await bob.analyze(AnalyzeRequest(text="my   claim WAS rejected", language="en"))
-    assert len(inner.calls) == 1, "the identical text must still hit the shared cache"
-    assert bob_response.classification.reason_id == "epfo-rr-001"
-
-
-async def test_a_response_seeded_with_details_never_enters_the_shared_cache():
-    """request.details reaches the model whole (it is serialized into the very first
-    prompt message - see backend.agent.service._analyze), and nothing structural, only
-    a system-prompt instruction, stops the model from echoing a name or claim id into
-    classification/explanation/actions text. A response produced from a request that
-    carried details must therefore never become a slot a *different* session can hit -
-    unlike `draft` (already rebuilt fresh per caller), those fields would replay
-    verbatim if cached. This is a correction of an earlier, disproven assumption that
-    only `draft` could ever carry a caller's details.
-    """
-    store = CaseHistoryStore()
-    inner = StubInner(synthetic_response())
-    alice = HistoryTrackingService(inner, store, session_id="alice")
-    bob = HistoryTrackingService(inner, store, session_id="bob")
-
-    await alice.analyze(
-        AnalyzeRequest(
-            text="My claim was rejected",
-            language="en",
-            details={"claimant_name": "Alice", "claim_id": "alice-claim-1"},
-        )
+        await service.analyze(AnalyzeRequest(text="Question that fails"))
+    assert store.history("alice")[0].status == "failed"
+    assert (
+        store.find_cached("en", "Question that fails", session_id="alice", cache_scope=SCOPE)
+        is None
     )
-    assert len(inner.calls) == 1
-    assert store.find_cached("en", "My claim was rejected") is None
-
-    await bob.analyze(AnalyzeRequest(text="my   claim WAS rejected", language="en"))
-    assert len(inner.calls) == 2, "alice's details-bearing response must never be replayed"
 
 
-async def test_sessions_never_share_history_or_bleed_into_each_others_view():
+async def test_identical_text_in_different_sessions_never_replays_response():
     store = CaseHistoryStore()
     inner = StubInner(synthetic_response())
-    alice = HistoryTrackingService(inner, store, session_id="alice")
-    bob = HistoryTrackingService(inner, store, session_id="bob")
+    alice = scoped(inner, store)
+    bob = scoped(inner, store, session_id="bob")
+    request = AnalyzeRequest(text="My claim was rejected")
+    await alice.analyze(request)
+    await bob.analyze(request)
+    assert len(inner.calls) == 2
+    assert len(store.history("alice")) == len(store.history("bob")) == 1
+    assert store.history("alice")[0].case_id != store.history("bob")[0].case_id
+    assert store.history("nobody") == []
+    await bob.analyze(request)
+    assert len(inner.calls) == 2
 
-    await alice.analyze(AnalyzeRequest(text="Alice's question", language="en"))
-    await bob.analyze(AnalyzeRequest(text="Bob's question", language="en"))
 
-    assert len(store.history("alice")) == 1
-    assert len(store.history("bob")) == 1
+async def test_synthetic_corpus_model_and_contract_revisions_never_replay_old_guidance(tmp_path):
+    # This test host hashes ONLY its tiny public synthetic corpus and nonsecret identity.
+    # Production remains unscoped: no filesystem/config access is added to history.
+    corpus = tmp_path / "public-synthetic.md"
+    corpus.write_text("# Synthetic evidence\nRevision one, not policy.\n")
+
+    def scope(model="synthetic-model-v1", contract="synthetic-contract-v1"):
+        return hashlib.sha256(corpus.read_bytes() + model.encode() + contract.encode()).hexdigest()
+
+    store = CaseHistoryStore()
+    inner = StubInner(synthetic_response())
+    request = AnalyzeRequest(text="Synthetic revision test")
+    first = scoped(inner, store, scope=scope())
+    await first.analyze(request)
+    await first.analyze(request)
+    assert len(inner.calls) == 1
+    corpus.write_text("# Synthetic evidence\nRevision two, not policy.\n")
+    await scoped(inner, store, scope=scope()).analyze(request)
+    await scoped(inner, store, scope=scope(model="synthetic-model-v2")).analyze(request)
+    await scoped(inner, store, scope=scope(contract="synthetic-contract-v2")).analyze(request)
+    assert len(inner.calls) == 4
+
+
+async def test_scope_change_during_old_inflight_request_cannot_seed_new_scope():
+    import asyncio
+
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    class DelayedInner(StubInner):
+        async def analyze(self, request, *, activity=None):
+            entered.set()
+            await release.wait()
+            return await super().analyze(request, activity=activity)
+
+    store = CaseHistoryStore()
+    inner = DelayedInner(synthetic_response())
+    request = AnalyzeRequest(text="Synthetic in-flight request")
+    old_task = asyncio.create_task(scoped(inner, store).analyze(request))
+    await entered.wait()
+    new = scoped(inner, store, scope="b" * 64)
+    release.set()
+    await old_task
+    await new.analyze(request)
+    assert len(inner.calls) == 2
+
+
+async def test_expiry_runs_inner_again_and_replay_does_not_extend_ttl(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("backend.history.store.time.monotonic", lambda: now[0])
+    store = CaseHistoryStore(cache_ttl_seconds=10)
+    inner = StubInner(synthetic_response())
+    service = scoped(inner, store)
+    request = AnalyzeRequest(text="Synthetic expiry test")
+    await service.analyze(request)
+    now[0] = 109
+    await service.analyze(request)
+    assert len(inner.calls) == 1
+    now[0] = 110
+    await service.analyze(request)
+    assert len(inner.calls) == 2
+    assert [r.from_cache for r in store.history("alice")] == [False, True, False]

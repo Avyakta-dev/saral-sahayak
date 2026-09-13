@@ -36,45 +36,21 @@ import { IMAGE_ACCEPT, readImage, readTextAttachment, releaseImage } from './lib
 import type { ImageAttachment } from './lib/attachments';
 import { ApiError, getConfiguredApiClient, isRetryableCode } from './lib/api';
 import type { ApiClient } from './lib/api';
-import { statusFromCapabilities, type BackendStatus } from './lib/backendStatus';
+import { failureKey, statusFromCapabilities, type BackendStatus } from './lib/backendStatus';
 import { canRetryAnalysis, MAX_ANALYSIS_ATTEMPTS } from './lib/analysisRetry';
+
+const galleryKeys = {
+  success: { label: 'gallerySuccess', description: 'gallerySuccessDescription' },
+  needs_clarification: {
+    label: 'galleryClarification',
+    description: 'galleryClarificationDescription',
+  },
+  unsupported: { label: 'galleryUnsupported', description: 'galleryUnsupportedDescription' },
+  error: { label: 'galleryError', description: 'galleryErrorDescription' },
+} as const;
 
 type ConnectionState = 'loading' | 'ready' | 'unavailable' | 'error';
 type Failure = { code: string; retryable: boolean };
-
-// Never display transport bodies, configuration values or arbitrary exception messages.
-function failureMessage(code: string): string {
-  switch (code) {
-    case 'invalid_configuration':
-      return 'The analysis service configuration is invalid. Ask the site operator to check it.';
-    case 'access_denied':
-      return 'Analysis access was denied. Ask the site operator to configure the trusted gateway. Do not enter access tokens or provider keys in this UI.';
-    case 'analysis_capacity':
-      return 'The analysis service is at capacity. Try later; this request will not be retried.';
-    case 'request_timeout':
-    case 'analysis_timeout':
-    case 'timeout':
-      return 'The service took too long to respond. Your text is still here.';
-    case 'cancelled':
-    case 'aborted':
-      return 'The request was cancelled. Your text is still here.';
-    case 'invalid_request':
-    case 'request_too_large':
-      return 'The service could not accept this text. Edit or shorten it before sending again.';
-    case 'language_disabled':
-      return 'This language is no longer enabled. Refresh the connection and choose an enabled language.';
-    case 'model_not_configured':
-    case 'knowledge_unavailable':
-      return 'Analysis is unavailable until the service configuration or knowledge is ready.';
-    case 'budget_exhausted':
-      return 'The analysis budget was exhausted. Edit the remark with a shorter, focused question.';
-    case 'invalid_response':
-    case 'response_too_large':
-      return 'The service returned an unreadable response. No guidance has been substituted.';
-    default:
-      return 'The analysis service could not complete the request. Your text is still here.';
-  }
-}
 
 function transportFailure(cause: unknown): Failure {
   return cause instanceof ApiError
@@ -157,6 +133,7 @@ export default function App({
   apiClient,
 }: { capabilities?: Capabilities; apiClient?: ApiClient | null } = {}) {
   const { locale, setLocale, t, message } = useLocale();
+  const failureMessage = (code: string) => t(failureKey(code));
   const consentDialog = useRef<HTMLDialogElement>(null);
   const [consent, setConsent] = useState<Turn | null>(null);
   const offlineCapabilities = useMemo(
@@ -286,15 +263,13 @@ export default function App({
     if (enabled !== language) {
       setLanguage(enabled);
       setNotice(
-        mode === 'api'
-          ? 'That language is not enabled by the service. The default is selected.'
-          : 'That language is not enabled in this capabilities example. The default is selected.',
+        mode === 'api' ? { key: 'noticeLanguageService' } : { key: 'noticeLanguageExample' },
       );
     } else if (hadPending) {
       setNotice(
         mode === 'api'
-          ? 'Capabilities changed; the pending analysis was cancelled.'
-          : 'Capabilities changed; the pending example was cancelled.',
+          ? { key: 'noticeCapabilitiesAnalysis' }
+          : { key: 'noticeCapabilitiesExample' },
       );
     }
   }, [capabilities, language]);
@@ -337,7 +312,7 @@ export default function App({
     setConsent(null);
     if (currentAttachment.current) forgetImage(currentAttachment.current);
     updateAttachment(null);
-    setNotice('Image removed.');
+    setNotice({ key: 'imageRemoved' });
     textarea.current?.focus();
   }
 
@@ -372,8 +347,8 @@ export default function App({
         updateAttachment(image);
         setNotice(
           imageInputAvailable(capabilities)
-            ? 'Image added locally. It is uploaded only if you approve analysis.'
-            : 'Image added locally. Image analysis is not enabled on this backend.',
+            ? { key: 'imageAddedApproved' }
+            : { key: 'imageAddedDisabled' },
         );
       }
       textarea.current?.focus();
@@ -444,11 +419,7 @@ export default function App({
 
   function cancelSample() {
     cancelWork();
-    setNotice(
-      mode === 'api'
-        ? 'Analysis cancelled. Your text is still here; edit it or analyze again.'
-        : 'Sample cancelled.',
-    );
+    setNotice(mode === 'api' ? { key: 'noticeAnalysisCancelled' } : { key: 'sampleCancelled' });
     textarea.current?.focus();
   }
 
@@ -496,7 +467,7 @@ export default function App({
     setMode('preview');
     setLanguage(selectEnabledLanguage(offlineCapabilities, language));
     setError('');
-    setNotice('Example mode. Nothing is sent; your input is preserved.');
+    setNotice({ key: 'noticeExampleMode' });
     infoDialog.current?.close();
   }
 
@@ -506,7 +477,7 @@ export default function App({
     setMode('api');
     setLiveCapabilities(null);
     setError('');
-    setNotice('API mode. Review your text before choosing Analyze text.');
+    setNotice({ key: 'noticeApiMode' });
     if (configuration.invalid) {
       setConnectionState('error');
       setConnectionFailure({ code: 'invalid_configuration', retryable: false });
@@ -548,7 +519,7 @@ export default function App({
       forgetImage(currentAttachment.current);
     updateAttachment(turn.image);
     setTurns((previous) => previous.filter((item) => item.id !== turn.id));
-    setNotice('Edit your message below.');
+    setNotice({ key: 'editBelow' });
     setError('');
     requestAnimationFrame(() => textarea.current?.focus());
   }
@@ -774,7 +745,7 @@ export default function App({
       await loadDemoResponse(scenario, selectedLanguage, controller.signal);
       if (request.current !== controller || controller.signal.aborted) return;
       const response = getWalkthrough(selectedLanguage, scenario);
-      setNotice('Example reply loaded. This is not live analysis.');
+      setNotice({ key: 'noticeExampleLoaded' });
       setTurns((previous) =>
         previous.map((turn) => (turn.id === id ? { ...turn, response } : turn)),
       );
@@ -798,31 +769,31 @@ export default function App({
     cancelWork();
     cancelMetadata();
     setLanguage(selectEnabledLanguage(capabilities, value));
-    setNotice(hasConversation ? 'Language updated for new replies.' : '');
+    setNotice(hasConversation ? { key: 'languageUpdated' } : '');
   }
 
   const connectionMessage = connectionFailure
     ? failureMessage(connectionFailure.code)
     : connectionState === 'loading'
-      ? 'Checking service capabilities… No claim text is sent.'
+      ? t('connectionChecking')
       : connectionState === 'ready'
-        ? 'Text analysis is configured. Review your text before sending.'
-        : 'Text analysis is unavailable. Refresh the connection or use examples.';
+        ? t('connectionReady')
+        : t('connectionUnavailable');
 
   const backendStatus: BackendStatus =
     connectionFailure?.code === 'access_denied'
       ? {
           kind: 'not_ready',
-          label: 'Analysis gateway not ready',
+          label: t('gatewayNotReady'),
           detail: failureMessage('access_denied'),
         }
       : connectionState === 'loading'
-        ? { kind: 'checking', label: 'Checking analysis backend…' }
+        ? { kind: 'checking', label: t('backendChecking') }
         : liveCapabilities
-          ? statusFromCapabilities(liveCapabilities)
+          ? statusFromCapabilities(liveCapabilities, locale)
           : {
               kind: 'unreachable',
-              label: 'Analysis backend unreachable',
+              label: t('backendUnreachable'),
               detail: connectionMessage,
             };
 
@@ -830,19 +801,18 @@ export default function App({
     <div className="composer-dock">
       {mode === 'api' && (
         <div className="api-connection" data-state={connectionState}>
-          <aside className="demo-readiness" aria-label="Analysis readiness">
+          <aside className="demo-readiness" aria-label={t('analysisReadiness')} lang={locale}>
             <p className={`backend-status backend-status-${backendStatus.kind}`} role="status">
               {backendStatus.label}
             </p>
             {backendStatus.detail && backendStatus.detail !== connectionMessage && (
               <p>{backendStatus.detail}</p>
             )}
-            <p>
-              Availability is configuration and structure metadata, not authorization, verified
-              model connectivity, policy accuracy or language quality.
-            </p>
+            <p lang={locale}>{t('readinessCaveat')}</p>
           </aside>
-          <p role="status">{connectionMessage}</p>
+          <p role="status" lang={locale}>
+            {connectionMessage}
+          </p>
           <div className="api-connection-actions">
             <button
               type="button"
@@ -850,20 +820,18 @@ export default function App({
               onClick={refreshConnection}
               disabled={!configuration.client || connectionState === 'loading' || refreshes >= 2}
             >
-              Refresh connection
+              {t('refreshConnection')}
             </button>
             <button type="button" className="text-button" onClick={useExamples}>
-              Use examples
+              {t('useExamples')}
             </button>
           </div>
-          {refreshes >= 2 && (
-            <small>Connection refresh limit reached (2). Reload to start a new connection.</small>
-          )}
+          {refreshes >= 2 && <small>{t('refreshLimit', { count: 2 })}</small>}
         </div>
       )}
       {clarification && (
-        <aside className="clarification-context" aria-label="Clarification context">
-          <strong>Add these details to your original remark</strong>
+        <aside className="clarification-context" aria-label={t('clarificationContext')}>
+          <strong>{t('clarificationPrompt')}</strong>
           <ul lang={clarification.language}>
             {clarification.questions.map((question, index) => (
               <li key={index}>{question}</li>
@@ -913,8 +881,8 @@ export default function App({
                 {mode === 'api'
                   ? imageEnabled
                     ? t('imageUploadNote')
-                    : 'Image stays local. Paste its wording; only typed text is sent.'
-                  : 'OCR isn’t connected yet'}
+                    : t('imageLocalText')
+                  : t('ocrUnavailable')}
               </small>
             </div>
             <button
@@ -1085,15 +1053,21 @@ export default function App({
         </p>
       )}
       <p className="composer-notice" role="status">
-        {typeof notice === 'string' && locale === 'en' ? notice : message(notice)}
+        {message(notice)}
       </p>
       <p className={`preview-limit${mode === 'api' ? ' api-privacy-note' : ''}`} id="preview-limit">
         <LockKeyhole size={12} aria-hidden="true" />{' '}
-        {mode === 'api'
-          ? imageEnabled
-            ? t('imageUploadNote')
-            : 'Analyze text sends your text to the configured analysis service. Omit personal IDs (Aadhaar, PAN, UAN, bank or claim numbers). Images are not sent or read.'
-          : 'Local preview. Analysis & image reading aren’t connected.'}{' '}
+        {mode === 'api' ? (
+          imageEnabled ? (
+            t('imageUploadNote')
+          ) : (
+            <>
+              {t('privacyReminder')} {t('liveLimit')}
+            </>
+          )
+        ) : (
+          t('previewLimit')
+        )}{' '}
         <button type="button" onClick={() => infoDialog.current?.showModal()}>
           {t('details')}
         </button>
@@ -1157,13 +1131,9 @@ export default function App({
               value={capabilities ? language : ''}
               disabled={!capabilities || (mode === 'api' && connectionState !== 'ready')}
               onChange={(event) => changeLanguage(event.target.value as Language)}
-              title={
-                mode === 'api'
-                  ? 'Enabled languages reported by the service; quality flags are metadata only'
-                  : 'Enabled languages from the offline capabilities example; sample quality is unreviewed'
-              }
+              title={mode === 'api' ? t('serviceLanguageTitle') : t('exampleLanguageTitle')}
             >
-              {!capabilities && <option value="">Languages unavailable</option>}
+              {!capabilities && <option value="">{t('languagesUnavailable')}</option>}
               {capabilities?.languages.map((item) => (
                 <option
                   key={item.code}
@@ -1182,7 +1152,7 @@ export default function App({
             onClick={() => infoDialog.current?.showModal()}
           >
             <span aria-hidden="true" />
-            {mode === 'api' ? 'API' : 'Preview'}
+            {mode === 'api' ? 'API' : t('previewBadge')}
           </button>
         </div>
       </header>
@@ -1200,10 +1170,7 @@ export default function App({
               <p className="welcome-caption">
                 {mode === 'api' ? t('welcomeLive') : t('welcomePreview')}
               </p>
-              <p className="source-hint">
-                Grounded EPFO guidance with Markdown evidence and original source URLs. Ask for
-                clarification or abstain when evidence is insufficient.
-              </p>
+              <p className="source-hint">{t('sourceHint')}</p>
             </section>
             {composer}
             <div className="starter-actions">
@@ -1242,17 +1209,17 @@ export default function App({
             <div className="welcome-footer">
               <span>
                 {mode === 'api'
-                  ? `${capabilities?.languages.length ?? 0} enabled languages · quality flags are metadata`
-                  : `${offlineCapabilities.languages.length} example languages · quality unreviewed`}
+                  ? t('enabledLanguagesFooter', { count: capabilities?.languages.length ?? 0 })
+                  : t('exampleLanguagesFooter', { count: offlineCapabilities.languages.length })}
               </span>
               <span aria-hidden="true">·</span>
-              <span>{mode === 'api' ? 'Server-controlled access' : 'No account needed'}</span>
+              <span>{mode === 'api' ? t('serverAccess') : t('noAccount')}</span>
               <span aria-hidden="true">·</span>
               <span>
                 {mode === 'api'
                   ? imageEnabled
                     ? t('approvedInput')
-                    : 'Text sent only on Analyze'
+                    : t('approvedOnly')
                   : t('nothingSent')}
               </span>
             </div>
@@ -1319,14 +1286,14 @@ export default function App({
                           />
                         ) : turn.failure ? (
                           <div className="api-transport-error" role="alert">
-                            <h2>Could not reach an answer</h2>
+                            <h2>{t('answerUnreachable')}</h2>
                             <p>{failureMessage(turn.failure.code)}</p>
                             <button
                               className="text-button"
                               type="button"
                               onClick={() => editTurn(turn)}
                             >
-                              Edit remark
+                              {t('editRemark')}
                             </button>
                           </div>
                         ) : turn.api || turn.sample ? (
@@ -1335,25 +1302,15 @@ export default function App({
                             role="status"
                           >
                             <LoaderCircle className="spin" size={17} aria-hidden="true" />
-                            {turn.api
-                              ? 'Waiting for the analysis service…'
-                              : 'Opening the sample walkthrough…'}
+                            {turn.api ? t('analysisWaiting') : t('openingSample')}
                           </div>
                         ) : (
                           <div className="unavailable-reply" role="status">
                             <span className="reply-kicker">
-                              {turn.image ? 'Image attached' : 'Message ready'}
+                              {turn.image ? t('imageAttached') : t('messageReady')}
                             </span>
-                            <h2>
-                              {turn.image
-                                ? 'Got the image. Reading it is the next piece.'
-                                : 'Your message is here. The assistant isn’t connected yet.'}
-                            </h2>
-                            <p>
-                              {turn.image
-                                ? 'You can preview or replace this image. OCR and claim analysis are not available yet; no text has been extracted.'
-                                : 'This preview can’t analyze your claim or answer follow-up questions yet. Your message stays on this device.'}
-                            </p>
+                            <h2>{turn.image ? t('imageNext') : t('assistantDisconnected')}</h2>
+                            <p>{turn.image ? t('imageUnavailable') : t('previewUnavailable')}</p>
                             <div className="reply-actions">
                               <button
                                 className="light-button"
@@ -1370,16 +1327,12 @@ export default function App({
                                 onClick={() => editTurn(turn)}
                               >
                                 <PenLine size={14} aria-hidden="true" />
-                                {turn.image ? 'Add or edit wording' : 'Edit message'}
+                                {turn.image ? t('editWording') : t('editMessage')}
                               </button>
                             </div>
                             <details className="connection-details">
-                              <summary>Why can’t it answer yet?</summary>
-                              <p>
-                                This web preview is not connected to an analysis service. Images are
-                                selected locally, not uploaded. It never substitutes a canned answer
-                                for your own claim.
-                              </p>
+                              <summary>{t('whyUnavailable')}</summary>
+                              <p>{t('connectionExplanation')}</p>
                             </details>
                           </div>
                         )}
@@ -1388,8 +1341,14 @@ export default function App({
                             {canRetry(turn) ? (
                               <>
                                 <p>
-                                  Retry resends the same text to the analysis service. Up to{' '}
-                                  {MAX_ANALYSIS_ATTEMPTS - 1} manual retries per message.
+                                  {t(
+                                    new Intl.PluralRules(locale).select(
+                                      MAX_ANALYSIS_ATTEMPTS - 1,
+                                    ) === 'one'
+                                      ? 'retryExplanationOne'
+                                      : 'retryExplanationOther',
+                                    { count: MAX_ANALYSIS_ATTEMPTS - 1 },
+                                  )}
                                 </p>
                                 <button
                                   type="button"
@@ -1403,10 +1362,10 @@ export default function App({
                                     !canRetryAnalysis(1 + (turn.retries ?? 0))
                                   }
                                 >
-                                  Retry analysis
+                                  {t('retryAnalysis')}
                                 </button>
                                 {!canRetryAnalysis(1 + (turn.retries ?? 0)) && (
-                                  <p>Retry limit reached. Edit the remark or try later.</p>
+                                  <p>{t('retryLimit')}</p>
                                 )}
                               </>
                             ) : (
@@ -1414,7 +1373,7 @@ export default function App({
                                 {failureMessage(
                                   turn.failure?.code ?? turn.response?.error?.code ?? '',
                                 )}{' '}
-                                No automatic retry.
+                                {t('noAutomaticRetry')}
                               </p>
                             )}
                           </div>
@@ -1519,12 +1478,10 @@ export default function App({
         <span className="dialog-icon">
           <Info size={25} aria-hidden="true" />
         </span>
-        <h2 id="preview-info-title">
-          {mode === 'api' ? 'About API analysis' : 'What works in this preview'}
-        </h2>
+        <h2 id="preview-info-title">{mode === 'api' ? t('aboutApi') : t('aboutPreview')}</h2>
         <div className="mode-actions">
           <button type="button" className="light-button" onClick={useExamples}>
-            Use examples
+            {t('useExamples')}
           </button>
           <button
             type="button"
@@ -1532,15 +1489,10 @@ export default function App({
             onClick={useApi}
             disabled={mode === 'api' || (!configuration.client && !configuration.invalid)}
           >
-            Use API
+            {t('useApi')}
           </button>
         </div>
-        {mode === 'api' && (
-          <p>
-            Availability reports configuration and knowledge structure only—not verified sources,
-            model connectivity or translation quality.
-          </p>
-        )}
+        {mode === 'api' && <p>{t('readinessCaveat')}</p>}
         <ul className="capability-list">
           <li>
             <Check size={17} aria-hidden="true" />
@@ -1556,8 +1508,8 @@ export default function App({
           </li>
         </ul>
         <section className="sample-gallery" aria-labelledby="sample-gallery-title">
-          <h3 id="sample-gallery-title">Explore sample replies</h3>
-          <p>These examples never analyze your own message.</p>
+          <h3 id="sample-gallery-title">{t('sampleGalleryTitle')}</h3>
+          <p>{t('sampleGalleryNote')}</p>
           <div className="sample-gallery-options">
             {demoScenarios.map((item) => (
               <button
@@ -1565,27 +1517,21 @@ export default function App({
                 type="button"
                 disabled={pending || readingFile}
                 onClick={() => void openExample(item.value)}
-                title={item.description}
+                title={t(galleryKeys[item.value].description)}
               >
                 {item.value === 'error' || item.value === 'unsupported' ? (
                   <CircleAlert size={17} aria-hidden="true" />
                 ) : (
                   <MessageCircle size={17} aria-hidden="true" />
                 )}
-                {item.label}
+                {t(galleryKeys[item.value].label)}
               </button>
             ))}
           </div>
         </section>
         <details className="capabilities-details">
-          <summary>
-            {mode === 'api' ? 'Service language capabilities' : 'Example language capabilities'}
-          </summary>
-          <p>
-            {mode === 'api'
-              ? 'Languages come only from the service capabilities response. Quality flags are reported metadata, not an independent review.'
-              : 'The language selector uses this validated offline response, not a live service check. Sample translations have not been independently reviewed.'}
-          </p>
+          <summary>{mode === 'api' ? t('serviceLanguages') : t('exampleLanguages')}</summary>
+          <p>{mode === 'api' ? t('serviceLanguageNote') : t('exampleLanguageNote')}</p>
           <ul>
             {capabilities?.languages.map((item) => (
               <li key={item.code}>
@@ -1595,18 +1541,17 @@ export default function App({
                 <small>
                   {item.quality_verified
                     ? mode === 'api'
-                      ? 'Service quality flag: true'
-                      : 'Fixture quality flag: true'
-                    : 'Quality not verified'}
+                      ? t('serviceQualityTrue')
+                      : t('fixtureQualityTrue')
+                    : t('qualityUnverified')}
                 </small>
               </li>
             ))}
           </ul>
           <p>
-            {mode === 'api' ? 'Service analysis availability: ' : 'Fixture analysis availability: '}
-            {capabilities?.analysis_available ? 'configured' : 'unavailable'}. Availability
-            describes configuration and structural checks, not verified connectivity, accurate
-            guidance or fluent output.
+            {t(mode === 'api' ? 'serviceAvailability' : 'fixtureAvailability', {
+              state: t(capabilities?.analysis_available ? 'configuredState' : 'unavailableState'),
+            })}
           </p>
         </details>
         <div className="connection-note">
