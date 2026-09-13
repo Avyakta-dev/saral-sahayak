@@ -24,6 +24,9 @@ def test_defaults_are_unconfigured():
     assert settings.llm_stream is False
     assert settings.llm_timeout_seconds == 25
     assert settings.analysis_request_seconds == 30
+    assert settings.analysis_tool_calls == 12
+    assert settings.analysis_model_turns == 12
+    assert settings.analysis_model_output_tokens == 4096
     assert settings.llm_connect_timeout_seconds == 5
     assert settings.llm_max_output_tokens == 2000
     assert settings.llm_anthropic_version == "2023-06-01"
@@ -151,6 +154,9 @@ def test_explicit_environment_mapping(monkeypatch, style):
         "LLM_MODEL": " synthetic-model ",
         "LLM_TIMEOUT_SECONDS": "25",
         "ANALYSIS_REQUEST_SECONDS": "30",
+        "ANALYSIS_TOOL_CALLS": "16",
+        "ANALYSIS_MODEL_TURNS": "16",
+        "ANALYSIS_MODEL_OUTPUT_TOKENS": "8000",
         "LLM_CONNECT_TIMEOUT_SECONDS": "5",
         "LLM_MAX_OUTPUT_TOKENS": "2000",
         "LLM_EXTRA_HEADERS": '{"X-Synthetic-Token":"' + SYNTHETIC_HEADER + '"}',
@@ -169,6 +175,9 @@ def test_explicit_environment_mapping(monkeypatch, style):
     assert config.api_key.get_secret_value() == SYNTHETIC_KEY
     assert config.timeout_seconds == 25
     assert settings.analysis_request_seconds == 30
+    assert settings.analysis_tool_calls == 16
+    assert settings.analysis_model_turns == 16
+    assert settings.analysis_model_output_tokens == 8000
     assert config.connect_timeout_seconds == 5
     assert config.max_output_tokens == 2000
     assert config.extra_headers["X-Synthetic-Token"].get_secret_value() == SYNTHETIC_HEADER

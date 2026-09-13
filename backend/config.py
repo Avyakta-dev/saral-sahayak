@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     llm_stream: bool = False
     llm_timeout_seconds: float = Field(default=25, gt=0, le=120)
     analysis_request_seconds: float = Field(default=30, gt=0, le=120)
+    analysis_tool_calls: int = Field(default=12, gt=0, le=24)
+    analysis_model_turns: int = Field(default=12, gt=0, le=24)
+    analysis_model_output_tokens: int = Field(default=4096, gt=0, le=12000)
     analysis_access_mode: Literal["local", "protected"] = "local"
     analysis_access_token: SecretStr = Field(default=SecretStr(""), repr=False)
     analysis_requests_per_minute: int = Field(default=10, ge=1, le=600)
@@ -130,7 +133,12 @@ class Settings(BaseSettings):
         return value
 
     def analysis_budget_limits(self) -> BudgetLimits:
-        return BudgetLimits(request_seconds=self.analysis_request_seconds)
+        return BudgetLimits(
+            request_seconds=self.analysis_request_seconds,
+            tool_calls=self.analysis_tool_calls,
+            model_turns=self.analysis_model_turns,
+            model_output_tokens=self.analysis_model_output_tokens,
+        )
 
     def history_store(self):
         """Build the lifecycle/cache store this instance describes, or None when disabled."""
