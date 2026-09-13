@@ -169,13 +169,7 @@ describe('AnswerCard', () => {
     expect(uncertainty).toBeVisible();
     expect(uncertainty).toHaveTextContent('Classification confidence: low');
     expect(within(uncertainty).getByText(response.classification!.rationale)).toBeVisible();
-    expect(
-      within(uncertainty).getByText(/not policy certainty or source verification/),
-    ).toBeVisible();
     expect(uncertainty).not.toHaveTextContent(/\d+%/);
-    expect(
-      screen.getByText('Sample language quality has not been independently reviewed.'),
-    ).toBeVisible();
     for (const warning of response.warnings) {
       expect(screen.getByText(warning)).not.toBeVisible();
     }
@@ -596,9 +590,6 @@ describe('AnswerCard', () => {
         expect(container.querySelector('.answer-card')).toHaveAttribute('lang', language);
         expect(
           screen.getByRole('button', { name: 'Edit remark' }).closest('[lang]'),
-        ).toHaveAttribute('lang', 'en');
-        expect(
-          screen.getByText('Sample language quality has not been independently reviewed.'),
         ).toHaveAttribute('lang', 'en');
         if (scenario === 'success') {
           expect(screen.getByText(response.explanation[0].text)).toBeVisible();

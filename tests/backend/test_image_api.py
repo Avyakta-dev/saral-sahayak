@@ -80,6 +80,7 @@ def app_for(settings, model, root, **kwargs):
 def test_capabilities_omit_image_when_storage_is_unconfigured(
     tmp_path, settings, model, readiness_bypass
 ):
+    settings = settings.model_copy(update={"image_input_enabled": False})
     with TestClient(app_for(settings, model, tmp_path)) as client:
         capabilities = client.get("/api/v1/capabilities").json()
     assert capabilities["inputs"] == ["text"]
@@ -97,6 +98,7 @@ def test_capabilities_advertise_image_only_when_configured(
 
 
 def test_upload_route_is_unavailable_by_default(tmp_path, settings, model, readiness_bypass):
+    settings = settings.model_copy(update={"image_input_enabled": False})
     with TestClient(app_for(settings, model, tmp_path)) as client:
         response = client.post(
             "/api/v1/images/uploads",
@@ -154,6 +156,7 @@ def test_upload_route_rejects_a_known_disabled_language(
 
 
 def test_image_analysis_is_unavailable_without_storage(tmp_path, settings, model, readiness_bypass):
+    settings = settings.model_copy(update={"image_input_enabled": False})
     with TestClient(app_for(settings, model, tmp_path)) as client:
         response = client.post("/api/v1/analyze", json={"image_key": KEY, "language": "en"})
     assert response.status_code == 503
@@ -165,7 +168,6 @@ def test_image_analysis_is_unavailable_without_storage(tmp_path, settings, model
     "payload",
     [
         {"language": "en"},
-        {"text": "remark", "image_key": KEY, "language": "en"},
         {"text": "   ", "language": "en"},
         {"image_key": "", "language": "en"},
     ],

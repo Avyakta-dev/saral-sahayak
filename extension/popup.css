@@ -11,7 +11,10 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { width: 440px; max-width: 100%; max-height: 600px; overflow-x: hidden; overflow-y: auto; scrollbar-color: #b5c4ad #f7f7ef; scrollbar-width: thin; }
+/* max-height is capped for the popup context (Chrome enforces its own popup size
+   limit regardless); left unbounded so the side panel can use its full pane height
+   instead of clipping to a 600px scroll box on a much taller dock. */
+html { width: 440px; max-width: 100%; max-height: 100vh; overflow-x: hidden; overflow-y: auto; scrollbar-color: #b5c4ad #f7f7ef; scrollbar-width: thin; }
 body { width: 440px; max-width: 100%; margin: 0; line-height: 1.5; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }

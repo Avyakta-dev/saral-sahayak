@@ -365,13 +365,19 @@ export const uploadTicketSchema = z
     upload_url: z
       .string()
       .max(2048)
-      .refine(
-        (url) =>
-          safeSourceUrl(url) !== null &&
-          url.startsWith('https://') &&
-          !/[\u0000-\u0020\u007f\\]/u.test(url),
-        'Upload URLs must be HTTPS without credentials.',
-      ),
+      .refine((url) => {
+        if (safeSourceUrl(url) === null || /[\u0000-\u0020\u007f\\]/u.test(url)) return false;
+        if (url.startsWith('https://')) return true;
+        try {
+          const parsed = new URL(url);
+          return (
+            parsed.protocol === 'http:' &&
+            (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost')
+          );
+        } catch {
+          return false;
+        }
+      }, 'Upload URLs must be HTTPS or local HTTP without credentials.'),
     content_type: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     expires_in: z.number().int().positive().max(900),
   })

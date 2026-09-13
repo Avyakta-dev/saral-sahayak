@@ -25,8 +25,9 @@ from backend.api.schemas import (
 )
 from backend.config import PUBLIC_KNOWLEDGE_ROOT, Settings
 from backend.history import HistoryCase, HistoryResponse, HistoryTrackingService
+from backend.images.catbox import CatboxStorage
 from backend.images.pipeline import ImagePipeline
-from backend.images.storage import StorageError
+from backend.images.storage import InvalidImage, StorageError, is_admissible_key
 from backend.knowledge_readiness import check_corpus
 from backend.languages import LANGUAGES
 from backend.llm import LLMClient
@@ -70,17 +71,30 @@ class BodyLimitMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        path = scope.get("path") or ""
+        limit = (
+            10 * 1024 * 1024
+            if scope.get("method") == "PUT" and path.startswith("/api/v1/images/inbox/")
+            else self.max_bytes
+        )
         body = bytearray()
         while True:
             message = await receive()
             if message["type"] == "http.disconnect":
                 return
             chunk = message.get("body", b"")
-            if len(body) + len(chunk) > self.max_bytes:
+            if len(body) + len(chunk) > limit:
                 response = JSONResponse(
                     status_code=413,
                     content={
-                        "error": {"code": "request_too_large", "message": "Request exceeds 32 KiB."}
+                        "error": {
+                            "code": "request_too_large",
+                            "message": (
+                                "Request exceeds 10 MiB."
+                                if limit > self.max_bytes
+                                else "Request exceeds 32 KiB."
+                            ),
+                        }
                     },
                 )
                 await response(scope, receive, send)
@@ -179,7 +193,11 @@ class _SharedBudgetService:
         if self.pipeline is None:
             raise AnalysisError("image_input_unavailable", "Image input is unavailable.", 503)
         budget = Budget(self.limits)
-        text = await self.pipeline.extract(request.image_key, budget, language=request.language)
+        extracted = await self.pipeline.extract(
+            request.image_key, budget, language=request.language
+        )
+        remark = request.text.strip() if request.text else ""
+        text = f"{remark}\n\n{extracted}".strip() if remark else extracted
         # Fresh text-only history: the key and the image never reach the agent or ledger.
         reviewed = AnalyzeRequest(text=text, language=request.language, details=request.details)
         return await self.service.analyze(reviewed, budget=budget, activity=activity)
@@ -329,7 +347,7 @@ def create_app(
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors_origins,
-            allow_methods=["GET", "POST"],
+            allow_methods=["GET", "POST", "PUT"],
             allow_headers=["Content-Type"],
             allow_credentials=False,
         )
@@ -461,7 +479,7 @@ def create_app(
             503: {"description": "Image input unavailable"},
         },
     )
-    async def images_upload(payload: UploadTicketRequest):
+    async def images_upload(payload: UploadTicketRequest, request: Request):
         """Mint one opaque key plus a short-lived upload URL for a private object."""
         if payload.language not in settings.supported_languages:
             return _transport_failure(
@@ -482,14 +500,36 @@ def create_app(
                 503,
             )
         try:
-            key, url, ttl = pipeline.admit(
+            key, path, ttl = pipeline.admit(
                 payload.content_type, payload.content_length, language=payload.language
             )
         except AnalysisError as exc:
             return _transport_failure(exc.code, exc.message, exc.http_status)
+        origin = str(request.base_url).rstrip("/")
+        upload_url = path if path.startswith("https://") else f"{origin}{path}"
         return UploadTicket(
-            object_key=key, upload_url=url, content_type=payload.content_type, expires_in=ttl
+            object_key=key,
+            upload_url=upload_url,
+            content_type=payload.content_type,
+            expires_in=ttl,
         )
+
+    @app.put("/api/v1/images/inbox/{key:path}")
+    async def images_inbox_put(key: str, request: Request):
+        pipeline = getattr(app.state, "image_pipeline", None)
+        if pipeline is None or not is_admissible_key(key):
+            return _transport_failure("image_not_admitted", "That image reference is not accepted.", 422)
+        content_type = request.headers.get("content-type", "")
+        body = await request.body()
+        storage = getattr(pipeline, "storage", None)
+        receive = getattr(storage, "receive_put", None)
+        if not callable(receive):
+            return _transport_failure("image_input_unavailable", "Image input is unavailable.", 503)
+        try:
+            receive(key, content_type, body)
+        except InvalidImage:
+            return _transport_failure("image_not_admitted", "That image reference is not accepted.", 422)
+        return Response(status_code=204)
 
     @app.post(
         "/api/v1/analyze",

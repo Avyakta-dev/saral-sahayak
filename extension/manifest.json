@@ -4,12 +4,14 @@
   "version": "0.2.0",
   "description": "Review AI suggestions for the current form, then fill approved fields. No automatic submission.",
   "minimum_chrome_version": "116",
-  "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://api.openai.com/*", "http://127.0.0.1/*"],
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "tabs"],
+  "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "action": {
-    "default_title": "Review and fill with Saral Sahayak",
-    "default_popup": "popup.html"
+    "default_title": "Review and fill with Saral Sahayak"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "content_security_policy": {
     "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.openai.com http://127.0.0.1:8000; object-src 'none'; base-uri 'none'; form-action 'none'"

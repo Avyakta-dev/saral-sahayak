@@ -38,9 +38,9 @@ class AnalyzeRequest(ContractModel):
         return value.strip()
 
     @model_validator(mode="after")
-    def single_input(self):
-        if (self.text is None) == (self.image_key is None):
-            raise ValueError("Provide exactly one of text or image_key")
+    def require_input(self):
+        if self.text is None and self.image_key is None:
+            raise ValueError("Provide text, an image, or both")
         return self
 
 

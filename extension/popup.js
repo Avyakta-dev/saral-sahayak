@@ -6,7 +6,7 @@
   const runtime = globalThis.chrome && globalThis.chrome.runtime;
   const live = Boolean(runtime && runtime.id && typeof runtime.sendMessage === "function");
   const MAX_FILE_SIZE = 2 * 1024 * 1024;
-  const JPEG = /^data:image\/jpeg;base64,/;
+  const JPEG = /^data:image\/(jpeg|png);base64,/;
   const blankState = () => ({ stage: "profile", profile: {}, file: null, model: "gpt-4o-mini", hasKey: false, scan: null, plan: [], results: [], warnings: [] });
   let state = blankState();
   let view = "profile";
@@ -49,7 +49,8 @@
     byId("workspace").setAttribute("aria-busy", String(busy));
     const validScreenshot = state.scan && typeof state.scan.screenshot === "string" && JPEG.test(state.scan.screenshot);
     byId("include-screenshot").disabled = !live || !connected || busy || !validScreenshot;
-    byId("analyze").disabled = !live || !connected || busy || !byId("analysis-consent").checked || !state.scan || !list(state.scan.fields).length;
+    const hasCapture = list(state.scan && state.scan.fields).length > 0 || validScreenshot;
+    byId("analyze").disabled = !live || !connected || busy || !state.scan || !hasCapture;
     const count = reviewEntries.filter((entry) => entry.include.checked && entry.include.dataset.locked !== "true").length;
     byId("selection-count").textContent = `${count} of ${reviewEntries.length} suggested fields selected`;
     byId("fill").disabled = !live || !connected || busy || fillAttempted || state.stage === "done" || !count || !byId("fill-confirmation").checked;
@@ -72,7 +73,7 @@
     byId("model").value = text(state.model) || "gpt-4o-mini";
     byId("api-key").value = "";
     byId("api-key").placeholder = state.hasKey ? "Saved for this session" : "Enter your API key";
-    byId("key-state").textContent = state.hasKey ? "Key saved for session" : "Your OpenAI key";
+    byId("key-state").textContent = state.hasKey ? "LLM provider saved" : "Optional";
     updateFile();
   }
   function renderWarnings() {
@@ -112,16 +113,16 @@
       card.append(metadata);
       byId("captured-fields").append(card);
     });
-    if (!fields.length) byId("captured-fields").append(node("p", "notice", "No supported fields were captured. Return to your profile and scan a page with an ordinary web form."));
+    if (!fields.length) byId("captured-fields").append(node("p", "notice", "No ordinary form fields on this page. Review the screenshot, then send it if you want suggestions."));
     byId("screenshot").removeAttribute("src");
     const screenshot = scan && scan.screenshot;
     const safe = typeof screenshot === "string" && JPEG.test(screenshot);
     byId("screenshot-preview").hidden = !safe;
-    byId("screenshot-preview").open = false;
+    byId("screenshot-preview").open = safe;
     byId("screenshot-unavailable").hidden = Boolean(safe);
     if (safe) byId("screenshot").src = screenshot;
-    byId("include-screenshot").checked = false;
-    byId("analysis-consent").checked = false;
+    byId("include-screenshot").checked = safe;
+    byId("analysis-consent").checked = true;
   }
   function renderReview() {
     reviewEntries = [];
@@ -304,7 +305,7 @@
       const captured = await request("SS_SCAN");
       if (token !== epoch) return;
       applyState(captured, true);
-      status("Page captured. Review the snapshot before sharing with OpenAI.");
+      status("Page captured. Review the snapshot, then get suggestions.");
     });
   }
   byId("privacy-local").addEventListener("click", () => run("Opening a local-only privacy window…", async () => {
@@ -313,6 +314,15 @@
     window.close();
   }));
   byId("scan").addEventListener("click", () => saveAndMaybeScan(true));
+  byId("retake-screenshot").addEventListener("click", () => {
+    if (busy || view !== "captured" || !state.scan) return;
+    run("Capturing the visible page…", async (token) => {
+      const next = await request("SS_SCREENSHOT");
+      if (token !== epoch) return;
+      applyState(next, true);
+      status("Screenshot updated. Review it before sharing with AI.");
+    });
+  });
   byId("save-settings").addEventListener("click", () => saveAndMaybeScan(false));
   byId("profile-file").addEventListener("change", () => {
     const file = byId("profile-file").files[0];
@@ -334,7 +344,7 @@
   });
   function editProfile() {
     if (busy) return;
-    byId("analysis-consent").checked = false;
+    byId("analysis-consent").checked = true;
     byId("include-screenshot").checked = false;
     byId("fill-confirmation").checked = false;
     setView("profile", true);
@@ -343,18 +353,9 @@
   ["edit-captured", "edit-review", "start-again"].forEach((id) => byId(id).addEventListener("click", editProfile));
   ["analysis-consent", "include-screenshot", "fill-confirmation"].forEach((id) => byId(id).addEventListener("change", updateControls));
   byId("analyze").addEventListener("click", () => {
-    if (busy || view !== "captured" || !byId("analysis-consent").checked) return;
-    if (!state.hasKey) {
-      editProfile();
-      byId("setup").open = true;
-      byId("api-key").required = true;
-      byId("api-key").reportValidity();
-      byId("api-key").required = false;
-      showError("Add and save your OpenAI API key, then scan again to review the data before analysis.");
-      return;
-    }
+    if (busy || view !== "captured") return;
     const includeScreenshot = byId("include-screenshot").checked && !byId("include-screenshot").disabled;
-    run("Asking OpenAI for suggestions. The page is not being changed…", async (token) => {
+    run("Asking the LLM for suggestions. The page is not being changed…", async (token) => {
       const next = await request("SS_ANALYZE", { consent: true, includeScreenshot });
       if (token !== epoch) return;
       fillAttempted = false;
@@ -413,7 +414,7 @@
       const next = await request("SS_CLEAR");
       if (token !== epoch) return;
       applyState(next);
-      status("Session cleared. This does not undo page changes or recall data already sent to OpenAI.");
+      status("Session cleared. This does not undo page changes or recall data already sent to the LLM.");
     } catch (error) {
       if (token === epoch) {
         status("Popup cleared; worker session clearance could not be confirmed.");

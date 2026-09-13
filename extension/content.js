@@ -2,8 +2,8 @@
   'use strict';
 
   const LIMITS = Object.freeze({ fields: 80, options: 100, value: 2000, metadata: 1024, file: 2 * 1024 * 1024 });
-  const SAFE_INPUTS = new Set(['text', 'email', 'tel', 'url', 'search', 'file']);
-  const NOTICE = 'Only ordinary visible top-level HTML fields are supported. Frames, shadow roots and custom widgets are not read. Sensitive and unsupported fields are skipped.';
+  const SAFE_INPUTS = new Set(['text', 'email', 'tel', 'url', 'search', 'file', 'number', 'date', 'datetime-local', 'month', 'week', 'time']);
+  const NOTICE = 'Visible top-level form fields and a page screenshot are captured. Password, hidden and button controls are skipped.';
   const FILL_NOTICE = 'Sites may autosave or upload when fields change. Events are synthetic, not trusted; review the page manually. Nothing is submitted by this script, and changes are not undone or retried.';
   const MIME_EXTENSIONS = Object.freeze({
     'application/pdf': ['pdf'], 'image/png': ['png'], 'image/jpeg': ['jpg', 'jpeg'],
@@ -23,10 +23,8 @@
     const text = parts.join(' ').normalize('NFKC').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
     const words = text.replace(/[^\p{L}\p{N}]+/gu, ' ');
     const compact = words.replace(/\s/g, '');
-    return /\b(password|passwd|passphrase|credential|otp|captcha|recaptcha|hcaptcha|cvv|cvc|csc|ssn|uan|aadhaar|aadhar|adhar|bank|banking|iban|ifsc|swift|routing|payment|credit|debit|card|pin|username|login|signin|consent|terms|agree|agreement|pan)\b/.test(words) ||
-      /password|passwd|credential|captcha|otp|cvv|cvc|ssn|bank|payment|onetimecode|onetimepassword|securitycode|verificationcode|authcode|authenticator|accesstoken|secretkey|apikey|socialsecurity|aadhaar|aadhar|universalaccountnumber|accountnumber|accountno|acctno|creditcard|debitcard|cardnumber|cardholder|cardexpiry|cardexpiration|ccnumber|ccname|ccexp|cccsc|transactionamount|transactioncurrency|deleteaccount|accountdelete|closeaccount|accountclose|accountclosure|removeaccount|deactivateaccount|acceptterms|termsofservice|termsandconditions|acceptpolicy|privacypolicy|agreeto/.test(compact) ||
-      /^(?:epf|member)?uan(?:number|no|id)?$/.test(compact) ||
-      /आधार|पासवर्ड|ओटीपी|बैंक|यू\s*ए\s*एन|यूनिवर्सल\s*अकाउंट\s*नंबर|सार्वभौमिक\s*खाता\s*संख्या/.test(text);
+    return /\b(password|passwd|passphrase|otp|captcha|recaptcha|hcaptcha|cvv|cvc)\b/.test(words) ||
+      /password|passwd|captcha|otp|cvv|cvc|onetimecode|onetimepassword/.test(compact);
   }
 
   function validSender(sender, extensionId) {
@@ -122,14 +120,13 @@
     };
     const attr = (element, name) => bounded(element.getAttribute(name));
     const currentUrl = () => String(env.location.href);
-    const supportedPage = () => env.top === env && /^https?:\/\//i.test(currentUrl());
+    const supportedPage = () => /^https?:\/\//i.test(currentUrl());
 
     function visible(element) {
       if (!element.getClientRects().length) return false;
       let depth = 0;
       for (let node = element; node; node = node.parentElement) {
-        if (++depth > 128 || node.hidden || node.inert || node.getAttribute('aria-hidden') === 'true' ||
-            node.getAttribute('aria-disabled') === 'true' || node.getAttribute('aria-readonly') === 'true') return false;
+        if (++depth > 128 || node.hidden || node.inert || node.getAttribute('aria-hidden') === 'true') return false;
         const style = env.getComputedStyle(node);
         if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.contentVisibility === 'hidden' || style.opacity === '0') return false;
       }
@@ -138,20 +135,18 @@
 
     function describe(element, selector) {
       // Ineligible fields' values/files are never accessed.
-      if (element.ownerDocument !== document || !element.isConnected || element.getRootNode() !== document ||
+      if (element.ownerDocument !== document || !element.isConnected ||
           element.namespaceURI !== 'http://www.w3.org/1999/xhtml' || element.disabled || element.matches(':disabled') ||
-          element.readOnly || element.hasAttribute('readonly') || !visible(element)) return null;
+          !visible(element)) return null;
       const tag = element.localName;
       const type = tag === 'textarea' ? 'textarea' : element.type;
-      if (!(tag === 'input' && SAFE_INPUTS.has(type)) && !(tag === 'textarea') && !(tag === 'select' && type === 'select-one')) return null;
+      if (!(tag === 'input' && SAFE_INPUTS.has(type)) && !(tag === 'textarea') && !(tag === 'select' && (type === 'select-one' || type === 'select-multiple'))) return null;
       const raw = {};
       for (const key of ['name', 'id', 'autocomplete', 'aria-label', 'aria-labelledby', 'placeholder', 'accept', 'pattern', 'minlength', 'maxlength', 'form', 'title', 'type', 'required', 'multiple', 'dir']) raw[key] = attr(element, key);
       const labels = [];
-      if (element.labels && element.labels.length > 8) return null;
-      for (const label of element.labels || []) labels.push(bounded(label.textContent));
-      const references = raw['aria-labelledby'].trim().split(/\s+/).filter(Boolean);
-      if (references.length > 8) return null;
-      const ariaLabels = references.map(id => bounded(document.getElementById(id)?.textContent));
+      for (const label of Array.from(element.labels || []).slice(0, 8)) labels.push(display(bounded(label.textContent, 4000), 240));
+      const references = raw['aria-labelledby'].trim().split(/\s+/).filter(Boolean).slice(0, 8);
+      const ariaLabels = references.map(id => display(bounded(document.getElementById(id)?.textContent, 4000), 240));
       const label = labels.join(' ').trim() || raw['aria-label'].trim() || ariaLabels.join(' ').trim() || raw.placeholder.trim() || raw.name || raw.id;
       const signals = [...Object.values(raw), ...labels, ...ariaLabels];
       if (isSensitive(signals)) return null;
@@ -159,9 +154,8 @@
       const optionFingerprint = [];
       const optionElements = [];
       if (tag === 'select') {
-        // Do not offer a partial choice set or fingerprint an unbounded list.
-        if (element.options.length > LIMITS.options) return null;
-        for (const option of element.options) {
+        const listed = Array.from(element.options).slice(0, LIMITS.options);
+        for (const option of listed) {
           const value = bounded(option.value, LIMITS.value);
           const optionLabel = bounded(option.label);
           const disabled = Boolean(option.disabled || option.matches(':disabled') || (option.parentElement?.localName === 'optgroup' && option.parentElement.disabled));
@@ -176,7 +170,7 @@
       const form = element.form || null;
       const formMetadata = form ? ['id', 'name', 'action', 'method', 'target', 'enctype'].map(key => attr(form, key)) : [];
       if (isSensitive(formMetadata)) return null;
-      const value = type === 'file' ? '' : bounded(element.value, LIMITS.value);
+      const value = type === 'file' ? '' : String(element.value == null ? '' : element.value).slice(0, LIMITS.value);
       const files = type === 'file' ? Array.from(element.files || []) : [];
       const signature = fileSignature(files);
       const fingerprint = JSON.stringify([tag, type, raw, labels, ariaLabels, Boolean(element.required), maxLength, optionFingerprint, formMetadata]);
@@ -195,7 +189,15 @@
       const fields = [];
       const allowlist = new Map();
       let skipped = 0;
-      for (const element of document.querySelectorAll('input, select, textarea')) {
+      const controls = [];
+      const visit = (root) => {
+        root.querySelectorAll('input, select, textarea').forEach((element) => controls.push(element));
+        root.querySelectorAll('*').forEach((element) => {
+          if (element.shadowRoot) visit(element.shadowRoot);
+        });
+      };
+      visit(document);
+      for (const element of controls) {
         try {
           const snapshot = describe(element, '');
           if (!snapshot) { skipped += 1; continue; }
@@ -203,7 +205,12 @@
             warnings.push('Only the first 80 eligible fields are included. Other fields were not captured.');
             break;
           }
-          const selector = cssPath(element, document, env.CSS);
+          let selector;
+          try {
+            selector = element.getRootNode() === document ? cssPath(element, document, env.CSS) : `shadow:${fields.length}:${snapshot.field.id || snapshot.field.name || 'field'}`;
+          } catch (_) {
+            selector = `field:${fields.length}:${snapshot.field.id || snapshot.field.name || 'field'}`;
+          }
           snapshot.field.selector = selector;
           fields.push(snapshot.field);
           allowlist.set(selector, { element, snapshot });
@@ -329,7 +336,7 @@
 
   const api = Object.freeze({ LIMITS, isSensitive, validSender, cssPath, fileMatchesAccept, decodeFile, attachmentTransfer, dispatchChanges, createController });
   if (typeof module === 'object' && module.exports && !root.document) { module.exports = api; return; }
-  if (!root.document || !root.chrome?.runtime?.onMessage || root.top !== root) return;
+  if (!root.document || !root.chrome?.runtime?.onMessage) return;
   const guard = '__saralSahayakFormContentV1__';
   if (root[guard]) return;
   const controller = createController(root);

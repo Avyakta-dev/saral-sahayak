@@ -184,14 +184,14 @@ test('connect, candidate choice, edit and consent never analyze; explicit Analyz
   await h.fire('remark', 'input', reviewed);
   assert.equal(h.get('candidates').value, '');
   assert.equal(h.get('consent').checked, false);
-  assert.equal(h.get('analyze').disabled, true);
+  assert.equal(h.get('analyze').disabled, false);
   await h.fire('consent', 'change', true);
   assert.deepEqual(h.calls, [{ type: 'SS_EPFO_CAPABILITIES' }, { type: 'SS_EPFO_DETECT' }]);
   h.reply('SS_EPFO_ANALYZE', response(fixture('success')));
   await h.fire('analyze');
   assert.deepEqual(analyses(h), [{ type: 'SS_EPFO_ANALYZE', payload: { text: reviewed, language: 'en', consent: true } }]);
   assert.equal(h.get('consent').checked, false);
-  assert.equal(h.get('analyze').disabled, true);
+  assert.equal(h.get('analyze').disabled, false);
 });
 
 test('detection preserves an existing preview until an explicit candidate replaces it', async t => {

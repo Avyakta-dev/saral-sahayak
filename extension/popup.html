@@ -16,31 +16,6 @@
       <span class="session-badge"><span aria-hidden="true"></span>Session only</span>
     </header>
     <main id="workspace" aria-busy="false">
-      <section class="view" aria-labelledby="privacy-local-title">
-        <h2 id="privacy-local-title">Local privacy capture</h2>
-        <p class="hint">Privacy capture: selected values stay in expiring memory. Opaque crop preview, local restore, and explicit Fill are available; Analyze/upload/Submit stay disabled. Never auto-submits.</p>
-        <button id="privacy-local" type="button" class="button secondary" disabled>Open local-only privacy capture</button>
-        <p class="notice warning">The existing form/EPFO features below are separate legacy flows, not this privacy mode.</p>
-      </section>
-      <section id="epfo-panel" class="view" aria-labelledby="epfo-title" aria-busy="false">
-        <h2 id="epfo-title">EPFO rejection assistance</h2>
-        <p class="section-intro">Detect locally or paste a remark, review it, then separately approve analysis. Detection does not take a screenshot or send text to the backend.</p>
-        <button id="epfo-detect" type="button" class="button secondary" disabled>Detect EPFO rejection</button>
-        <div class="field"><label for="epfo-candidates">Detected candidates</label><select id="epfo-candidates" disabled><option value="">No candidates detected</option></select></div>
-        <div class="field"><label for="epfo-remark">Rejection remark</label><textarea id="epfo-remark" rows="5" autocomplete="off" spellcheck="false" aria-describedby="epfo-privacy" disabled></textarea></div>
-        <p id="epfo-privacy" class="hint">Review and remove unnecessary personal details. Only this remark and your chosen language go to FastAPI; no profile, attachment, screenshot or API key is included.</p>
-        <p class="hint">Backend: http://127.0.0.1:8000 (fixed by the worker). No frontend API key is required; the server owns model configuration.</p>
-        <button id="epfo-connect" type="button" class="button secondary" disabled>Connect backend</button>
-        <div class="field"><label for="epfo-language">Backend language</label><select id="epfo-language" aria-describedby="epfo-readiness" disabled></select></div>
-        <p id="epfo-readiness" class="notice warning" hidden></p>
-        <label class="check-row consent"><input id="epfo-consent" type="checkbox" disabled><span>Send this reviewed remark to Saral Sahayak backend for analysis<small>The backend may share it with its configured model provider. Provider data policies apply.</small></span></label>
-        <button id="epfo-analyze" type="button" class="button primary" disabled>Analyze rejection</button>
-        <button id="epfo-cancel" type="button" class="button secondary" disabled>Cancel</button>
-        <p id="epfo-status" class="status" role="status" aria-live="polite" aria-atomic="true">Detect or paste a remark. Connect backend explicitly to load languages.</p>
-        <p id="epfo-error" class="notice error" role="alert" hidden></p>
-        <aside id="epfo-detection-warnings" class="notice warning" hidden></aside>
-        <section id="epfo-results" class="field-list" aria-label="EPFO analysis results" hidden></section>
-      </section>
       <section class="hero" aria-labelledby="hero-title">
         <p class="eyebrow">A LITTLE HELP. A LOT LESS EFFORT.</p>
         <h1 id="hero-title">Less typing.<br><span>More doing.</span></h1>
@@ -74,32 +49,32 @@
           <div class="section-heading"><label for="profile-file">One less thing to upload <span class="optional">Optional</span></label><button id="remove-file" type="button" class="text-button" disabled hidden>Remove</button></div>
           <input id="profile-file" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" aria-describedby="file-hint file-summary" disabled>
           <p id="file-summary" class="file-summary">No attachment selected</p>
-          <p id="file-hint" class="hint">PDF, DOC/DOCX, TXT, PNG or JPG · up to 2 MiB.<br>File bytes stay in session, never go to AI. Attach only after review.</p>
+          <p id="file-hint" class="hint">PDF, DOC/DOCX, TXT, PNG or JPG · up to 2 MiB.<br>File bytes stay in session, never go to the LLM. Attach only after review.</p>
         </div>
+        <button id="scan" type="button" class="button primary wide" disabled><span>Save, scan &amp; take screenshot</span><span aria-hidden="true">↗</span></button>
+        <p class="action-note">Reads the form and captures the visible page.</p>
         <details id="setup" class="setup">
-          <summary><span>AI setup</span><span id="key-state" class="setup-state">Your OpenAI key</span></summary>
+          <summary><span>Your own LLM provider</span><span id="key-state" class="setup-state">Optional</span></summary>
           <div class="setup-body">
-            <div class="field"><label for="api-key">OpenAI API key</label><input id="api-key" type="password" placeholder="Enter your API key" maxlength="512" autocomplete="off" spellcheck="false" aria-describedby="key-hint" disabled><p id="key-hint" class="hint">Kept in extension session only. Leave blank to keep a saved key.</p></div>
+            <div class="field"><label for="api-key">LLM provider key</label><input id="api-key" type="password" placeholder="Enter your key" maxlength="512" autocomplete="off" spellcheck="false" aria-describedby="key-hint" disabled><p id="key-hint" class="hint">Only needed if you want to use your own LLM provider. The configured backend is used otherwise. Kept in this session only.</p></div>
             <div class="field"><label for="model">Model</label><input id="model" type="text" value="gpt-4o-mini" required maxlength="100" pattern="\S+" autocomplete="off" spellcheck="false" disabled></div>
-            <p class="hint">Analysis sends your approved profile and page fields directly to OpenAI. Provider usage charges and data policies apply.</p>
             <button id="save-settings" type="button" class="button secondary" disabled>Save profile &amp; settings</button>
           </div>
         </details>
-        <button id="scan" type="button" class="button primary wide" disabled><span>Save &amp; scan page</span><span aria-hidden="true">↗</span></button>
-        <p class="action-note">Captures fields + a page preview. Nothing goes to AI yet.</p>
       </section>
       <section id="captured-view" class="view" aria-labelledby="captured-title" hidden>
         <div class="section-heading"><h2 id="captured-title" tabindex="-1">Before you share</h2><button id="edit-captured" type="button" class="text-button" disabled>Edit profile</button></div>
-        <p class="section-intro">Review exactly what was captured before asking AI for suggestions.</p>
+        <p class="section-intro">Review the captured page, then get suggestions.</p>
         <p id="capture-site" class="site-label"></p>
-        <div class="disclosure"><h3>Profile shared with OpenAI</h3><dl id="profile-disclosure" class="key-values"></dl><p id="attachment-disclosure" class="hint"></p></div>
+        <div class="disclosure"><h3>Profile shared with the LLM</h3><dl id="profile-disclosure" class="key-values"></dl><p id="attachment-disclosure" class="hint"></p></div>
         <h3 class="list-heading">Captured fields <span id="captured-count" class="count"></span></h3>
-        <p class="hint">Labels, current values, field metadata and available choices are shared. Check for private information below.</p>
+        <p class="hint">Labels, current values and field metadata are included.</p>
         <div id="captured-fields" class="field-list"></div>
-        <details id="screenshot-preview" class="screenshot-preview" hidden><summary>View captured screenshot</summary><img id="screenshot" alt="Captured visible page. Review for private information before sharing."><p class="hint">A screenshot may contain information beyond the form.</p></details>
-        <p id="screenshot-unavailable" class="hint" hidden>No screenshot preview is available.</p>
-        <label class="check-row"><input id="include-screenshot" type="checkbox" disabled><span>Also send this screenshot to OpenAI <small>Optional and off by default. The visible page may expose unrelated private information, messages or account details. Inspect the preview before sharing.</small></span></label>
-        <label class="check-row consent"><input id="analysis-consent" type="checkbox" disabled><span>I agree to send my profile and the captured fields, including current values, to OpenAI for suggestions.</span></label>
+        <details id="screenshot-preview" class="screenshot-preview" hidden><summary>Page screenshot</summary><img id="screenshot" alt="Captured visible page. Review before sharing."><p class="hint">This is the visible tab. Take it again if the page changed.</p></details>
+        <p id="screenshot-unavailable" class="hint" hidden>No screenshot yet. Capture the page from this sidebar.</p>
+        <button id="retake-screenshot" type="button" class="button secondary wide" disabled>Take screenshot again</button>
+        <label class="check-row"><input id="include-screenshot" type="checkbox" disabled><span>Also send this screenshot to the LLM</span></label>
+        <input id="analysis-consent" type="checkbox" checked hidden>
         <button id="analyze" type="button" class="button primary wide" disabled><span>Suggest field values</span><span aria-hidden="true">→</span></button>
         <p class="action-note">Suggestions only. Your page will not be changed.</p>
       </section>
@@ -116,8 +91,31 @@
         </div>
         <section id="outcomes" class="outcomes" aria-labelledby="outcomes-title" hidden><h3 id="outcomes-title">Individual outcomes</h3><p class="hint">Check the page. Changes may have triggered autosave or uploads; nothing was submitted by the assistant.</p><div id="results" class="field-list"></div><button id="start-again" type="button" class="button secondary wide" disabled>Back to profile</button></section>
       </section>
+      <section id="epfo-panel" class="view" aria-labelledby="epfo-title" aria-busy="false">
+        <h2 id="epfo-title">EPFO rejection assistance</h2>
+        <p class="section-intro">Detect or paste a remark, then analyze. The backend connects automatically.</p>
+        <button id="epfo-detect" type="button" class="button secondary" disabled>Detect EPFO rejection</button>
+        <div class="field"><label for="epfo-candidates">Detected candidates</label><select id="epfo-candidates" disabled><option value="">No candidates detected</option></select></div>
+        <div class="field"><label for="epfo-remark">Rejection remark</label><textarea id="epfo-remark" rows="5" autocomplete="off" spellcheck="false" aria-describedby="epfo-privacy" disabled></textarea></div>
+        <p id="epfo-privacy" class="hint">Only this remark and language go to analysis.</p>
+        <button id="epfo-connect" type="button" class="button secondary" hidden disabled>Connect backend</button>
+        <div class="field"><label for="epfo-language">Language</label><select id="epfo-language" aria-describedby="epfo-readiness" disabled></select></div>
+        <p id="epfo-readiness" class="hint" hidden></p>
+        <input id="epfo-consent" type="checkbox" checked hidden>
+        <button id="epfo-analyze" type="button" class="button primary" disabled>Analyze rejection</button>
+        <button id="epfo-cancel" type="button" class="button secondary" disabled>Cancel</button>
+        <p id="epfo-status" class="status" role="status" aria-live="polite" aria-atomic="true">Detect or paste a remark. Backend languages load automatically.</p>
+        <p id="epfo-error" class="notice error" role="alert" hidden></p>
+        <aside id="epfo-detection-warnings" class="notice warning" hidden></aside>
+        <section id="epfo-results" class="field-list" aria-label="EPFO analysis results" hidden></section>
+      </section>
       <aside id="warnings-box" class="notice warning" hidden><h3>Please note</h3><ul id="warnings"></ul></aside>
-      <aside class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><div><strong>Helpful, not hands-off.</strong><p>You decide what to share and fill. Session data lasts until cleared or the browser session ends. Ordinary web forms only; some sites may not support filling.</p></div></aside>
+      <section class="view" aria-labelledby="privacy-local-title">
+        <h2 id="privacy-local-title">Local privacy capture</h2>
+        <p class="hint">Optional. Selected values stay in expiring memory. Opaque crop preview, local restore, and explicit Fill are available.</p>
+        <button id="privacy-local" type="button" class="button secondary" disabled>Open local-only privacy capture</button>
+      </section>
+      <aside class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><div><strong>Helpful, not hands-off.</strong><p>You decide what to share and fill. Session data lasts until cleared or the browser session ends.</p></div></aside>
     </main>
     <footer><span>LESS FRICTION. MORE CONTROL.</span><button id="clear-session" type="button" class="text-button" disabled>Clear session</button></footer>
     <noscript><p class="notice error">JavaScript is unavailable. Load this folder as an unpacked Chrome extension to use the assistant.</p></noscript>

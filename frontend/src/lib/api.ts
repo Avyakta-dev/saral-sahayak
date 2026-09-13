@@ -55,6 +55,7 @@ export interface ApiClient {
     language: Language,
     signal: AbortSignal,
     onActivity: (activity: AnalysisActivity) => void,
+    text?: string,
   ): Promise<AnalyzeResponse>;
 }
 
@@ -377,10 +378,16 @@ export function createApiClient(
         JSON.stringify({ language, content_type: file.type, content_length: file.size }),
       );
     },
-    analyzeImageStream(key, language, signal, onActivity) {
+    analyzeImageStream(key, language, signal, onActivity, text) {
       if (!/^inbox\/[0-9a-f]{32}\.(?:png|jpg|jpeg|webp)$/.test(key))
         return Promise.reject(new ApiError('invalid_request', 'Invalid image reference.'));
-      return stream(JSON.stringify({ image_key: key, language }), language, signal, onActivity);
+      const remark = typeof text === 'string' ? text.trim() : '';
+      return stream(
+        JSON.stringify(remark ? { image_key: key, language, text: remark } : { image_key: key, language }),
+        language,
+        signal,
+        onActivity,
+      );
     },
     getCapabilities(signal) {
       return request('capabilities', signal, (body, response) => {

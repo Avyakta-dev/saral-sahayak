@@ -25,6 +25,9 @@ def test_defaults_are_unconfigured():
     assert settings.llm_timeout_seconds == 25
     assert settings.analysis_request_seconds == 30
     assert settings.analysis_tool_calls == 12
+    assert settings.analysis_files == 8
+    assert settings.analysis_output_bytes == 48 * 1024
+    assert settings.analysis_output_tokens == 12000
     assert settings.analysis_model_turns == 12
     assert settings.analysis_model_output_tokens == 4096
     assert settings.llm_connect_timeout_seconds == 5
@@ -38,13 +41,16 @@ def test_defaults_are_unconfigured():
 IMAGE_ENDPOINT = "https://account.r2.cloudflarestorage.com"
 
 
-def test_image_input_is_disabled_and_unconfigured_by_default():
+def test_image_input_defaults_to_catbox_when_r2_is_unset():
     settings = Settings(_env_file=None)
-    assert settings.image_input_enabled is False
+    assert settings.image_input_enabled is True
     assert settings.image_lifecycle_configured is False
     assert settings.image_r2_endpoint == ""
     assert settings.image_r2_bucket == ""
-    assert settings.image_config() is None
+    config = settings.image_config()
+    assert config is not None
+    assert config.endpoint == "https://files.catbox.moe"
+    assert config.bucket == "catbox"
     assert settings.image_upload_ttl_seconds == 120
     assert settings.image_url_max_ttl_seconds == 120
     assert settings.image_max_bytes == 10 * 1024 * 1024
@@ -155,6 +161,9 @@ def test_explicit_environment_mapping(monkeypatch, style):
         "LLM_TIMEOUT_SECONDS": "25",
         "ANALYSIS_REQUEST_SECONDS": "30",
         "ANALYSIS_TOOL_CALLS": "16",
+        "ANALYSIS_FILES": "12",
+        "ANALYSIS_OUTPUT_BYTES": "98304",
+        "ANALYSIS_OUTPUT_TOKENS": "24000",
         "ANALYSIS_MODEL_TURNS": "16",
         "ANALYSIS_MODEL_OUTPUT_TOKENS": "8000",
         "LLM_CONNECT_TIMEOUT_SECONDS": "5",
@@ -176,6 +185,9 @@ def test_explicit_environment_mapping(monkeypatch, style):
     assert config.timeout_seconds == 25
     assert settings.analysis_request_seconds == 30
     assert settings.analysis_tool_calls == 16
+    assert settings.analysis_files == 12
+    assert settings.analysis_output_bytes == 98304
+    assert settings.analysis_output_tokens == 24000
     assert settings.analysis_model_turns == 16
     assert settings.analysis_model_output_tokens == 8000
     assert config.connect_timeout_seconds == 5

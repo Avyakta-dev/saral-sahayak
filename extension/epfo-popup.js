@@ -38,7 +38,8 @@
     el("detect").disabled = !live || waiting;
     el("connect").disabled = !live || waiting;
     el("consent").disabled = !live || waiting || !el("remark").value.trim() || !el("language").value;
-    el("analyze").disabled = !live || waiting || !el("consent").checked ||
+    el("analyze").disabled = !live || waiting ||
+      !el("remark").value.trim() || !languages.some((language) => language.code === el("language").value);
       !el("remark").value.trim() || !languages.some((language) => language.code === el("language").value);
     el("cancel").disabled = !live || !busy || cancelling;
     el("panel").setAttribute("aria-busy", String(waiting));
@@ -219,7 +220,7 @@
     status("Analysis received. Review the cited guidance and any missing fields.");
   }
 
-  el("detect").addEventListener("click", () => run("Detecting rejection remarks locally; no screenshot or backend request…", async (token) => {
+  el("detect").addEventListener("click", () => run("Detecting rejection remarks…", async (token) => {
     const hasPreview = Boolean(el("remark").value);
     resetCandidates();
     el("detection-warnings").replaceChildren();
@@ -246,11 +247,8 @@
       ? candidates.length ? "Your existing remark was kept. Choose a detected candidate only if you want to replace it, then review and approve again." : "No usable remark detected. Your existing remark was kept; review it before approval."
       : candidates.length === 1 ? "One remark detected. Review and edit it before approval." : candidates.length ? "Choose a candidate explicitly, or paste your own remark." : "No usable remark detected. Paste the rejection remark yourself.");
   }));
-  el("connect").addEventListener("click", () => run("Loading backend capabilities; no remark is sent…", async (token) => {
-    languages = [];
-    el("language").replaceChildren();
-    el("readiness").hidden = true;
-    updateControls();
+  async function loadLanguages(token) {
+    if (languages.length) return;
     const response = await request("SS_EPFO_CAPABILITIES");
     if (token !== epoch) return;
     const data = response.data;
@@ -259,6 +257,7 @@
     }
     languages = data.languages.filter((language) => language && typeof language.code === "string" && language.code && typeof language.name === "string" && typeof language.native_name === "string").slice(0, 30);
     if (!languages.length) throw new Error("The backend returned no enabled languages.");
+    el("language").replaceChildren();
     languages.forEach((language) => {
       const option = node("option", `${text(language.name, 100)} · ${text(language.native_name, 100)} (${text(language.code, 20)})`);
       option.value = language.code;
@@ -268,8 +267,13 @@
     el("readiness").textContent = data.analysis_available
       ? "Backend reports configuration/structural readiness only, not verified model connectivity, policy accuracy or translation quality."
       : "Backend reports analysis_available: false. Model configuration or knowledge dependencies are not ready. Analyze remains available to show the real backend error; no fallback advice is used.";
-    el("readiness").hidden = false;
-    status("Backend languages loaded. Review the remark, choose a language and approve before analysis.");
+    el("readiness").hidden = true;
+  }
+  el("connect").addEventListener("click", () => run("Connecting…", async (token) => {
+    languages = [];
+    el("language").replaceChildren();
+    await loadLanguages(token);
+    if (token === epoch) status("Ready. Review the remark, then analyze.");
   }));
   el("remark").addEventListener("input", () => {
     el("candidates").value = "";
@@ -284,12 +288,9 @@
       ? "Candidate changed. Review and edit the remark, then approve again."
       : "No candidate selected. Your existing remark was kept; review it and approve again.");
   });
-  el("consent").addEventListener("change", () => {
-    if (!el("consent").checked) invalidate("Approval removed. Pending work is cancelled; already sent data cannot be recalled.");
-    else updateControls();
-  });
+  el("consent").addEventListener("change", () => updateControls());
   el("analyze").addEventListener("click", () => {
-    if (el("analyze").disabled || !el("consent").checked) return;
+    if (el("analyze").disabled) return;
     const remark = el("remark").value;
     const language = el("language").value;
     if (!remark.trim() || [...remark].length > 8000) {
@@ -298,12 +299,14 @@
     }
     if (new TextEncoder().encode(JSON.stringify({ text: remark, language })).length > 32768) {
       showError("The UTF-8 request exceeds 32 KiB. Shorten the remark before approving it again.");
-      el("consent").checked = false;
+      el("consent").checked = true;
       updateControls();
       return;
     }
-    run("Analyzing only the reviewed remark with the selected backend language…", async (token) => {
-      const response = await request("SS_EPFO_ANALYZE", { text: remark, language, consent: true });
+    run("Analyzing the remark…", async (token) => {
+      await loadLanguages(token);
+      if (token !== epoch) return;
+      const response = await request("SS_EPFO_ANALYZE", { text: remark, language: el("language").value, consent: true });
       if (token !== epoch) return;
       renderAnalysis(response, language);
     });
@@ -326,6 +329,6 @@
     updateControls();
   });
 
-  if (!live) status("Extension runtime unavailable. Load this folder as an unpacked Chrome or Brave extension. EPFO controls are disabled; no preview fixtures or backend requests are used.");
-  updateControls(); // No detection, capabilities request or analysis on popup open.
+  if (!live) status("Extension runtime unavailable. Load this folder as an unpacked Chrome or Brave extension.");
+  updateControls();
 })();

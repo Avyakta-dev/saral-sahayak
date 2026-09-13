@@ -89,6 +89,7 @@ async def extract_rejection_text(
     max_output_tokens: int,
     allowed_host: str,
     allowed_port: int | None = None,
+    allow_data_url: bool = False,
 ) -> str:
     """Charge one tool-free model turn to the caller's budget and return transcribed text.
 
@@ -114,20 +115,24 @@ async def extract_rejection_text(
     host = (parsed_url.hostname or "").lower().rstrip(".")
     allowed = allowed_host.lower().rstrip(".")
     failure = None
-    try:
-        # .port raises ValueError for an out-of-range/non-numeric port instead of
-        # returning None; image_url is always server-generated so this should never
-        # happen, but it must resolve to this function's own sanitized error rather
-        # than escape as an unhandled exception.
-        url_port = parsed_url.port
-    except ValueError:
-        failure = AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
-    if failure is not None:
-        raise failure
-    port = 443 if url_port is None else url_port
-    expected_port = 443 if allowed_port is None else allowed_port
-    if parsed_url.scheme != "https" or host != allowed or port != expected_port:
-        raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
+    inline = image_url.startswith("data:image/png;base64,") and len(image_url) > 22
+    if allow_data_url and inline:
+        pass
+    else:
+        try:
+            # .port raises ValueError for an out-of-range/non-numeric port instead of
+            # returning None; image_url is always server-generated so this should never
+            # happen, but it must resolve to this function's own sanitized error rather
+            # than escape as an unhandled exception.
+            url_port = parsed_url.port
+        except ValueError:
+            failure = AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
+        if failure is not None:
+            raise failure
+        port = 443 if url_port is None else url_port
+        expected_port = 443 if allowed_port is None else allowed_port
+        if parsed_url.scheme != "https" or host != allowed or port != expected_port:
+            raise AnalysisError("image_input_unavailable", _UNAVAILABLE, 503)
     try:
         budget.begin_model_turn()
         tokens = min(

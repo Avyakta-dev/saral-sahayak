@@ -95,8 +95,8 @@ describe('offline capability-driven App', () => {
       'മലയാളം',
     ]);
     expect(screen.getByText('6 example languages · quality unreviewed')).toBeVisible();
-    expect(screen.getAllByRole('combobox')).toHaveLength(2);
-    expect(screen.getByRole('combobox', { name: 'Interface language' })).toHaveValue('en');
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(document.getElementById('ui-language')).toHaveValue('en');
     expect(screen.getByRole('button', { name: /Show me an example/ })).toBeVisible();
     for (const scenario of demo.demoScenarios) {
       expect(screen.queryByRole('button', { name: scenario.label })).not.toBeInTheDocument();
@@ -254,9 +254,6 @@ describe('explicit sample gallery', () => {
         expect(card).toHaveAttribute('lang', language);
         expect(screen.getByText(walkthroughRemark(language, value))).toBeVisible();
         expect(within(card).getByText('Sample only · not real claim advice')).toBeVisible();
-        expect(
-          within(card).getByText(/Sample language quality has not been independently reviewed/),
-        ).toBeVisible();
         expect(input()).toHaveValue('Keep this unsent text');
         if (value === 'success') {
           expect(within(card).getByText(response.explanation[0].text)).toBeVisible();

@@ -530,7 +530,6 @@ export function AnswerCard({
   mode,
   isSample: legacySample,
   sample = legacySample ?? true,
-  qualityVerified = false,
   onRetry,
   retryLabel,
   downloadsAvailable = false,
@@ -564,13 +563,6 @@ export function AnswerCard({
           <Pencil size={15} aria-hidden="true" /> {text.edit}
         </button>
       </header>
-      <p className="sample-quality-note" lang={locale}>
-        {isSample
-          ? t('sampleQualityNote')
-          : qualityVerified
-            ? t('serviceQualityNote')
-            : t('outputQualityNote')}
-      </p>
       {response.status === 'success' && response.classification && (
         <aside
           className="answer-uncertainty"
@@ -582,9 +574,6 @@ export function AnswerCard({
             <strong lang="en">{response.classification.confidence}</strong>
           </span>
           <p lang={response.language}>{response.classification.rationale}</p>
-          <small lang={locale}>
-            {isSample ? t('sampleConfidenceNote') : t('liveConfidenceNote')}
-          </small>
         </aside>
       )}
       {response.status === 'success' ? (

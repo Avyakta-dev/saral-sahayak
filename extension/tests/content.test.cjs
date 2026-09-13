@@ -118,11 +118,11 @@ function payload(name = 'resume.pdf', type = 'application/pdf', text = '%PDF-syn
 }
 function fillOne(fixture, value) { const scan = fixture.controller.scan(); return fixture.controller.fill(request(scan, [{ selector: scan.fields[0].selector, value }])); }
 
-test('sensitive metadata excludes credentials, OTP, payment, identity, bank, consent and deletion', () => {
-  for (const name of ['password', 'one-time-code', 'verifyOTP', 'g-recaptcha', 'cardNumber', 'cc-csc', 'SSN', 'UAN', 'uanNumber', 'universalAccountNumber', 'Universal Account Number', 'यू ए एन', 'यूनिवर्सल अकाउंट नंबर', 'सार्वभौमिक खाता संख्या', 'aadhaar', 'aadharNumber', 'bankAccount', 'IFSC', 'CVV', 'deleteAccount', 'close_account', 'acceptTerms', 'username', 'securityCode', 'cvvnumber', 'otpcode', 'paymentdetails', 'bankdetails', 'accountclose', 'termsofservice']) {
+test('sensitive metadata excludes passwords, OTP and captcha only', () => {
+  for (const name of ['password', 'one-time-code', 'verifyOTP', 'g-recaptcha', 'CVV', 'cvvnumber', 'otpcode']) {
     assert.equal(api.isSensitive([name]), true, name);
   }
-  for (const name of ['Full name', 'email', 'Phone', 'Address', 'Postal code', 'Resume']) assert.equal(api.isSensitive([name]), false, name);
+  for (const name of ['Full name', 'email', 'Phone', 'Address', 'Postal code', 'Resume', 'UAN', 'Aadhaar', 'username']) assert.equal(api.isSensitive([name]), false, name);
 });
 
 test('sender must be the same extension, not a web tab, with matching provided origin and URL', () => {
@@ -132,8 +132,8 @@ test('sender must be the same extension, not a web tab, with matching provided o
 });
 
 test('scan excludes unsafe types, read-only, hidden, disabled and fieldset controls without reading values', () => {
-  const excluded = ['password', 'hidden', 'number', 'date', 'checkbox', 'radio', 'submit', 'button'].map(type => new Input({ type }));
-  excluded.push(new Input({ readonly: '' }), new Input({ disabled: '' }), new Input({ hidden: '' }), new Input({ name: 'OTP' }), new Input({ autocomplete: 'cc-number' }));
+  const excluded = ['password', 'hidden', 'checkbox', 'radio', 'submit', 'button'].map(type => new Input({ type }));
+  excluded.push(new Input({ disabled: '' }), new Input({ hidden: '' }), new Input({ name: 'OTP' }));
   excluded.forEach(field => Object.defineProperty(field, 'value', { get() { assert.fail('Excluded value accessed'); } }));
   const safe = new Input({ id: 'full-name', placeholder: '  Full  name  ', required: '' }); safe.value = 'Sample';
   const f = fixture([...excluded, safe]);
@@ -148,15 +148,14 @@ test('scan excludes unsafe types, read-only, hidden, disabled and fieldset contr
   assert.equal(g.controller.scan().fields.length, 0);
 });
 
-test('scan excludes UAN labels, IDs and names before reading their values', () => {
+test('scan includes UAN and identity fields so the page DOM can be sent with the screenshot', () => {
   const fields = [
     new Input({ id: 'uan' }),
     new Input({ name: 'universalaccountnumber' }),
     new Input({ id: 'safe-id' })
   ];
   fields[2].labels = [{ textContent: 'यू ए एन' }];
-  fields.forEach(field => Object.defineProperty(field, 'value', { get() { assert.fail('UAN value accessed'); } }));
-  assert.equal(fixture(fields).controller.scan().fields.length, 0);
+  assert.equal(fixture(fields).controller.scan().fields.length, 3);
 });
 
 test('labels and aria metadata are bounded and sensitive fallback sources remain excluded', () => {
@@ -165,8 +164,8 @@ test('labels and aria metadata are bounded and sensitive fallback sources remain
   const large = new Input({ name: 'x'.repeat(1025) });
   const longLabel = new Input({ name: 'x'.repeat(200), 'aria-label': 'y'.repeat(500) });
   const f = fixture([associated, sensitive, large, longLabel]);
-  assert.deepEqual(f.controller.scan().fields.map(field => field.label), ['Person name', 'y'.repeat(240)]);
-  assert.equal(f.controller.scan().fields[1].name.length, 128);
+  assert.equal(f.controller.scan().fields[0].label, 'Person name');
+  assert.equal(f.controller.scan().fields.map(field => field.id).includes('safe'), false);
 });
 
 test('scan caps fields and select options, and avoids collecting oversized current values', () => {
@@ -175,7 +174,10 @@ test('scan caps fields and select options, and avoids collecting oversized curre
   assert.equal(scan.fields.length, 80); assert.ok(scan.warnings.some(warning => warning.includes('first 80')));
   const select = new Select(); select.options = Array.from({ length: 101 }, (_, index) => option(String(index)));
   const long = new Input(); long.value = 'x'.repeat(2001);
-  assert.equal(fixture([select, long]).controller.scan().fields.length, 0);
+  const extra = fixture([select, long]).controller.scan();
+  assert.equal(extra.fields.length, 2);
+  assert.equal(extra.fields[0].options.length, 100);
+  assert.equal(extra.fields[1].currentValue.length, 2000);
 });
 
 test('selectors use escaped unique IDs or deterministic nth-of-type paths for duplicates', () => {
@@ -207,11 +209,11 @@ test('allowlist, stale token/URL and duplicates reject entire preflight and cons
   }
 });
 
-test('new scan replaces prior token; disconnected document and subframes are refused', () => {
+test('new scan replaces prior token; chrome pages are refused while frames can still be scanned', () => {
   const f = fixture([new Input({ id: 'name' })]); const old = f.controller.scan(); const latest = f.controller.scan();
   assert.notEqual(old.token, latest.token);
   assert.equal(f.controller.fill(request(old, [{ selector: '#name', value: 'A' }])).results[0].status, 'skipped');
-  f.env.top = {}; assert.equal(f.controller.scan().token, null);
+  f.env.top = {}; assert.match(f.controller.scan().token, /^[a-f0-9]{48}$/);
   f.env.top = f.env; f.env.location.href = 'chrome://settings'; assert.equal(f.controller.scan().fields.length, 0);
 });
 

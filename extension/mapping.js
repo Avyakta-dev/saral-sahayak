@@ -61,6 +61,50 @@
     return false;
   }
 
+  function suggestFromProfile(fields, profile, file) {
+    const list = Array.isArray(fields) ? fields : [];
+    const mappings = [];
+    const seen = new Set();
+    let attached = false;
+    for (const field of list) {
+      if (!field || typeof field.selector !== "string" || seen.has(field.selector)) continue;
+      const hay = `${field.label || ""} ${field.name || ""} ${field.id || ""} ${field.type || ""}`.toLowerCase();
+      let source = null;
+      let value = "";
+      if (field.type === "file" && file && !attached) {
+        source = "file";
+        value = "__ATTACH_FILE__";
+        attached = true;
+      } else if (field.type === "email" || /\b(e-?mail)\b/.test(hay)) {
+        source = "email";
+        value = profile.email;
+      } else if (field.type === "tel" || /\b(phone|mobile|tel)\b/.test(hay)) {
+        source = "phone";
+        value = profile.phone;
+      } else if (/\b(address|street|city|pincode|postal|state)\b/.test(hay)) {
+        source = "address";
+        if (field.type === "select-one") {
+          const match = (field.options || []).find((option) => isGrounded(option.value, "address", profile, file));
+          value = match ? match.value : "";
+        } else value = profile.address;
+      } else if (field.type !== "file" && /\b(name|applicant|full.?name)\b/.test(hay)) {
+        source = "name";
+        value = profile.name;
+      }
+      if (!source || !value || !isGrounded(value, source, profile, file)) continue;
+      if (field.type === "select-one" && !(field.options || []).some((option) => option.value === value)) continue;
+      seen.add(field.selector);
+      mappings.push({
+        selector: field.selector,
+        value,
+        source,
+        confidence: "high",
+        reason: "Filled from your profile using the configured backend session.",
+      });
+    }
+    return validatePlan({ mappings }, list, profile, file);
+  }
+
   function validatePlan(data, fields, profile, file) {
     check(data && Array.isArray(data.mappings) && data.mappings.length <= 80, "The AI response is not a valid field mapping.");
     const bySelector = new Map(fields.map(field => [field.selector, field]));
@@ -103,7 +147,7 @@
     });
   }
 
-  const api = { MAX_FILE_BYTES, validateProfile, validateFile, validatePlan, validateEntries, isGrounded, check };
+  const api = { MAX_FILE_BYTES, validateProfile, validateFile, validatePlan, validateEntries, suggestFromProfile, isGrounded, check };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.FormMapping = api;
 })(globalThis);

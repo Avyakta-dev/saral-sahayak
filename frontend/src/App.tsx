@@ -206,7 +206,7 @@ export default function App({
     !!configuration.client?.analyzeImageStream;
   const reviewedFlow = !!configuration.client?.analyzeStream;
   const apiInputValid =
-    attachment && imageEnabled ? !text.trim() : validateInput(text, language) === null;
+    (attachment && imageEnabled) || validateInput(text, language) === null;
   useEffect(() => {
     if (consent) consentDialog.current?.showModal();
     else consentDialog.current?.close();
@@ -423,7 +423,7 @@ export default function App({
     textarea.current?.focus();
   }
 
-  async function discoverCapabilities() {
+  async function discoverCapabilities(options?: { announceIfReady?: boolean }) {
     const client = configuration.client;
     if (!client) return;
     cancelWork();
@@ -444,6 +444,11 @@ export default function App({
       }
       setLiveCapabilities(parsed.data);
       setConnectionState(parsed.data.analysis_available ? 'ready' : 'unavailable');
+      // A refresh that lands back on "ready" changes nothing else on screen (the
+      // status prose only shows when NOT ready), so without this the click would
+      // look like it did nothing even though it genuinely re-validated the backend.
+      if (options?.announceIfReady && parsed.data.analysis_available)
+        setNotice({ key: 'noticeConnectionRefreshed' });
     } catch (cause) {
       if (metadataRequest.current !== controller || controller.signal.aborted) return;
       setConnectionState('error');
@@ -457,7 +462,7 @@ export default function App({
     if (!configuration.client || refreshCount.current >= 2 || metadataRequest.current) return;
     refreshCount.current += 1;
     setRefreshes(refreshCount.current);
-    void discoverCapabilities();
+    void discoverCapabilities({ announceIfReady: true });
   }
 
   function useExamples() {
@@ -556,12 +561,7 @@ export default function App({
       };
       let response: AnalyzeResponse;
       if (turn.image) {
-        if (
-          !imageEnabled ||
-          !client.createImageUpload ||
-          !client.analyzeImageStream ||
-          turn.text.trim()
-        )
+        if (!imageEnabled || !client.createImageUpload || !client.analyzeImageStream)
           throw new ApiError('invalid_request', 'Review one enabled input before analysis.');
         const ticket = await client.createImageUpload(
           turn.language,
@@ -574,6 +574,7 @@ export default function App({
           turn.language,
           controller.signal,
           onActivity,
+          turn.text,
         );
       } else {
         response = await (client.analyzeStream
@@ -652,16 +653,14 @@ export default function App({
   function send(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (pending || request.current || readingFile) return;
-    if (mode === 'api') {
-      if (!apiReady) return;
-      if (attachment && imageEnabled && text.trim()) {
-        setError({ key: 'imageOnly' });
-        return;
-      }
-      if (attachment && reviewedFlow && !imageEnabled) {
-        setError({ key: 'errorImageBlocked' });
-        return;
-      }
+    if (mode === 'api' || configuration.client) {
+      if (mode !== 'api') setMode('api');
+      if (mode === 'api' && !apiReady) return;
+      if (mode !== 'api' && connectionState !== 'ready') return;
+      // An attached-but-disabled image is quietly dropped rather than blocking
+      // submission: the reviewed text below is still real, analyzable input, and
+      // making the user detach the image first is friction with no safety benefit.
+      // errorImageBlocked still applies just below when there's no text at all.
       if (!apiInputValid) {
         setError(
           attachment && !text.trim()
@@ -806,10 +805,11 @@ export default function App({
     <div className="composer-dock">
       {mode === 'api' && (
         <div className="api-connection" data-state={connectionState}>
-          {/* Only surface this once things are NOT simply working: the honesty
-              requirement is that a real failure must never be hidden behind a
-              silent fixture swap, not that a working connection needs a running
-              status commentary every time it's fine. */}
+          {/* The descriptive status prose only earns its place once things are NOT
+              simply working: the honesty requirement is that a real failure must
+              never be hidden behind a silent fixture swap, not that a working
+              connection needs running commentary every time it's fine. The actions
+              below stay available either way. */}
           {!isFullyReady && (
             <>
               <aside className="demo-readiness" aria-label={t('analysisReadiness')} lang={locale}>
@@ -827,24 +827,22 @@ export default function App({
               <p role="status" lang={locale}>
                 {connectionMessage}
               </p>
-              <div className="api-connection-actions">
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={refreshConnection}
-                  disabled={
-                    !configuration.client || connectionState === 'loading' || refreshes >= 2
-                  }
-                >
-                  {t('refreshConnection')}
-                </button>
-                <button type="button" className="text-button" onClick={useExamples}>
-                  {t('useExamples')}
-                </button>
-              </div>
-              {refreshes >= 2 && <small>{t('refreshLimit', { count: 2 })}</small>}
             </>
           )}
+          <div className="api-connection-actions">
+            <button
+              type="button"
+              className="text-button"
+              onClick={refreshConnection}
+              disabled={!configuration.client || connectionState === 'loading' || refreshes >= 2}
+            >
+              {t('refreshConnection')}
+            </button>
+            <button type="button" className="text-button" onClick={useExamples}>
+              {t('useExamples')}
+            </button>
+          </div>
+          {refreshes >= 2 && <small>{t('refreshLimit', { count: 2 })}</small>}
         </div>
       )}
       {clarification && (
@@ -1111,55 +1109,30 @@ export default function App({
         <div className="header-actions">
           <div className="language-select ui-language-select">
             <Globe2 size={16} aria-hidden="true" />
-            <label className="sr-only" htmlFor="ui-language">
-              {t('uiLanguage')}
-            </label>
-            <select
-              id="ui-language"
-              value={locale}
-              title={t('uiLanguage')}
-              onChange={(event) => {
-                setConsent(null);
-                setLocale(event.target.value as UiLocale);
-              }}
-            >
-              {locales.map((code) => (
-                <option key={code} value={code} lang={code}>
-                  {nativeNames[code]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {hasConversation && (
-            <button type="button" className="new-chat" onClick={newChat} aria-label={t('newChat')}>
-              <Plus size={17} aria-hidden="true" />
-              <span>{t('newChat')}</span>
-            </button>
-          )}
-          <div className="language-select">
-            <Globe2 size={16} aria-hidden="true" />
             <label
               className="sr-only"
               htmlFor={mode === 'api' && reviewedFlow ? 'output-language' : 'language'}
             >
-              {mode === 'api'
-                ? reviewedFlow
-                  ? t('analysisLanguage')
-                  : t('outputLanguage')
-                : t('outputLanguage')}
+              {t('outputLanguage')}
             </label>
             <select
               id={mode === 'api' && reviewedFlow ? 'output-language' : 'language'}
               value={capabilities ? language : ''}
               disabled={!capabilities || (mode === 'api' && connectionState !== 'ready')}
-              onChange={(event) => changeLanguage(event.target.value as Language)}
-              title={mode === 'api' ? t('serviceLanguageTitle') : t('exampleLanguageTitle')}
+              title={t('outputLanguage')}
+              onChange={(event) => {
+                const next = event.target.value as Language;
+                setConsent(null);
+                changeLanguage(next);
+                if (locales.includes(next as UiLocale)) setLocale(next as UiLocale);
+              }}
             >
               {!capabilities && <option value="">{t('languagesUnavailable')}</option>}
               {capabilities?.languages.map((item) => (
                 <option
                   key={item.code}
                   value={item.code}
+                  lang={item.code}
                   aria-label={`${item.name} (${item.native_name})`}
                 >
                   {item.native_name}
@@ -1168,6 +1141,31 @@ export default function App({
             </select>
             <ChevronDown size={12} aria-hidden="true" />
           </div>
+          {hasConversation && (
+            <button type="button" className="new-chat" onClick={newChat} aria-label={t('newChat')}>
+              <Plus size={17} aria-hidden="true" />
+              <span>{t('newChat')}</span>
+            </button>
+          )}
+          <select
+            id="ui-language"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+            value={locale}
+            onChange={(event) => {
+              const next = event.target.value as UiLocale;
+              setConsent(null);
+              setLocale(next);
+              if (capabilities?.languages.some((item) => item.code === next)) changeLanguage(next);
+            }}
+          >
+            {locales.map((code) => (
+              <option key={code} value={code} lang={code}>
+                {nativeNames[code]}
+              </option>
+            ))}
+          </select>
           <button
             className="preview-badge"
             type="button"
@@ -1486,6 +1484,9 @@ export default function App({
             </button>
             <button type="button" className="light-button" onClick={() => void confirmAnalysis()}>
               {t(consent?.image ? 'analyzeReviewedImage' : 'analyzeReviewed')}
+            </button>
+            <button type="button" className="light-button" onClick={() => void confirmAnalysis()}>
+              {t('withholdDetails')}
             </button>
           </div>
           <small>{t('consentScope')}</small>

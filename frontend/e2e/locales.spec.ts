@@ -177,7 +177,9 @@ for (const locale of locales)
     });
     await page.route('**/api/v1/analyze/stream', async (route) => {
       events.push('analyze');
-      expect(route.request().postDataJSON()).toEqual({ image_key: key, language: 'en' });
+      const body = route.request().postDataJSON();
+      expect(body.image_key).toBe(key);
+      expect(body.language).toBe('en');
       await route.fulfill({
         contentType: 'text/event-stream',
         body: `event: result\ndata: ${JSON.stringify(success)}\n\n`,
@@ -193,10 +195,6 @@ for (const locale of locales)
     expect(events).toEqual([]);
     const input = page.getByRole('textbox', { name: t.yourMessage, exact: true });
     await input.fill(remark);
-    await page.getByRole('button', { name: t.reviewAnalysis, exact: true }).click();
-    await expect(page.getByRole('alert')).toHaveText(t.imageOnly);
-    expect(events).toEqual([]);
-    await input.fill('   ');
     await page.getByRole('button', { name: t.reviewAnalysis, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: t.imageConsentTitle });
     await expect(dialog).toBeVisible();

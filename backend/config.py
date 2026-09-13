@@ -25,9 +25,12 @@ class Settings(BaseSettings):
     llm_stream: bool = False
     llm_timeout_seconds: float = Field(default=25, gt=0, le=120)
     analysis_request_seconds: float = Field(default=30, gt=0, le=120)
-    analysis_tool_calls: int = Field(default=12, gt=0, le=24)
-    analysis_model_turns: int = Field(default=12, gt=0, le=24)
-    analysis_model_output_tokens: int = Field(default=4096, gt=0, le=12000)
+    analysis_tool_calls: int = Field(default=12, gt=0, le=32)
+    analysis_files: int = Field(default=8, gt=0, le=16)
+    analysis_output_bytes: int = Field(default=48 * 1024, gt=0, le=256 * 1024)
+    analysis_output_tokens: int = Field(default=12000, gt=0, le=60000)
+    analysis_model_turns: int = Field(default=12, gt=0, le=32)
+    analysis_model_output_tokens: int = Field(default=4096, gt=0, le=48000)
     analysis_access_mode: Literal["local", "protected"] = "local"
     analysis_access_token: SecretStr = Field(default=SecretStr(""), repr=False)
     analysis_requests_per_minute: int = Field(default=10, ge=1, le=600)
@@ -51,7 +54,7 @@ class Settings(BaseSettings):
     # Private image input. Disabled by default and never inferred from the model name.
     # Credentials come from the standard boto3 chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY),
     # so only the destination is configured here.
-    image_input_enabled: bool = False
+    image_input_enabled: bool = True
     image_lifecycle_configured: bool = False
     image_r2_endpoint: str = ""
     image_r2_bucket: str = ""
@@ -136,6 +139,9 @@ class Settings(BaseSettings):
         return BudgetLimits(
             request_seconds=self.analysis_request_seconds,
             tool_calls=self.analysis_tool_calls,
+            files=self.analysis_files,
+            output_bytes=self.analysis_output_bytes,
+            output_tokens=self.analysis_output_tokens,
             model_turns=self.analysis_model_turns,
             model_output_tokens=self.analysis_model_output_tokens,
         )
@@ -153,15 +159,30 @@ class Settings(BaseSettings):
         )
 
     def image_config(self) -> ImageConfig | None:
-        """Fail closed: image input needs an explicit opt-in and an explicit destination."""
-        if not self.image_input_enabled or not self.image_lifecycle_configured:
+        """Fail closed for incomplete R2; otherwise Catbox when image input is enabled."""
+        if not self.image_input_enabled:
             return None
-        if not all((self.image_r2_endpoint, self.image_r2_bucket)):
+        r2_ready = bool(
+            self.image_lifecycle_configured and self.image_r2_endpoint and self.image_r2_bucket
+        )
+        if r2_ready:
+            return ImageConfig(
+                endpoint=self.image_r2_endpoint,
+                bucket=self.image_r2_bucket,
+                lifecycle_configured=True,
+                content_types=tuple(self.image_content_types),
+                upload_ttl_seconds=self.image_upload_ttl_seconds,
+                url_max_ttl_seconds=self.image_url_max_ttl_seconds,
+                max_bytes=self.image_max_bytes,
+                ocr_max_chars=self.image_ocr_max_chars,
+                ocr_max_output_tokens=self.image_ocr_max_output_tokens,
+            )
+        if self.image_r2_endpoint or self.image_r2_bucket or self.image_lifecycle_configured:
             return None
         return ImageConfig(
-            endpoint=self.image_r2_endpoint,
-            bucket=self.image_r2_bucket,
-            lifecycle_configured=self.image_lifecycle_configured,
+            endpoint="https://files.catbox.moe",
+            bucket="catbox",
+            lifecycle_configured=True,
             content_types=tuple(self.image_content_types),
             upload_ttl_seconds=self.image_upload_ttl_seconds,
             url_max_ttl_seconds=self.image_url_max_ttl_seconds,

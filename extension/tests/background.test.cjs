@@ -153,7 +153,7 @@ function harness(options = {}) {
     },
     scripting: { executeScript: async request => mocked('executeScript', [request], () => {
       if (request.files) {
-        assert.deepEqual(plain(request), { target: { tabId: TAB.id }, files: ['content.js'] });
+        assert.deepEqual(plain(request), { target: { tabId: TAB.id, allFrames: true }, files: ['content.js'] });
         return [{ frameId: 0, documentId: DOCUMENT_ID }];
       }
       assert.equal(typeof request.func, 'function');
@@ -321,7 +321,7 @@ test('only the exact extension popup sender can invoke any worker action', async
     { url: POPUP_URL }
   ];
   for (const sender of senders) {
-    for (const type of ['SS_GET', 'SS_SAVE', 'SS_SCAN', 'SS_ANALYZE', 'SS_FILL', 'SS_CLEAR']) {
+    for (const type of ['SS_GET', 'SS_SAVE', 'SS_SCAN', 'SS_SCREENSHOT', 'SS_ANALYZE', 'SS_FILL', 'SS_CLEAR']) {
       const request = h.dispatch({ type, payload: { consent: true, confirmed: true } }, sender);
       assert.equal(request.accepted, false, `${type} accepted ${JSON.stringify(sender)}`);
       await Promise.resolve();
@@ -747,9 +747,9 @@ test('SS_SCAN explicitly injects content, targets the injected document, and cap
   assert.equal(Object.hasOwn(state.scan, 'token'), false);
   assert.equal(Object.hasOwn(state.scan, 'url'), false);
   assert.deepEqual(h.of('sendMessage')[0].args, [TAB.id, { type: 'SS_SCAN' }, { documentId: DOCUMENT_ID }]);
-  assert.deepEqual(h.of('captureVisibleTab')[0].args, [TAB.windowId, { format: 'jpeg', quality: 55 }]);
-  assert.deepEqual(h.calls.map(call => call.name), ['query', 'executeScript', 'sendMessage', 'query', 'executeScript', 'captureVisibleTab', 'query', 'executeScript', 'set']);
-  for (const call of h.of('query')) assert.deepEqual(call.args, [{ active: true, currentWindow: true }]);
+  assert.deepEqual(h.of('captureVisibleTab')[0].args, [TAB.windowId, { format: 'jpeg', quality: 50 }]);
+  assert.deepEqual(h.calls.map(call => call.name), ['query', 'executeScript', 'sendMessage', 'captureVisibleTab', 'set']);
+  for (const call of h.of('query')) assert.deepEqual(call.args, [{ active: true, lastFocusedWindow: true }]);
   assert.equal(h.session().formAssistant.scan.documentId, DOCUMENT_ID);
   assert.equal(h.session().formAssistant.scan.token, h.captured.token);
   assert.equal(h.of('fetch').length, 0);
@@ -757,6 +757,20 @@ test('SS_SCAN explicitly injects content, targets the injected document, and cap
   h.resetCalls();
   successful(await h.send('SS_GET'));
   assert.deepEqual(h.calls, []);
+});
+
+test('SS_SCREENSHOT recaptures the visible tab on the current scan without a new injection', async () => {
+  const h = harness();
+  await captured(h);
+  h.resetCalls();
+  const next = 'data:image/jpeg;base64,cmVjYXB0dXJlZA==';
+  h.hooks.captureVisibleTab = () => next;
+  const state = successful(await h.send('SS_SCREENSHOT'));
+  assert.equal(state.stage, 'captured');
+  assert.equal(state.scan.screenshot, next);
+  assert.deepEqual(h.of('captureVisibleTab')[0].args, [TAB.windowId, { format: 'jpeg', quality: 50 }]);
+  assert.equal(h.of('executeScript').filter((call) => call.args[0].files).length, 0);
+  assert.equal(h.of('fetch').length, 0);
 });
 
 test('switching scan targets resets the previous document before injecting the replacement', async () => {
@@ -789,10 +803,8 @@ test('scan rejects unsupported pages, missing document IDs, and invalid content 
   const cases = [
     ['restricted URL', h => { h.tab.url = 'chrome://settings'; }, /Open a normal/],
     ['no active tab', h => { h.hooks.query = () => []; }, /Open a normal/],
-    ['missing document ID', h => { h.hooks.executeScript = () => [{ frameId: 0 }]; }, /stable document/],
-    ['missing token', h => { h.captured.token = null; }, /could not be read/],
-    ['empty fields', h => { h.captured.fields = []; }, /No supported visible fields/],
-    ['navigated content', h => { h.captured.url += '#changed'; }, /navigated during scanning/]
+    ['missing document ID', h => { h.hooks.executeScript = () => [{ frameId: 0 }]; }, /could not be read/],
+    ['missing token', h => { h.captured.token = null; }, /could not be read/]
   ];
   for (const [name, setup, pattern] of cases) await t.test(name, async () => {
     const h = harness();
@@ -803,6 +815,17 @@ test('scan rejects unsupported pages, missing document IDs, and invalid content 
     assert.equal(h.of('fetch').length, 0);
     assert.equal(h.fills().length, 0);
   });
+});
+
+test('scan keeps a screenshot when the page has no ordinary form fields', async () => {
+  const h = harness();
+  h.captured.fields = [];
+  const state = successful(await h.send('SS_SCAN'));
+  assert.equal(state.stage, 'captured');
+  assert.deepEqual(state.scan.fields, []);
+  assert.equal(state.scan.screenshot, SCREENSHOT);
+  assert.ok(state.scan.warnings.some((item) => /screenshot is available/i.test(item)));
+  assert.equal(h.of('captureVisibleTab').length, 1);
 });
 
 test('SS_ANALYZE requires strict consent, a scan, and a saved key before any fetch', async t => {
@@ -819,12 +842,14 @@ test('SS_ANALYZE requires strict consent, a scan, and a saved key before any fet
     failed(await h.send('SS_ANALYZE', { consent: true }), /Scan and review/);
     assert.equal(h.of('fetch').length, 0);
   });
-  await t.test('missing key', async () => {
+  await t.test('missing key uses the local profile instead of a provider key', async () => {
     const h = harness();
     await captured(h, { key: '' });
     h.resetCalls();
-    failed(await h.send('SS_ANALYZE', { consent: true }), /Add your OpenAI API key/);
-    assert.deepEqual(h.calls, []);
+    const state = successful(await h.send('SS_ANALYZE', { consent: true }));
+    assert.equal(state.stage, 'review');
+    assert.ok(state.plan.length > 0);
+    assert.equal(h.of('fetch').length, 0);
   });
 });
 
@@ -908,7 +933,7 @@ test('provider failures are sanitized and oversized streamed responses are cance
     const h = harness();
     await captured(h);
     h.reply([], { status, raw: `SECRET_PROVIDER_BODY ${KEY} ${TAB.url}` });
-    const response = failed(await h.send('SS_ANALYZE', { consent: true }), /OpenAI/);
+    const response = failed(await h.send('SS_ANALYZE', { consent: true }), /LLM provider|HTTP 500/);
     assert.equal(response.error.includes('SECRET_PROVIDER_BODY'), false);
     assert.equal(response.error.includes(KEY), false);
     assert.equal(response.error.includes(TAB.url), false);

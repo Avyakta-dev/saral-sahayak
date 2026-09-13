@@ -56,7 +56,7 @@ const input = (page: Page) => page.getByRole('textbox', { name: 'Your message', 
 const review = (page: Page) =>
   page.getByRole('button', { name: 'Review for analysis', exact: true });
 const approve = (page: Page) =>
-  page.getByRole('button', { name: 'Analyze reviewed text', exact: true });
+  page.getByRole('button', { name: 'Yes, share my details with the AI', exact: true });
 async function prepare(
   page: Page,
   handler: (route: Route) => Promise<void>,
@@ -84,8 +84,10 @@ test('consent gates transmission; success citations/draft are not labelled as sa
   await input(page).fill(remark);
   expect(requests).toHaveLength(0);
   await review(page).click();
-  await expect(page.getByRole('dialog', { name: 'Approve this text analysis' })).toBeVisible();
-  await expect(page.getByText(/model may be hosted remotely/)).toBeVisible();
+  await expect(
+    page.getByRole('dialog', { name: 'Will you allow us to share your details with the AI?' }),
+  ).toBeVisible();
+  await expect(page.getByText(/sent directly to the AI/)).toBeVisible();
   expect(requests).toHaveLength(0);
   await page.screenshot({ path: info.outputPath('consent.png'), fullPage: true });
   await page.getByRole('button', { name: 'Back to edit' }).click();

@@ -524,7 +524,7 @@ describe('failures and bounded manual retries', () => {
     const fake = client();
     fake.analyze.mockRejectedValue(new ApiError('access_denied', 'PRIVATE_TOKEN'));
     await ready(fake);
-    expect(screen.getByText('Analysis available (config + structure only)')).toBeVisible();
+    expect(document.querySelector('.api-connection')).toHaveAttribute('data-state', 'ready');
     await submit();
     expect(screen.getByText('Analysis gateway not ready')).toBeVisible();
     expect(screen.getAllByText(/Do not enter access tokens or provider keys/)[0]).toBeVisible();
@@ -792,8 +792,12 @@ describe('reactive interface localization without extra requests', () => {
         remark,
       );
     }
+    // Switching UI locale now also switches the analysis output language when the
+    // code matches an enabled one, so it must be set back to the turn's own
+    // language before retrying it, or the mismatch silently no-ops the retry.
+    fireEvent.change(document.querySelector('#ui-language')!, { target: { value: 'en' } });
     for (let i = 0; i < 2; i++) {
-      fireEvent.click(screen.getByRole('button', { name: dictionaries.ml.retryAnalysis }));
+      fireEvent.click(screen.getByRole('button', { name: dictionaries.en.retryAnalysis }));
       await settle();
     }
     for (const code of locales) {

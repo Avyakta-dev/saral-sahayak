@@ -16,26 +16,7 @@ describe('analysis-service answer presentation', () => {
     expect(screen.getByRole('heading', { name: 'Your grounded answer' })).toBeVisible();
     expect(screen.getByText('Grounded analysis · educational, not legal advice')).toBeVisible();
     expect(screen.queryByText('Sample only · not real claim advice')).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Output language quality has not been independently verified.'),
-    ).toBeVisible();
     expect(screen.getByText(response.classification!.rationale)).toBeVisible();
-    expect(
-      screen.getByText(
-        'Classification confidence is not source verification or a guarantee of the outcome.',
-      ),
-    ).toBeVisible();
-  });
-
-  it('treats quality flags as service metadata rather than an accuracy guarantee', () => {
-    render(
-      <AnswerCard response={getWalkthrough('en')} onEdit={vi.fn()} mode="live" qualityVerified />,
-    );
-    expect(
-      screen.getByText(
-        'The service reports reviewed language quality; this does not guarantee this answer.',
-      ),
-    ).toBeVisible();
   });
 
   it('shows actual limitations by default, without calling sources verified', () => {

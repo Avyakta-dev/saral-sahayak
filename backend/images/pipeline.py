@@ -1,6 +1,7 @@
 """One-use admission and validated private snapshots on a caller-owned budget."""
 
 import asyncio
+import base64
 import io
 import logging
 import secrets
@@ -17,10 +18,10 @@ from backend.tools.budget import Budget, KnowledgeError
 
 from .config import ImageConfig
 from .extractor import extract_rejection_text
+from .catbox import CatboxStorage
 from .storage import (
     DELETE_TIMEOUT_SECONDS,
     InvalidImage,
-    R2Storage,
     StorageError,
     is_admissible_key,
     joined_thread,
@@ -116,7 +117,7 @@ class ImagePipeline:
             raise StorageError(_UNAVAILABLE)
         self.config = config
         self.client = client
-        self.storage = storage if storage is not None else R2Storage(config)
+        self.storage = storage if storage is not None else CatboxStorage(config)
         _endpoint = urlsplit(config.endpoint)
         self._image_host = _endpoint.hostname
         invalid_port = False
@@ -235,9 +236,17 @@ class ImagePipeline:
                 # Not CopyObject: use exactly the decoded bytes, never mutable inbox.
                 # This key has never had a PUT signature; only server writes it once.
                 provider_key = f"validated/{secrets.token_hex(16)}.png"
-                await self.storage.put_validated(provider_key, validated)
-                self._check_ticket(ticket, budget)
-                image_url = self.storage.presign_get(provider_key)
+                inline = False
+                try:
+                    await self.storage.put_validated(provider_key, validated)
+                    self._check_ticket(ticket, budget)
+                    image_url = self.storage.presign_get(provider_key)
+                except StorageError:
+                    provider_key = None
+                    inline = True
+                    image_url = "data:image/png;base64," + base64.standard_b64encode(
+                        validated
+                    ).decode("ascii")
                 self._check_ticket(ticket, budget)
                 text = await extract_rejection_text(
                     self.client,
@@ -247,6 +256,7 @@ class ImagePipeline:
                     max_output_tokens=self.config.ocr_max_output_tokens,
                     allowed_host=self._image_host,
                     allowed_port=self._image_port,
+                    allow_data_url=inline,
                 )
         except InvalidImage:
             failure = AnalysisError("image_not_admitted", _NOT_ADMITTED, 422)

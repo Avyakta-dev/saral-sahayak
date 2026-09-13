@@ -1,12 +1,12 @@
 export const en = {
-  imageConsentTitle: 'Approve this image analysis',
+  imageConsentTitle: 'Will you allow us to share your details with the AI?',
   imageConsentDestination:
-    'The complete selected image file, including its contents and any embedded metadata, will be uploaded to the private storage host controlled by the configured analysis service. The service will process it with its configured model, which may be remote. No typed text or chat history is sent with the image.',
+    'If you allow, this image is sent directly to the analysis model. If you do not, we redact at least three secret details so the AI does not see them, then analyze.',
   imageConsentPrivacy:
-    'Review the image below. Remove personal identifiers before attaching it; this page does not automatically redact your image. Use fictional or manually redacted material. Cancelling cannot recall an image already uploaded or received by the model.',
-  analyzeReviewedImage: 'Analyze reviewed image',
+    'Allowing shares the image with the AI as reviewed. Declining withholds at least three secret details (such as Aadhaar, PAN and UAN) from the AI.',
+  analyzeReviewedImage: 'Yes, share this image with the AI',
   imageUploadNote:
-    'Images stay local until separate approval. If image analysis is enabled, Analyze reviewed image uploads the selected file for model processing. No automatic redaction.',
+    'Images stay local until you choose. Share sends the image to the AI. Decline redacts at least three secret details first.',
   imageOnly: 'Send either the image or your text, not both. Clear the text or remove the image.',
   approvedInput: 'Only approved input is sent',
   serviceDestination: 'Configured analysis service: {destination}',
@@ -49,10 +49,10 @@ export const en = {
   openingSample: 'Opening the sample walkthrough…',
   imageAttached: 'Image attached',
   messageReady: 'Message ready',
-  imageNext: 'Got the image. Reading it is the next piece.',
+  imageNext: 'Image is ready on this device.',
   assistantDisconnected: 'Your message is here. The assistant isn’t connected yet.',
   imageUnavailable:
-    'You can preview or replace this image. OCR and claim analysis are not available yet; no text has been extracted.',
+    'Use the live API in the header to analyze this image. This preview does not upload it.',
   previewUnavailable:
     'This preview can’t analyze your claim or answer follow-up questions yet. Your message stays on this device.',
   seeExample: 'See an example',
@@ -60,7 +60,7 @@ export const en = {
   editMessage: 'Edit message',
   whyUnavailable: 'Why can’t it answer yet?',
   connectionExplanation:
-    'This web preview is not connected to an analysis service. Images are selected locally, not uploaded. It never substitutes a canned answer for your own claim.',
+    'The header badge must say API for live analysis. Preview keeps images on this device and does not upload them.',
   loadingLanguages: 'Loading languages…',
   checkingCapabilities: 'Checking backend capabilities…',
   available:
@@ -108,15 +108,16 @@ export const en = {
   chooseImage: 'Choose image file',
   capturePhoto: 'Capture photo',
   chooseText: 'Choose text file',
-  consentTitle: 'Approve this text analysis',
+  consentTitle: 'Will you allow us to share your details with the AI?',
   consentDestination:
-    'Only the reviewed text below and your output language will be sent to the local backend and its configured model. The model may be hosted remotely. No images, filenames or chat history are sent.',
+    'If you allow, the reviewed text below is sent directly to the AI. If you do not, we redact at least three secret details so the AI does not see them, then analyze.',
   consentPrivacy:
-    'Remove Aadhaar, PAN, UAN, bank details and other personal identifiers. Use fictional or redacted material. Cancelling cannot recall text already received.',
+    'Allowing shares your details with the AI as written. Declining withholds at least three secret details (such as Aadhaar, PAN and UAN) from the AI.',
   consentLanguage: 'Output language: {language}',
   backEdit: 'Back to edit',
-  analyzeReviewed: 'Analyze reviewed text',
-  consentScope: 'Approval applies only to this request. No automatic retries or submissions.',
+  analyzeReviewed: 'Yes, share my details with the AI',
+  withholdDetails: "Don't share — redact 3 secrets, then analyze",
+  consentScope: 'This choice applies only to this request. No automatic retries or submissions.',
   closeDetails: 'Close preview details',
   aboutLive: 'About local live text',
   aboutPreview: 'What works in this preview',
@@ -218,6 +219,22 @@ export const en = {
   activityLines: '{heading} · lines {start}–{end}',
   activityCaveat:
     'Only host-reported activity is shown. Reading a file does not independently verify its sources or policy accuracy.',
+  agentsTitle: 'Agents on this request',
+  agentExtractor: 'Extractor',
+  agentExtractorWork: 'OCR and parse the remark',
+  agentClassifier: 'Classifier',
+  agentClassifierWork: 'Map to a rejection category',
+  agentExplainer: 'Explainer',
+  agentExplainerWork: 'Plain-language explanation',
+  agentFix: 'Fix generator',
+  agentFixWork: 'Step-by-step checklist',
+  agentDraft: 'Draft agent',
+  agentDraftWork: 'Draft from cited actions',
+  agentOrchestrator: 'Orchestrator',
+  agentOrchestratorWork: 'Merge into the final answer',
+  agentActive: 'Working',
+  agentDone: 'Done',
+  agentQueued: 'Queued',
   errorGeneric: 'Analysis could not be completed safely.',
   errorFile: 'This file could not be opened. Try a PNG, JPG, WebP or plain text file.',
   errorOneFile: 'Add one file at a time. You can replace an image before sending.',
@@ -428,6 +445,7 @@ export const en = {
   noticeExampleMode: 'Example mode. Nothing is sent; your input is preserved.',
   noticeApiMode: 'API mode. Review your text before choosing Analyze text.',
   noticeExampleLoaded: 'Example reply loaded. This is not live analysis.',
+  noticeConnectionRefreshed: 'Connection refreshed. Still ready.',
 } as const;
 
 export type MessageKey = keyof typeof en;

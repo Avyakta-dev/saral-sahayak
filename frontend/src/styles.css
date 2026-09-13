@@ -1061,6 +1061,80 @@ dialog::backdrop {
   align-items: center;
   gap: 8px;
 }
+.agent-pipeline {
+  margin: 12px 0 4px;
+}
+.agent-pipeline-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4d5f42;
+  margin-bottom: 8px;
+}
+.agent-pipeline ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.agent-step {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #e7eedd;
+}
+.agent-step strong {
+  display: block;
+  font-size: 12px;
+}
+.agent-step em {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  color: #5b6a4e;
+}
+.agent-step small {
+  font-size: 10px;
+  font-weight: 700;
+  color: #5b6a4e;
+}
+.agent-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: #d5e0c8;
+  color: #314227;
+}
+.agent-active {
+  background: #d9edac;
+  box-shadow: 0 0 0 1px #b7cf7e;
+}
+.agent-active .agent-mark {
+  background: #183f38;
+  color: #d9edac;
+}
+.agent-active small {
+  color: #183f38;
+}
+.agent-done {
+  background: #eef4e6;
+}
+.agent-done .agent-mark {
+  background: #3f6b3a;
+  color: #fff;
+}
+.agent-queued {
+  opacity: 0.72;
+}
 .activity-history {
   max-height: 220px;
   overflow: auto;
