@@ -646,6 +646,27 @@ def test_prompt_and_repair_preserve_action_qualifications_quotes_and_language(la
     assert f"Output language MUST be {language}" in prompt
 
 
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_prompt_and_repair_require_clause_level_evidence_and_explicit_attribution(language):
+    """Prompt regression only: provenance validation is not a semantic support oracle."""
+    for message in [
+        _prompt(AnalyzeRequest(text="Synthetic input", language=language)),
+        _repair_message("Claim requires source evidence from the same file."),
+    ]:
+        assert (
+            "Every source-backed factual clause must be supported by the exact excerpts" in message
+        )
+        assert "that block's attached evidence_ids" in message
+        assert "presence elsewhere in the same file or read history is not enough" in message
+        assert "attach the relevant already-read section's evidence_id" in message
+        assert "or omit the unsupported clause" in message
+        assert "a Sources URL alone does not establish factual support" in message
+        assert "Keep user-supplied facts explicitly user-reported" in message
+        assert "do not attribute them to a source unless an explicitly cited excerpt supports" in (
+            message
+        )
+
+
 @pytest.mark.parametrize("blocked_read", [False, True])
 async def test_citable_candidate_allows_clarification_without_guidance(root, blocked_read):
     """Scripted policy regression, not proof of live model semantic behavior."""

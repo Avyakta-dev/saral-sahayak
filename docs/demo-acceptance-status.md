@@ -57,6 +57,12 @@ Added 102 further operational messages to all six dictionaries, bringing each to
 
 The live error boundary now maps messages by safe code and displays only allowlisted canonical error identifiers; unknown error-code prose is hidden. Explicit sample error text remains illustrative content. A local reviewer confirmed the raw-code disclosure fix by source inspection. Final standard frontend validation passed formatting/build and **916 unit/component tests**, **160 preview browser tests**, and **62 live/locale browser tests**. All six catalogs passed key/placeholder parity at 361 keys each. Browser tests used synthetic API/storage responses; no R2 or model requests were made by those suites. Native-language quality remains independently unverified.
 
+## Post-push claim-level citation follow-up
+
+After publishing the hardening checkpoint, a six-line generic prompt/repair rule was added: every source-backed factual clause must be supported by its attached exact excerpt IDs; a relevant statement elsewhere in the same file or history is insufficient. The model should attach the already-read supporting section or omit that clause, and distinguish user-reported facts from source attributions. Six language-parameterized instruction regressions were added; the full Python suite passed **1,448 tests**, with the same two dependency deprecation warnings.
+
+One capped Kannada retest used six provider calls and returned `unsupported` in **23.44 seconds** on the supported initials case. It withheld guidance and a draft, but this **does not pass supported-case acceptance**. The rule is a defense-in-depth instruction, not semantic citation enforcement or proof of multilingual readiness. Further model evaluation is still required; no successful Kannada acceptance is claimed by this follow-up.
+
 ## Acceptance interpretation
 
 Offline mocked browser/storage tests do not prove model output quality, bucket lifecycle, successful cloud uploads or deployment. Repeatable synthetic live status checks are a narrower gate, not certification of every rejection case. Keep unsupported and ambiguous cases fail-closed; never substitute fictional example output for a failed real request.

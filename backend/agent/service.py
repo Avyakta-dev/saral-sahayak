@@ -64,6 +64,12 @@ _APPLICABILITY_RULE = (
 )
 
 _GUIDANCE_FIDELITY_RULES = (
+    "Every source-backed factual clause must be supported by the exact excerpts identified by "
+    "that block's attached evidence_ids; presence elsewhere in the same file or read history "
+    "is not enough. For each clause, attach the relevant already-read section's evidence_id "
+    "or omit the unsupported clause; a Sources URL alone does not establish factual support. "
+    "Keep user-supplied facts explicitly user-reported; do not attribute them to a source unless "
+    "an explicitly cited excerpt supports that attribution. "
     "When paraphrasing or translating an action, preserve all attached prohibitions, timing "
     "restrictions, prerequisites, limits and source-authority caveats in that same action. "
     "Do not silently drop them or move them only into warnings; omit the entire action if "
